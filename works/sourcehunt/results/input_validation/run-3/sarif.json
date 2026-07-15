@@ -1,0 +1,207 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "missing_bounds_check",
+          "level": "warning",
+          "message": {
+            "text": "The loop iterating over reference pictures uses `s->sh.nb_refs[L0]` as the bound without validating it against the HEVC specification maximum of 16. This value is derived directly from the bitstream. If `nb_refs[L0]` exceeds 16, the loop writes out-of-bounds into the fixed-size stack arrays `luma_weight_l0_flag[16]` and `chroma_weight_l0_flag[16]`, as well as the HEVC context arrays."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 152
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "NULL Pointer Dereference",
+          "level": "warning",
+          "message": {
+            "text": "Missing NULL check before dereferencing h->DPB[i].f in the Picture Decoding Buffer cleanup loop."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 114
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow leading to Heap Buffer Overflow",
+          "level": "error",
+          "message": {
+            "text": "Unvalidated h->mb_width and h->mb_height from the bitstream are used in arithmetic to calculate allocation sizes without overflow checks. The multiplication b4_stride * h->mb_height * 4 can wrap around to a small value."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 157
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow leading to Heap Buffer Overflow",
+          "level": "error",
+          "message": {
+            "text": "Allocation size calculation for top_borders uses h->mb_width without validation or overflow protection. The expression h->mb_width * 16 * 3 * sizeof(uint8_t) * 2 can overflow."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 132
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "Accesses c->fc->streams array at index nb_streams - 1 without verifying that at least one stream exists."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 206
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing_bounds_check",
+          "level": "note",
+          "message": {
+            "text": "Reads two bytes unconditionally before checking if len >= 6. If len < 4, the parser reads past the atom boundary."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 99
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing_bounds_check",
+          "level": "note",
+          "message": {
+            "text": "Reads four bytes unconditionally without verifying len >= 4."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 124
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "The check_pes function accesses p[3], p[4], and p[6] without verifying that the input pointer p has at least 7 bytes remaining before the end boundary. The end parameter is provided but never used for bounds checking."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mpeg.c"
+                },
+                "region": {
+                  "startLine": 39
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "In mpegps_probe, the code unconditionally reads p->buf[i + 1] and p->buf[i + 2] immediately after detecting a start code. If the start code occurs at i == p->buf_size - 1 or i == p->buf_size - 2, these accesses go out of bounds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mpeg.c"
+                },
+                "region": {
+                  "startLine": 67
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "note",
+          "message": {
+            "text": "check_pack_header is called with p->buf + i without ensuring that at least 2 bytes are available. If i == p->buf_size - 1, accessing buf[1] is out of bounds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mpeg.c"
+                },
+                "region": {
+                  "startLine": 69
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

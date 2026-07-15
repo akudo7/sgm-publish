@@ -1,0 +1,150 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "NULL pointer dereference",
+          "level": "note",
+          "message": {
+            "text": "In release_unused_pictures, the code dereferences h->DPB[i].f without checking for NULL. Unused DPB slots have f set to NULL, causing a crash when accessing buf[0]."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 142
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "note",
+          "message": {
+            "text": "Unsigned integer underflow in length calculation bypasses bounds checks"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 208
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "note",
+          "message": {
+            "text": "Missing length validation before reading metadata bytes"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 118
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow / Out-of-Bounds Write",
+          "level": "error",
+          "message": {
+            "text": "The calculation sz = 64 * s->sb_cols * s->sb_rows; uses 32-bit signed integer arithmetic. If s->sb_cols and s->sb_rows are sufficiently large (e.g., from unclamped or malicious bitstream dimensions), the multiplication can overflow, resulting in a negative or wrapped sz value."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 85
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow leading to Buffer Overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in `min_pu_size * sizeof(MvField)` passed to `av_buffer_pool_init`"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 118
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in `min_pu_size` calculation combined with missing overflow checks in `av_buffer_pool_init` leads to undersized heap allocations. Malicious SPS parameters can cause the multiplication to wrap around to a small positive value, resulting in a heap buffer overflow during subsequent decoding operations."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 47
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "use-after-free",
+          "level": "warning",
+          "message": {
+            "text": "Missing null-assignment of `f->mv` in `vp9_frame_unref` leaves a dangling pointer after `f->extradata` is freed."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 104
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

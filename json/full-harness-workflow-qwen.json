@@ -1,0 +1,408 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Sprint Contract + Context Reset + Environment Bootstrapping による長時間安定実行",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 150,
+    "eventEmitter": {
+      "defaultMaxListeners": 10
+    },
+    "contextGuard": {
+      "enabled": true,
+      "modelContextLimit": 200000,
+      "thresholdRatio": 0.7
+    }
+  },
+  "stateAnnotation": {
+    "name": "FullHarnessState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": "[]"
+    },
+    "activeMessages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => { const isReset = y.length === 1 && typeof y[0].content === 'string' && (/^=== (Context Reset|Generator Bootstrap|Evaluator Bootstrap|Feedback Bootstrap)/).test(y[0].content); return isReset ? y : x.concat(y); }",
+      "default": "[]"
+    },
+    "taskSpec": {
+      "type": "string",
+      "reducer": "(x, y) => y",
+      "default": "\"\""
+    },
+    "sprintContract": {
+      "type": "{ goals: string[]; successCriteria: string[]; sprintNumber: number } | null",
+      "reducer": "(x, y) => y",
+      "default": "null"
+    },
+    "sprintResult": {
+      "type": "{ passed: boolean; feedback: string; score: number } | null",
+      "reducer": "(x, y) => y",
+      "default": "null"
+    },
+    "retryCount": {
+      "type": "number",
+      "reducer": "(x, y) => x + y",
+      "default": "0"
+    },
+    "estimatedContextTokens": {
+      "type": "number",
+      "reducer": "(x, y) => y",
+      "default": "0"
+    },
+    "contextResetCount": {
+      "type": "number",
+      "reducer": "(x, y) => x + y",
+      "default": "0"
+    },
+    "lastContextResetAt": {
+      "type": "string | null",
+      "reducer": "(x, y) => y",
+      "default": "null"
+    }
+  },
+  "models": [
+    {
+      "id": "planner_model",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "backend": {
+          "virtualMode": true,
+          "rootDir": "."
+        }
+      },
+      "systemPrompt": "あなたはプロジェクトプランナーです。ユーザーの指示を元に、詳細な実装仕様(taskSpec)を作成してください。必ず具体的な実装計画を出力してください。質問や確認は行わず、推測して計画を立ててください。"
+    },
+    {
+      "id": "negotiator_model",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "backend": {
+          "virtualMode": true,
+          "rootDir": "."
+        }
+      },
+      "systemPrompt": "あなたはSprintネゴシエーターです。taskSpecを参考に、次スプリントのgoalsとsuccessCriteriaをsprintContractとして返してください。必ず以下のJSON形式で出力してください: {\"goals\": [\"...\"], \"successCriteria\": [\"...\"], \"sprintNumber\": 1}"
+    },
+    {
+      "id": "generator_model",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "backend": {
+          "virtualMode": true,
+          "rootDir": "."
+        }
+      },
+      "systemPrompt": "あなたは実装エンジニアです。sprintContract.goalsに記載されたゴールを実装してください。実装後、そのサマリーと自己評価をmessagesに追加してください。"
+    },
+    {
+      "id": "evaluator_model",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "backend": {
+          "virtualMode": true,
+          "rootDir": "."
+        }
+      },
+      "systemPrompt": "あなたは品質評価エージェントです。sprintContract.successCriteriaに基づき実装を評価してください。必ず以下のJSON形式で出力してください: {\"sprintResult\": {\"passed\": true/false, \"feedback\": \"...\", \"score\": 0-100}} scoreが80以上の場合のみpassedをtrueにしてください。"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "bootstrap_planner_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/bootstrap_planner_node_2.js"
+      }
+    },
+    {
+      "id": "planner_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "planner_model"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/planner_node_2.js"
+      }
+    },
+    {
+      "id": "bootstrap_generator_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/bootstrap_generator_node_2.js"
+      }
+    },
+    {
+      "id": "negotiate_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "negotiator_model"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/negotiate_node_2.js"
+      }
+    },
+    {
+      "id": "generator_node",
+      "type": "function",
+      "useSystemSkills": true,
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "generator_model"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/generator_node_2.js"
+      }
+    },
+    {
+      "id": "bootstrap_evaluator_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/bootstrap_evaluator_node_2.js"
+      }
+    },
+    {
+      "id": "evaluator_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "evaluator_model"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/evaluator_node_2.js"
+      }
+    },
+    {
+      "id": "router_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/router_node_2.js"
+      }
+    },
+    {
+      "id": "bootstrap_feedback_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/bootstrap_feedback_node_2.js"
+      }
+    },
+    {
+      "id": "context_guard_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/context_guard_node.js"
+      }
+    },
+    {
+      "id": "context_reset_eval_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof FullHarnessState.State"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/context_reset_eval_node.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "bootstrap_planner_node"
+    },
+    {
+      "from": "bootstrap_planner_node",
+      "to": "planner_node"
+    },
+    {
+      "from": "planner_node",
+      "to": "bootstrap_generator_node"
+    },
+    {
+      "from": "bootstrap_generator_node",
+      "to": "negotiate_node"
+    },
+    {
+      "from": "negotiate_node",
+      "to": "generator_node"
+    },
+    {
+      "from": "generator_node",
+      "to": "bootstrap_evaluator_node"
+    },
+    {
+      "from": "bootstrap_evaluator_node",
+      "to": "context_reset_eval_node"
+    },
+    {
+      "from": "evaluator_node",
+      "to": "router_node"
+    },
+    {
+      "from": "router_node",
+      "type": "conditional",
+      "condition": {
+        "name": "routeSprint",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof FullHarnessState.State"
+            }
+          ],
+          "output": "",
+          "functionFile": "json/functions/node_28.js"
+        },
+        "possibleTargets": [
+          "generator_node",
+          "bootstrap_feedback_node",
+          "__end__"
+        ]
+      }
+    },
+    {
+      "from": "bootstrap_feedback_node",
+      "to": "context_guard_node"
+    },
+    {
+      "from": "context_guard_node",
+      "to": "negotiate_node"
+    },
+    {
+      "from": "context_reset_eval_node",
+      "to": "evaluator_node"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "FullHarnessState"
+  }
+}

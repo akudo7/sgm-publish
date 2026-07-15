@@ -1,0 +1,22 @@
+{
+  "sessionId": "consulting-v2-1779894763362",
+  "threadId": "slack-test-1779894763362",
+  "initialQuestion": [
+    "SceneGraphMangerのインスタンスの作成方法を教えて下さい",
+    "回答の続きを表示して下さい"
+  ],
+  "durationMs": 84562,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerにおいてワークフローを実行するための主要な公開APIは `WorkflowEngine` クラスです。インスタンスの作成は以下の手順で行います。\n\n### 1. パッケージからのインポート\n```typescript\nimport { WorkflowEngine } from '@kudos/scene-graph-manager';\n```\n\n### 2. ワークフロー設定の準備\n`WorkflowEngine` のコンストラクタには、JSON形式で定義されたワークフロー設定オブジェクトを渡します。設定には以下の要素が含まれます：\n- `config`: ワークフローのメタ情報（名前、説明など）\n- `stateAnnotation` / `annotation`: 状態管理のためのアノテーション定義\n- `models`: 使用するAIモデルの設定（ID、タイプ、APIキー等）\n- `nodes` / `edges`: ワークフローのノードと接続関係を定義する配列\n- `stateGraph`: アノテーション参照の設定\n\n設定はTypeScriptコード内で直接定義するほか、外部のJSONファイルとして読み込んで渡すことも可能です。\n\n### 3. インスタンス生成と構築\n```typescript\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\nコンストラクタでインスタンスを生成した後、必ず `build()` メソッドを非同期で呼び出してグラフを構築する必要があります。これにより、設定が検証され実行可能な状態になります。\n\n### 4. 実行\n構築が完了したら、`invoke()` メソッドを使用してワークフローを実行できます。\n```typescript\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\n```\n\n### 補足\n- `WorkflowEngine` はLangGraphベースのステートマシンをラップしており、JSON駆動で複雑なマルチエージェントやツール連携のワークフローを柔軟に定義・実行できます。\n- 設定スキーマの詳細やノードタイプ（`model`, `tool`, `conditional`, `custom` など）については、公式のAPIドキュメントやワークフロー例を参照してください。"
+  ],
+  "timestamp": "2026-05-27T15:14:07.943Z"
+}

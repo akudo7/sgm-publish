@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779896544080",
+  "threadId": "test-signature",
+  "initialQuestion": [
+    "WorkflowEngine.invokeのシグネチャ（引数と戻り値の型）を教えてください"
+  ],
+  "durationMs": 33037,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`WorkflowEngine.invoke`のシグネチャは以下の通りです。\n\n## シグネチャ\n\n```typescript\ninvoke(\n  input: WorkflowState | Command,\n  options?: {\n    configurable?: ConfigurableOptions;\n    recursionLimit?: number;\n  }\n): Promise<WorkflowResult>\n```\n\n## 引数\n\n| 引数 | 型 | 必須 | 説明 |\n|------|------|------|------|\n| `input` | `WorkflowState \\| Command` | はい | ワークフローへの入力。状態オブジェクトまたはLangGraphの`Command` |\n| `options` | `object` | いいえ | オプション設定 |\n| `options.configurable` | `ConfigurableOptions` | いいえ | 構成オプション（スレッドID等） |\n| `options.recursionLimit` | `number` | いいえ | 再帰制限。指定しない場合は設定ファイルの値（デフォルト25） |\n\n## 戻り値\n\n- **型**: `Promise<WorkflowResult>`\n- ワークフロー実行後の結果を返す\n\n## 使用例（抽象化）\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n\nconst result = await engine.invoke({\n  messages: [{ role: \"user\", content: \"Hello!\" }]\n});\n```\n\n## 補足\n\n- 実行前に`build()`を呼び出す必要があります（未呼び出し時はエラー）\n- `userPromptSubmit`フックで入力がブロックされる場合があります\n- PIIフィルターが有効な場合、入力メッセージは自動的にフィルタリングされます\n- `GraphInterrupt`が発生した場合はエラーとしてスローされます"
+  ],
+  "timestamp": "2026-05-27T15:42:57.138Z"
+}

@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780128417605",
+  "threadId": "slack-test-1780128417605",
+  "initialQuestion": [
+    "SceneGraphManagerのインスタンス作成方法を教えて下さい"
+  ],
+  "durationMs": 33240,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerでは、`WorkflowEngine`クラスをインスタンス化することでワークフロー管理を開始します。\n\n### インスタンス作成の基本構文\n\n```typescript\nimport { WorkflowEngine } from \"scene-graph-manager\";\n\nconst engine = new WorkflowEngine(config);\n```\n\n### 設定（WorkflowConfig）\n\nコンストラクタには、ワークフローの構造やモデル設定などを定義した `WorkflowConfig` 型のオブジェクトを渡します。\n\n主な必須フィールドは以下の通りです：\n\n| フィールド | 型 | 説明 |\n|---|---|---|\n| `stateAnnotation` | `object` | ワークフローの状態定義（`Annotation.Root` 型を指定） |\n| `annotation` | `object` | 状態フィールドの詳細定義（メッセージの型やリデューサー関数など） |\n| `models` | `ModelConfig[]` | 使用するLLMモデルの設定配列 |\n| `nodes` | `NodeConfig[]` | ワークフローを構成するノードの定義 |\n| `edges` | `EdgeConfig[]` | ノード間の接続関係の定義 |\n| `stateGraph` | `object` | グラフのメタデータ（`annotationRef` などで状態アノテーションを参照） |\n\n### 最小構成のJSON例\n\n```jsonc\n{\n  \"config\": { \"name\": \"MyWorkflow\", \"recursionLimit\": 25 },\n  \"stateAnnotation\": { \"name\": \"WorkflowState\", \"type\": \"Annotation.Root\" },\n  \"annotation\": {\n    \"messages\": { \"type\": \"BaseMessage[]\", \"reducer\": \"(x, y) => x.concat(y)\", \"default\": \"[]\" }\n  },\n  \"models\": [{ \"id\": \"claude\", \"type\": \"anthropic\", \"config\": { \"model\": \"claude-sonnet-4-6\", \"apiKey\": \"...\" } }],\n  \"nodes\": [\n    { \"id\": \"start\", \"type\": \"model\", \"handler\": { \"function\": \"async (state, model) => { ... }\", \"parameters\": [...] } }\n  ],\n  \"edges\": [\n    { \"from\": \"start\", \"to\": \"__end__\" }\n  ],\n  \"stateGraph\": { \"annotationRef\": \"WorkflowState\" }\n}\n```\n\n### 初期化フロー\n\nインスタンス作成後、実際に実行可能な状態にするには `build()` メソッドを呼び出す必要があります。\n\n```typescript\nconst engine = new WorkflowEngine(config);\nawait engine.build(); // グラフの構築とモデル初期化\n```\n\n`build()` の呼び出し後、`invoke()` や `stream()` によってワークフローの実行が可能になります。"
+  ],
+  "timestamp": "2026-05-30T08:07:30.865Z"
+}

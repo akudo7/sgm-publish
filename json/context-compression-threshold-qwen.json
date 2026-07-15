@@ -1,0 +1,86 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Context compression — threshold mode"
+    },
+    "recursionLimit": 50,
+    "contextCompression": {
+      "enabled": true,
+      "mode": "threshold",
+      "trigger": {
+        "messages": 8,
+        "tokens": 32768
+      },
+      "keep": {
+        "messages": 4
+      }
+    }
+  },
+  "stateAnnotation": {
+    "name": "CompressibleState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "string[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "summary": {
+      "type": "string",
+      "reducer": "(_, y) => y",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "compressor",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "chat",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof CompressibleState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "compressor"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/chat.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "chat"
+    },
+    {
+      "from": "chat",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "CompressibleState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "The provided code context does not contain the referenced calculation or allocation logic (line 47 is an include directive). The claim incorrectly describes min_pu_size as a product of width and height, whereas FFmpeg computes it via bit shifts. The vulnerability cannot be verified from the given context.",
+    "verbalGradient": "The hypothesis failed by incorrectly assuming `min_pu_size` is derived from a direct width-height multiplication, whereas FFmpeg computes it via bit shifts on parsed `log2_min_pu_width_plus2` and `log2_min_pu_height_plus2` SPS fields. Investigation should pivot to the SPS decoding routines in `hevcdec.c` to trace how these log2 values are converted to physical dimensions and whether unchecked shift arithmetic or intermediate multiplications could underflow before allocation. The corrected path should examine the exact heap allocation calls downstream of SPS parsing, specifically verifying if derived frame or PU sizes are validated against maximum spec limits before being passed to `av_buffer_pool_init` or `av_malloc`.",
+    "timestamp": "2026-05-07T22:55:01.787Z"
+  },
+  {
+    "target": "libavcodec/vp9.c",
+    "attempt": 1,
+    "failureReason": "f->mv is allocated separately for motion vectors and does not point into f->extradata. The missing NULL assignment is a code hygiene issue but not exploitable, as the frame is not accessed after unref until reallocation.",
+    "verbalGradient": "The hypothesis failed because it incorrectly assumed `f->mv` and `f->extradata` share a coupled memory lifecycle, ignoring VP9’s independent allocation scheme and guaranteed context reset between decode cycles. Shift investigation to VP9’s reference frame slot management, specifically tracing how `ref_frame_map` indices are updated across concurrent decode threads and error-recovery paths. Examine whether `f->mv` can be accessed in a subsequent inter-frame decode before the frame context is fully reinitialized, particularly during keyframe-switching or asynchronous `vp9_frame_unref` transitions, to determine if stale references persist in the reference picture buffer and enable a true UAF during motion vector prediction.",
+    "timestamp": "2026-05-07T22:55:15.445Z"
+  },
+  {
+    "target": "libavcodec/vp9.c",
+    "attempt": 1,
+    "failureReason": "The claimed line number (117) corresponds to vp9_frame_alloc, not vp9_frame_ref, indicating a misalignment in the report. The provided code context cuts off before the actual pointer assignment logic in vp9_frame_ref. Furthermore, FFmpeg's VP9 decoder strictly allocates frames via vp9_frame_alloc before they enter the reference chain, guaranteeing extradata is valid. av_buffer_ref safely handles NULL pointers, and the threading model prevents referencing uninitialized or freed frames. The finding is a false positive based on incomplete context and incorrect line references.",
+    "verbalGradient": "The hypothesis incorrectly assumed `seg_map` and `mv` are independently managed raw pointers vulnerable to NULL/dangling states, ignoring FFmpeg’s `av_buffer_ref` model which safely shares buffer references and guarantees valid allocation via `vp9_frame_alloc` before any reference chain is established. Shift investigation to the actual `vp9_frame_ref` implementation and the VP9 frame buffer lifecycle to identify error recovery, frame swapping, or multithreaded synchronization paths where buffers are reallocated or detached while still referenced. Examine the interaction between `av_buffer_get`, VP9’s internal frame pool, and concurrent decode contexts to trace whether indirect pointer invalidation occurs during reference updates or thread-safe context switches.",
+    "timestamp": "2026-05-07T22:55:29.036Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 1,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine context index calculations, bitstream pointer arithmetic, and arithmetic decoder state transitions for unchecked bounds and off-by-one errors, particularly where slice headers or quantization parameters dynamically alter context selection. Focus on corner cases involving truncated or misaligned bitstreams that could desynchronize the CABAC state machine, triggering out-of-bounds table lookups or integer overflows during probability update loops. Prioritize manual review of bypass-mode reads and conditional context resets, as these paths frequently mask heap corruption or information leaks when fed crafted edge-case sequences.",
+    "timestamp": "2026-05-07T22:55:41.516Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 2,
+    "failureReason": "The provided code context does not contain the referenced calculation or allocation logic. Furthermore, the HEVC specification bounds log2_min_pu_size to 0-4, meaning min_pu_width and min_pu_height are at most 16. Their product cannot exceed 256, making a 32-bit integer overflow mathematically impossible. The claim contradicts known parameter bounds and lacks supporting code in the visible window.",
+    "verbalGradient": "The hypothesis incorrectly assumed `min_pu_width` and `min_pu_height` could exceed their spec-mandated maximum of 16, making a 32-bit overflow mathematically impossible. Instead, investigate how `log2_max_pu_width`, `log2_max_pu_height`, or `log2_min_cb_size` are left-shifted and multiplied with frame dimensions or SPS-derived counts to compute sizes for CU/PU partition or motion-vector arrays. Examine allocation sites where expressions like `(1 << sps->log2_max_pu_width) * (1 << sps->log2_max_pu_height) * frame_area` lack explicit `INT_MAX` or `SIZE_MAX` overflow checks before passing to `av_malloc` or `av_buffer_pool_init`, as unchecked bit-shifts combined with large frame dimensions constitute the actual vulnerability vector.",
+    "timestamp": "2026-05-07T22:59:48.157Z"
+  },
+  {
+    "target": "libavcodec/vp9.c",
+    "attempt": 3,
+    "failureReason": "The assertion that f->mv points into f->extradata->data is incorrect; f->mv (motion vectors) and f->extradata (frame headers) are independently allocated in the VP9 decoder, so unreferencing extradata does not invalidate f->mv.",
+    "verbalGradient": "The hypothesis failed by incorrectly assuming memory aliasing between `f->mv` and `f->extradata->data`, ignoring that these buffers are independently allocated and reference-counted; instead, trace the actual lifecycle of `f->mv` to identify scenarios where it is freed but retained in a pending frame queue or reused across thread boundaries. Investigate frame reuse and flush paths—particularly during resolution changes, error recovery, or `ff_thread_frame_unref` calls—to locate missing refcount increments or stale pointer assignments during concurrent decoding. Prioritize analyzing dynamic motion vector buffer reallocation and frame reordering logic to pinpoint exact conditions where `f->mv` transitions from a valid reference to a dangling pointer.",
+    "timestamp": "2026-05-07T22:59:56.749Z"
+  },
+  {
+    "target": "libavcodec/vp9.c",
+    "attempt": 3,
+    "failureReason": "False positive. The code context shows vp9_frame_ref begins at line 153, not 117. The function performs standard pointer copies of reference-counted AVBufferRef fields. Copying NULL pointers is safe and consistent within FFmpeg's threading model. The claim of UAF propagation ignores the reference-counted nature of the buffers and the allocation guarantees in vp9_frame_alloc.",
+    "verbalGradient": "The hypothesis incorrectly assumed `AVBufferRef` fields behave as raw pointers, ignoring FFmpeg’s reference-counted buffer model where copying NULL or valid references is inherently safe. Instead, investigate whether incorrect reference sharing or premature `av_buffer_unref` calls during frame threading could cause a buffer to be freed while still actively referenced by `dst`. Examine error paths in `vp9_frame_ref` and subsequent decode loops where `extradata` or motion vector buffers are reallocated without proper reference updates, and verify that concurrent thread access does not violate FFmpeg’s reference-counting invariants.",
+    "timestamp": "2026-05-07T23:00:10.009Z"
+  },
+  {
+    "target": "libavcodec/vp9.c",
+    "attempt": 3,
+    "failureReason": "The claim incorrectly assumes f->mv is freed or invalidated by av_buffer_unref(&f->extradata). In VP9, extradata holds codec parameters while mv holds motion vectors allocated separately; they are independent. Unreferencing extradata does not create a dangling pointer for mv. The cited line number (84) also mismatches the function location (98), indicating a misaligned report.",
+    "verbalGradient": "The hypothesis failed due to a false dependency assumption: `extradata` and `mv` are independent buffers, so unreferencing one cannot invalidate the other; instead, investigate whether `f->mv` is an `AVBufferRef` that is unreferenced without nullifying the pointer, or if the `ref_frames` array retains stale pointers when reference frames are recycled. Focus on the lifecycle management of motion vector buffers and reference frame slots in `vp9_frame_unref`, specifically looking for missing null-assignments or race conditions in frame threading where a frame context is reused while associated data remains active.",
+    "timestamp": "2026-05-07T23:00:24.095Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine the bit buffer refill logic and context index calculations for missing bounds checks, particularly where malformed codewords could trigger out-of-bounds array accesses or integer overflows in cumulative bit-count arithmetic. Focus on edge cases where the bitstream terminates exactly at buffer boundaries or contains truncated NAL units, as these often bypass standard validation and expose uninitialized memory reads or state-machine desynchronization. Verify that all context probability updates and state transitions include explicit saturation checks and deterministic error-recovery paths to prevent undefined behavior under adversarial inputs.",
+    "timestamp": "2026-05-07T23:00:37.536Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Focus on re-examining context index arithmetic and probability state transitions, particularly where fixed-point calculations or bit-shift operations could underflow or overflow during renormalization. Prioritize targeted fuzzing against malformed bitstreams that trigger end-of-stream truncation, invalid syntax elements, or zero-length contexts, as these often expose off-by-one errors in table lookups and desynchronized state machines. Manually trace the `cabac_get` and context update routines to verify that all bounds checks explicitly guard against negative or excessively large context IDs, and confirm that probability estimation handles edge-case inputs without triggering division or shift faults.",
+    "timestamp": "2026-05-07T23:00:50.286Z"
+  }
+]

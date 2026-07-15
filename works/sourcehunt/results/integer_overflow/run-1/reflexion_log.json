@@ -1,0 +1,100 @@
+[
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "The allocation uses av_calloc, which includes explicit overflow checks that return NULL on integer overflow, preventing undersized buffer allocations. The claimed out-of-bounds access cannot occur via this path; the actual impact would be a NULL pointer dereference (DoS) if the return value is not checked, not memory corruption.",
+    "verbalGradient": "The hypothesis incorrectly assumed that `av_calloc`’s built-in overflow protection was the sole safety boundary, overlooking that the corrupted `ctb_count` is likely used unsafely downstream for loop bounds, array indexing, or offset arithmetic that bypasses safe allocation checks. Investigate every subsequent use of `ctb_count` in the decoder to identify where the overflowed value triggers out-of-bounds memory access, and verify whether the `av_calloc` return value is properly null-checked to prevent a simple DoS from escalating. Additionally, examine adjacent size computations (e.g., `ctb_width`/`ctb_height` combined with bit-shifts or added to base offsets) that may overflow before being passed to `av_malloc` or used as direct array indices.",
+    "timestamp": "2026-05-08T03:10:52.878Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "sps->min_pu_width and sps->min_pu_height are uint8_t in FFmpeg's HEVCSPS structure. Their product is promoted to a 32-bit int during evaluation, with a maximum possible value of 65,025 (255*255), which cannot overflow a 32-bit signed integer. Additionally, HEVC specification constraints strictly limit these fields to small ranges (maximum 32x32), making the claimed integer overflow impossible.",
+    "verbalGradient": "The hypothesis failed by incorrectly assuming the raw `uint8_t` multiplication could overflow, ignoring C integer promotion rules and strict HEVC spec limits; instead, investigate how `min_pu_size` is combined with untrusted fields like `sps->log2_diff_max_min_luma_coding_size` or frame dimensions to compute total PU/CU counts. Examine allocation expressions in `hevcdec.c` that multiply these derived counts by element sizes or strides, as these larger multiplications are prone to 32-bit or 64-bit integer wrapping. Focus on code paths where malformed SPS data bypasses validation before being used in `av_mallocz` arguments, specifically tracking how the product propagates into buffer size calculations for prediction unit arrays.",
+    "timestamp": "2026-05-08T03:11:09.639Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "The claim misapplies C type promotion rules. sizeof() returns size_t, so min_pu_size is promoted to size_t before multiplication, making the operation unsigned and immune to signed integer overflow. Additionally, allocation failure is correctly checked.",
+    "verbalGradient": "The hypothesis failed by incorrectly assuming signed 32-bit multiplication precedes type promotion, whereas C promotes `min_pu_size` to `size_t` before the operation, and the code safely aborts on allocation failure. Instead, investigate how `min_pu_size` is derived from untrusted bitstream parameters and whether subsequent arithmetic (e.g., entry counts multiplied by `sizeof(MvField)` or array stride calculations) lacks explicit overflow checks, potentially yielding undersized pool allocations. Focus on the input validation chain preceding `av_buffer_pool_init` and trace how external CU/tile dimensions propagate into internal buffer sizing to identify missing bounds enforcement.",
+    "timestamp": "2026-05-08T03:11:27.103Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "C usual arithmetic conversions promote the int operand to size_t before multiplication, resulting in unsigned arithmetic. Even if ctb_count is negative, the resulting large size_t passed to av_buffer_pool_init will cause av_mallocz to fail gracefully, preventing heap corruption. The claimed signed overflow mechanism is incorrect.",
+    "verbalGradient": "The hypothesis failed by assuming signed overflow, ignoring C’s usual arithmetic conversions that promote the multiplication to unsigned `size_t` arithmetic and FFmpeg’s safe NULL-return handling for oversized allocations. Shift focus to whether an excessively large or malicious `ctb_count` can wrap around to a small unsigned value during allocation while retaining its original magnitude in subsequent loop bounds or array indexing, creating a critical size-vs-count mismatch. Trace the exact derivation, validation, and clamping logic for `ctb_count`, then audit all downstream accesses to the allocated buffer pool to identify out-of-bounds reads or writes triggered by this unsigned wrap-around.",
+    "timestamp": "2026-05-08T03:11:40.761Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 1,
+    "failureReason": "no_findings",
+    "verbalGradient": "Begin by auditing context-index arithmetic and carry-propagation logic to ensure all syntax-element lookups remain strictly within bounds when parsing truncated or heavily malformed bitstreams. Escalate scrutiny to probability state transitions near zero or one, where silent desynchronization can mask out-of-bounds context table accesses or integer overflows under edge-case inputs. Finally, trace nested loop conditions and end-of-macroblock markers for off-by-one drift that could silently corrupt adjacent frame buffers during rapid decoder resets or abrupt stream termination.",
+    "timestamp": "2026-05-08T03:11:54.161Z"
+  },
+  {
+    "target": "libavformat/matroskadec.c",
+    "attempt": 1,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine the EBML element parsing loop for unchecked integer overflow in size decoding, unbounded nesting depth validation, and error paths that skip memory deallocation or bounds checks. Prioritize corner cases involving truncated streams, oversized or negative element sizes, and malformed codec configuration blocks that could trigger out-of-bounds reads or use-after-free during cluster and keyframe index reconstruction. Focus on how the demuxer handles WebM-specific extensions and mismatched track parameters, as these often evade static analysis due to indirect pointer arithmetic and dynamic buffer reallocation.",
+    "timestamp": "2026-05-08T03:12:03.770Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 5,
+    "failureReason": "av_calloc performs an internal overflow check on the multiplication and returns NULL if it occurs, preventing the allocation of an incorrectly sized buffer. Therefore, the overflow cannot lead to the claimed out-of-bounds memory access.",
+    "verbalGradient": "The hypothesis incorrectly assumed the overflowed product would directly dictate a vulnerable allocation size, ignoring `av_calloc`'s built-in overflow guard and the resulting NULL return that safely aborts execution rather than enabling OOB writes. Instead, investigate how `ctb_count` is repurposed as a loop bound, array stride multiplier, or arithmetic operand in downstream offset calculations that operate outside safe allocation wrappers. Specifically, trace the value through `hevcdec.c` to identify raw pointer arithmetic, unbounded iteration limits, or direct `malloc`/`calloc` calls where the corrupted value combines with other SPS parameters to produce an under-sized allocation or out-of-bounds index.",
+    "timestamp": "2026-05-08T03:16:43.679Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 5,
+    "failureReason": "The operands min_pu_width and min_pu_height are uint8_t, so their product promotes to int and cannot exceed 65025, making 32-bit signed overflow impossible. Additionally, the claimed usage of min_pu_size in av_mallocz is not present in the provided code context.",
+    "verbalGradient": "The hypothesis incorrectly assumed the vulnerability originates from the isolated `uint8_t` multiplication, overlooking that C's integer promotion safely caps the product at 65,025 and that overflow typically emerges when these values are combined with larger `size_t` or `int` operands in downstream calculations. Investigate how `min_pu_width` and `min_pu_height` are used in division-based PU/CTU count formulas (e.g., `(pic_width + min_pu_width - 1) / min_pu_width`) where malformed SPS data could trigger division-by-zero or underflow, and trace their subsequent multiplication by frame dimensions or element sizes to identify precise wraparound points. Examine the actual allocation and buffer pool initialization sites in `hevcdec.c` to pinpoint where implicit type promotions, truncation, or unchecked arithmetic lead to undersized allocations or out-of-bounds access.",
+    "timestamp": "2026-05-08T03:17:01.065Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 5,
+    "failureReason": "The claim incorrectly assumes the multiplication occurs in signed 32-bit arithmetic. Since sizeof(MvField) yields size_t, C's usual arithmetic conversions promote min_pu_size to size_t before multiplication, making the operation unsigned. No signed overflow occurs, and any resulting allocation failure is safely handled by the subsequent NULL check.",
+    "verbalGradient": "The hypothesis failed by misapplying C’s usual arithmetic conversions, incorrectly assuming `min_pu_size` undergoes signed multiplication when `sizeof()` inherently promotes it to unsigned `size_t`. Shift investigation to whether `min_pu_size` lacks proper bounds validation against HEVC spec constraints, as unchecked large values could still trigger unsigned wrap-around or excessive allocations. Examine the slice/sequence header parsing path that assigns `min_pu_size` and verify if FFmpeg’s internal size-checking mechanisms or `av_buffer_pool_init`’s error handling adequately mitigate maliciously inflated pool sizes.",
+    "timestamp": "2026-05-08T03:17:15.918Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 5,
+    "failureReason": "The expression ctb_count * sizeof(RefPicListTab) promotes ctb_count to size_t before multiplication because sizeof returns size_t. Thus, the multiplication is performed in unsigned arithmetic, not signed int arithmetic, making the claimed signed integer overflow impossible at this line.",
+    "verbalGradient": "The hypothesis incorrectly assumed C’s usual arithmetic conversions would preserve signed `int` arithmetic, but `ctb_count` is promoted to `size_t` before multiplication, shifting the risk to unsigned wraparound rather than signed overflow. Investigate whether `ctb_count` can be manipulated via unvalidated bitstream parameters to exceed `SIZE_MAX / sizeof(RefPicListTab)`, and verify if a wrapping allocation size is subsequently used in loops or indexing operations that assume the original magnitude. Trace the parsing logic that derives `ctb_count` from frame dimensions or slice headers, and audit the allocation site alongside all downstream memory accesses to confirm whether a small wrapped allocation triggers a heap buffer overflow.",
+    "timestamp": "2026-05-08T03:17:30.789Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine the CABAC state machine transitions and bitstream extraction routines, specifically focusing on range normalization loops and context index calculations where off-by-one errors or integer overflows could silently corrupt decoder state. Prioritize tracing error-handling paths and truncated-stream boundaries, as malformed inputs may bypass standard bounds checks and trigger out-of-bounds reads during probability model updates. Validate that all pointer arithmetic and bit-counter increments are rigorously guarded against crafted sequences that force rapid state desynchronization or buffer overruns.",
+    "timestamp": "2026-05-08T03:17:39.302Z"
+  },
+  {
+    "target": "libavformat/matroskadec.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine all EBML element length and offset calculations for integer overflows or negative value coercion, particularly where untrusted track metadata or codec private data directly drives `av_malloc` sizes or buffer indexing. Focus on corner cases involving deeply nested or truncated EBML structures that could bypass validation guards, causing out-of-bounds reads during packet assembly or use-after-free states when reusing codec contexts across malformed segments. Verify that all division operations, timestamp arithmetic, and array bounds checks explicitly handle zero-length elements, extreme or negative timestamps, and missing required track fields before memory is allocated or state machines advance.",
+    "timestamp": "2026-05-08T03:17:47.598Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine context index derivation and bounds validation around `get_cabac_bypass()` and `get_cabac_inline()` calls, focusing on off-by-one errors when mapping slice-level syntax elements to the 48-context model. Scrutinize integer overflow in probability normalization state updates and unvalidated bitstream pointer arithmetic during truncated or malformed slice boundaries, which can desync the arithmetic decoder and trigger out-of-bounds reads. Prioritize targeted fuzzing on context reset logic intersecting with error recovery paths, as state drift in these corner cases historically masks heap corruption and use-after-free conditions.",
+    "timestamp": "2026-05-08T03:17:55.550Z"
+  },
+  {
+    "target": "libavformat/matroskadec.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine all EBML element parsing loops and integer arithmetic used to calculate buffer sizes or array offsets, specifically targeting missing overflow checks, unbounded nesting limits, and unchecked pointer arithmetic derived from parsed metadata. Focus on corner cases involving deeply nested structures, truncated inputs, or conflicting size/offset values that could trigger out-of-bounds reads/writes or desynchronize the parser state machine. Trace allocation and deallocation paths for track and cluster buffers to identify use-after-free or double-free conditions exploitable via malformed segment boundaries. Finally, audit error-handling branches for resource leaks or inconsistent state that could be weaponized with carefully crafted multi-track or multi-segment Matroska files.",
+    "timestamp": "2026-05-08T03:18:05.395Z"
+  }
+]

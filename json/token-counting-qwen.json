@@ -1,0 +1,64 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Token counting E2E test for harness-improvements"
+    },
+    "recursionLimit": 5
+  },
+  "stateAnnotation": {
+    "name": "TokenCountingState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    }
+  },
+  "models": [
+    {
+      "id": "testModel",
+      "type": "LlamaCpp",
+      "config": {
+        "serverUrl": "http://localhost:8001",
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.7
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "modelNode",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof TokenCountingState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "testModel"
+          }
+        ],
+        "functionFile": "json/functions/modelNode.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "modelNode"
+    },
+    {
+      "from": "modelNode",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "TokenCountingState"
+  }
+}

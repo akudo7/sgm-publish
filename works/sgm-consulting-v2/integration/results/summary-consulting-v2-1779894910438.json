@@ -1,0 +1,22 @@
+{
+  "sessionId": "consulting-v2-1779894910438",
+  "threadId": "slack-test-1779894910438",
+  "initialQuestion": [
+    "SceneGraphMangerのインスタンスの作成方法を教えて下さい",
+    "回答の続きを表示して下さい"
+  ],
+  "durationMs": 143884,
+  "turnCount": 2,
+  "rewriteCount": 1,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerでは、ワークフローの構築・実行・管理を行う主要な公開クラスとして `WorkflowEngine` が提供されています。インスタンスの作成は以下の手順で行います。\n\n### 作成手順\n1. パッケージから `WorkflowEngine` をインポートします。\n2. ワークフロー設定オブジェクト（JSON形式の構成データ）を準備します。設定には `config`、`stateAnnotation`、`models`、`nodes`、`edges` などの定義が含まれます。\n3. コンストラクタに設定オブジェクトを渡してインスタンスを生成します。\n4. `build()` メソッドを呼び出してグラフ構造を構築します。\n\n### 簡易サンプル\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst config = { /* ワークフロー設定オブジェクト */ };\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\n\nJSONファイルから設定を読み込む場合も、ファイルの内容をオブジェクトとして渡すことで同様にインスタンス化できます。構築が完了した後は、`invoke()` で同期実行、または `stream()` でストリーミング実行が可能です。\n\n公開ドキュメントに基づき、標準的な公開APIの使用方法のみを記載しています。設定の詳細構成やノードタイプについては、ワークフロー定義ファイルの仕様を参照してください。"
+  ],
+  "timestamp": "2026-05-27T15:17:34.338Z"
+}

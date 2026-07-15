@@ -1,0 +1,315 @@
+{
+  "config": {
+    "info": {
+      "version": "0.4.0",
+      "description": "SourceHunt - Vulnerability scanning workflow with Reflexion loop",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 50,
+    "eventEmitter": {
+      "defaultMaxListeners": 20
+    },
+    "store": {
+      "type": "InMemoryStore"
+    }
+  },
+  "stateAnnotation": {
+    "name": "SourceHuntState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "repoPath": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    },
+    "huntTargets": {
+      "type": "{ filePath: string; score: number; reason: string }[]",
+      "reducer": "(x, y) => (y && y.length > 0 ? y : x)",
+      "default": []
+    },
+    "currentTarget": {
+      "type": "{ filePath: string; score: number; reason: string } | null",
+      "reducer": "(x, y) => y ?? x",
+      "default": null
+    },
+    "huntResults": {
+      "type": "{ filePath: string; specialist: string; confidence: number; findings: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number }[] }[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "verifiedFindings": {
+      "type": "{ type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string; verifiedAt: string }[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "_failedFindings": {
+      "type": "{ finding: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string }; reason: string }[]",
+      "reducer": "(x, y) => y !== undefined ? y : x",
+      "default": []
+    },
+    "reflexionHistory": {
+      "type": "{ target: string; attempt: number; failureReason: string; verbalGradient: string; timestamp: string }[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "_exploitedFindings": {
+      "type": "{ findingId: string; targetFile: string; evidenceLevel: number; poc: { pocCode: string; language: string; exploitMechanism: string } | null; attackVector?: string; severity: string; exploitStatus: string }[]",
+      "reducer": "(x, y) => y !== undefined ? y : x",
+      "default": []
+    },
+    "finalReport": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "ranker",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "hunter",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "verifier",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "analyst",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.5,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "exploiter",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "reporter",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ranker_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "ranker"
+          }
+        ],
+        "function": "const repoPath = state.repoPath;\nif (!repoPath) {\n  console.error('[ranker] repoPath is not set');\n  return { huntTargets: [] };\n}\n\nconst { readdirSync, readFileSync, statSync } = await import('node:fs');\nconst { join, relative } = await import('node:path');\n\n// Load prefilter config\nconst configPath = process.env.PREFILTER_CONFIG;\nif (!configPath) {\n  console.error('[ranker] PREFILTER_CONFIG is not set');\n  return { huntTargets: [] };\n}\n\nlet prefilterConfig;\ntry {\n  prefilterConfig = JSON.parse(readFileSync(configPath, 'utf-8'));\n} catch (e) {\n  console.error('[ranker] Failed to load prefilter config:', e.message);\n  return { huntTargets: [] };\n}\n\nconst { chunkSize = 50, topN = 5, subsystems = [] } = prefilterConfig;\n\nconst SCAN_DIRS = ['libavcodec', 'libavformat', 'libavfilter'];\n\nfunction collectCFiles(dir, files = []) {\n  let entries;\n  try { entries = readdirSync(dir, { withFileTypes: true }); } catch (e) { return files; }\n  for (const entry of entries) {\n    if (entry.name.startsWith('.')) continue;\n    const full = join(dir, entry.name);\n    if (entry.isDirectory()) {\n      collectCFiles(full, files);\n    } else if (entry.name.endsWith('.c')) {\n      files.push(full);\n    }\n  }\n  return files;\n}\n\n// Collect all .c files\nconst allCFiles = [];\nfor (const dir of SCAN_DIRS) {\n  collectCFiles(join(repoPath, dir), allCFiles);\n}\nconsole.log(`[ranker] Collected ${allCFiles.length} .c files from ${SCAN_DIRS.join(', ')}`);\n\n// Group by top-level directory\nconst filesByDir = new Map();\nfor (const f of allCFiles) {\n  const rel = relative(repoPath, f);\n  const topDir = rel.split('/')[0];\n  if (!filesByDir.has(topDir)) filesByDir.set(topDir, []);\n  filesByDir.get(topDir).push(f);\n}\n\n// Apply subsystem quotas — sort by file size within each subsystem (neutral complexity proxy)\nconst selected = [];\nconst assignedDirs = new Set();\n\nfor (const { dir, quota } of subsystems) {\n  if (dir === '*') continue;\n  const files = filesByDir.get(dir) || [];\n  assignedDirs.add(dir);\n  const bySize = files\n    .map(f => ({ f, size: statSync(f).size }))\n    .sort((a, b) => b.size - a.size)\n    .slice(0, quota)\n    .map(x => x.f);\n  selected.push(...bySize);\n  const top1 = bySize.length > 0 ? relative(repoPath, bySize[0]) : 'none';\n  console.log(`[ranker] ${dir}: ${bySize.length}/${files.length} (quota=${quota}, largest=${top1})`);\n}\n\n// Handle catch-all (*) for remaining dirs\nconst catchAll = subsystems.find(s => s.dir === '*');\nif (catchAll) {\n  const remainingFiles = [];\n  for (const [dir, files] of filesByDir) {\n    if (!assignedDirs.has(dir)) remainingFiles.push(...files);\n  }\n  const bySize = remainingFiles\n    .map(f => ({ f, size: statSync(f).size }))\n    .sort((a, b) => b.size - a.size)\n    .slice(0, catchAll.quota)\n    .map(x => x.f);\n  selected.push(...bySize);\n  if (bySize.length > 0) {\n    console.log(`[ranker] * (others): ${bySize.length}/${remainingFiles.length} (quota=${catchAll.quota})`);\n  }\n}\n\nconsole.log(`[ranker] Pre-filter → ${selected.length} candidates (subsystem quota)`);\n\n// LLM ranking\nconst chunks = [];\nfor (let i = 0; i < selected.length; i += chunkSize) {\n  chunks.push(selected.slice(i, i + chunkSize));\n}\n\nconst allTargets = [];\nconst specialistGuide = process.env.SPECIALIST_GUIDE || 'Focus on: general security vulnerabilities.';\n\nfor (let ci = 0; ci < chunks.length; ci++) {\n  const chunk = chunks[ci];\n  const relFiles = chunk.map(c => relative(repoPath, c));\n  console.log(`[ranker] LLM chunk ${ci + 1}/${chunks.length} (${relFiles.length} files)`);\n\n  const prompt = [\n    'You are a security researcher ranking C files for vulnerability hunting.',\n    `Specialist focus: ${specialistGuide}`,\n    '',\n    `Repository: ${repoPath}`,\n    '',\n    'Rate each file (0.0-1.0) on how likely it contains vulnerabilities matching the specialist focus:',\n    '- surface: Complexity of input parsing or the targeted vulnerability class',\n    '- influence: Pipeline reach — how many code paths pass through this file',\n    '- reachability: Whether attacker-controlled input reaches this code',\n    '',\n    'Priority = surface*0.5 + influence*0.2 + reachability*0.3',\n    '',\n    'Files:',\n    relFiles.map((f, i) => `${i + 1}. ${f}`).join('\\n'),\n    '',\n    'Return ONLY a JSON array:',\n    '[{\"filePath\":\"relative/path\",\"surface\":0.8,\"influence\":0.5,\"reachability\":0.7,\"reason\":\"brief\"},...]'\n  ].join('\\n');\n\n  const response = await model.invoke([{ role: 'user', content: prompt }]);\n  const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\n  try {\n    const jsonMatch = content.match(/\\[[\\s\\S]*\\]/);\n    if (!jsonMatch) { console.error('[ranker] No JSON in chunk', ci + 1); continue; }\n    const scored = JSON.parse(jsonMatch[0]);\n    for (const item of scored) {\n      const surface = Math.min(Math.max(Number(item.surface) || 0, 0), 1);\n      const influence = Math.min(Math.max(Number(item.influence) || 0, 0), 1);\n      const reachability = Math.min(Math.max(Number(item.reachability) || 0, 0), 1);\n      const score = surface * 0.5 + influence * 0.2 + reachability * 0.3;\n      allTargets.push({ filePath: item.filePath, score: Math.round(score * 1000) / 1000, reason: item.reason || '' });\n    }\n  } catch (e) {\n    console.error('[ranker] Parse error chunk', ci + 1, ':', e.message);\n  }\n}\n\nconst llmTop = allTargets.sort((a, b) => b.score - a.score).slice(0, topN);\n\nconsole.log(`[ranker] Final: top ${llmTop.length} from ${allTargets.length} LLM-ranked`);\nif (llmTop.length > 0) console.log(`[ranker] #1: ${llmTop[0].filePath} (score=${llmTop[0].score})`);\nreturn { huntTargets: llmTop };"
+      }
+    },
+    {
+      "id": "hunter_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "hunter"
+          }
+        ],
+        "function": "const target = state.currentTarget;\nif (!target) {\n  console.warn('[hunter] No currentTarget in state');\n  return { huntResults: [] };\n}\n\nconst { readFileSync } = await import('node:fs');\nconst { join, isAbsolute } = await import('node:path');\n\nlet fileContent = '';\ntry {\n  const fullPath = isAbsolute(target.filePath)\n    ? target.filePath\n    : join(state.repoPath, target.filePath);\n  fileContent = readFileSync(fullPath, 'utf-8');\n} catch (e) {\n  console.error(`[hunter] Failed to read ${target.filePath}:`, e.message);\n  return { huntResults: [{ filePath: target.filePath, specialist: 'generic', findings: [], confidence: 0 }] };\n}\n\n// SPECIALIST 環境変数でオーバーライド（ローテーション方式）\nconst envSpecialist = process.env.SPECIALIST;\nconst ext = (target.filePath.split('.').pop() || '').toLowerCase();\nconst lowerPath = target.filePath.toLowerCase();\nconst autoSpecialist = ['c', 'cpp', 'h', 'hpp'].includes(ext) ? 'memory_safety'\n  : ['go', 'rs'].includes(ext) ? 'concurrency'\n  : ['py', 'js', 'ts', 'jsx', 'tsx'].includes(ext) ? 'injection'\n  : lowerPath.includes('crypto') || lowerPath.includes('ssl') || lowerPath.includes('tls') ? 'cryptography'\n  : 'generic';\nconst specialist = envSpecialist || autoSpecialist;\n\nconst priorAttempts = (state.reflexionHistory || []).filter(h => h.target === target.filePath);\nconst gradientHint = priorAttempts.length > 0\n  ? '\\n\\nPREVIOUS ATTEMPTS FAILED. Adjust your hypothesis based on these gradients:\\n' + priorAttempts.map(h => `Attempt ${h.attempt}: ${h.verbalGradient}`).join('\\n')\n  : '';\n\nconst guide = process.env.SPECIALIST_GUIDE || 'Focus on: general security vulnerabilities.';\n\nconst hunterPrompt = `You are a security researcher specializing in ${specialist.replace(/_/g, ' ')} vulnerabilities.\n\nFile: ${target.filePath}\nPriority score: ${target.score} — ${target.reason}\n\n${guide}${gradientHint}\n\nAnalyze the following source code and identify ALL potential security vulnerabilities.\nFor each finding, assign evidence level: 1=theoretical possibility, 2=plausible exploit path with clear mechanism.\n\nSource code:\n\\`\\`\\`\n${fileContent.slice(0, 8000)}\n\\`\\`\\`\n\nIMPORTANT — Accuracy requirements:\n- Line numbers must be EXACT. Quote the actual vulnerable source line in your hypothesis. Do NOT estimate.\n- If you cannot identify the exact line, set evidenceLevel to 0 and omit the finding.\n\nReturn ONLY a JSON object (no explanation, no markdown):\n{\"specialist\":\"${specialist}\",\"confidence\":0.0,\"findings\":[{\"type\":\"vulnerability type\",\"severity\":\"low|medium|high|critical\",\"description\":\"what the vulnerability is\",\"line\":1,\"column\":null,\"hypothesis\":\"how this could be exploited\",\"evidenceLevel\":1}]}`;\n\nconst localMessages = [{ role: 'user', content: hunterPrompt }];\nconst response = await model.invoke(localMessages);\nconst content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\nlet findings = [];\nlet confidence = 0;\nlet specialistResult = specialist;\n\ntry {\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    const parsed = JSON.parse(jsonMatch[0]);\n    findings = Array.isArray(parsed.findings) ? parsed.findings : [];\n    confidence = Math.min(Math.max(Number(parsed.confidence) || 0, 0), 1);\n    specialistResult = parsed.specialist || specialist;\n  }\n} catch (e) {\n  console.error(`[hunter] Failed to parse findings for ${target.filePath}:`, e.message);\n}\n\nconsole.log(`[hunter:${specialist}] ${target.filePath} → ${findings.length} findings (confidence=${confidence})`);\nreturn { huntResults: [{ filePath: target.filePath, specialist: specialistResult, findings, confidence }] };"
+      }
+    },
+    {
+      "id": "verifier_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "verifier"
+          }
+        ],
+        "function": "const { readFileSync } = await import('node:fs');\nconst { join, isAbsolute } = await import('node:path');\n\nconst CONFIDENCE_THRESHOLD = 0.7;\nconst allFindings = state.huntResults.flatMap(r => {\n  if (r.confidence < CONFIDENCE_THRESHOLD) {\n    if (r.findings.length > 0) {\n      console.log(`[verifier] Skipping ${r.filePath} (confidence=${r.confidence} < ${CONFIDENCE_THRESHOLD}, ${r.findings.length} findings discarded)`);\n    }\n    return [];\n  }\n  return r.findings.map(f => ({ ...f, filePath: r.filePath, specialist: r.specialist }));\n});\n\nconst alreadyVerified = new Set((state.verifiedFindings || []).map(f => `${f.filePath}:${f.line}`));\nconst pendingFindings = allFindings.filter(f => !alreadyVerified.has(`${f.filePath}:${f.line}`));\nconsole.log(`[verifier] Verifying ${pendingFindings.length} pending findings (${allFindings.length - pendingFindings.length} already verified) from ${state.huntResults.length} files`);\n\nconst verified = [];\nconst failed = [];\n\nfor (const finding of pendingFindings) {\n  let fileContext = '';\n  try {\n    const fullPath = isAbsolute(finding.filePath)\n      ? finding.filePath\n      : join(state.repoPath, finding.filePath);\n    const lines = readFileSync(fullPath, 'utf-8').split('\\n');\n    const start = Math.max(0, (finding.line || 1) - 40);\n    const end = Math.min(lines.length, (finding.line || 1) + 40);\n    fileContext = lines.slice(start, end).map((l, i) => `${start + i + 1}: ${l}`).join('\\n');\n  } catch (e) {\n    fileContext = '(file not readable)';\n  }\n\n  const verifyPrompt = `You are an independent security auditor. Verify the following vulnerability finding.\n\nFile: ${finding.filePath}\nVulnerability type: ${finding.type}\nSeverity: ${finding.severity}\nDescription: ${finding.description}\nLine: ${finding.line}${finding.column != null ? ':' + finding.column : ''}\nExploit hypothesis: ${finding.hypothesis}\nClaimed evidence level: ${finding.evidenceLevel}\n\nCode context:\n\\`\\`\\`\n${fileContext}\n\\`\\`\\`\n\nIndependently assess:\n1. Is this a real vulnerability or a false positive?\n2. If valid, what evidence level is appropriate? (1=theoretical, 2=plausible exploit path with clear mechanism)\n3. If invalid, state the exact reason.\n\nCRITICAL PRINCIPLE: Base your assessment ONLY on what is directly visible in the code context above. If a validation, bounds check, or safety mechanism is claimed to exist but is NOT visible in the provided context, do NOT assume it provides protection — it may be absent or insufficient. When the relevant caller logic, allocation size, or constraint enforcement is outside the visible window, acknowledge that uncertainty rather than asserting correctness.\n\nReturn ONLY a JSON object (no explanation):\n{\"valid\":true,\"evidenceLevel\":1,\"reason\":\"brief assessment\"}`;\n\n  const localMessages = [{ role: 'user', content: verifyPrompt }];\n  const response = await model.invoke(localMessages);\n  const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\n  try {\n    const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n    if (!jsonMatch) throw new Error('No JSON in response');\n    const result = JSON.parse(jsonMatch[0]);\n    if (result.valid) {\n      verified.push({ ...finding, evidenceLevel: result.evidenceLevel || finding.evidenceLevel, verifiedAt: new Date().toISOString() });\n      console.log(`[verifier] PASS: ${finding.type} in ${finding.filePath}:${finding.line} (Lv${result.evidenceLevel})`);\n    } else {\n      failed.push({ finding, reason: result.reason || 'Rejected by verifier' });\n      console.log(`[verifier] FAIL: ${finding.type} in ${finding.filePath}:${finding.line} — ${result.reason}`);\n    }\n  } catch (e) {\n    console.error(`[verifier] Parse error for ${finding.filePath}:${finding.line}:`, e.message);\n    failed.push({ finding, reason: 'Verifier response parse error' });\n  }\n}\n\nconsole.log(`[verifier] Results: ${verified.length} verified, ${failed.length} failed`);\nreturn { verifiedFindings: verified, _failedFindings: failed };"
+      }
+    },
+    {
+      "id": "failure_analyst_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "analyst"
+          }
+        ],
+        "function": "const failed = state._failedFindings || [];\nconst CONFIDENCE_THRESHOLD = 0.7;\n\n// findings=0 または低 confidence のファイル — _failedFindings には入らないが Reflexion が必要\nconst noFindingsFiles = (state.huntResults || []).filter(r =>\n  r.findings.length === 0 || r.confidence < CONFIDENCE_THRESHOLD\n).filter(r => !failed.some(f => f.finding.filePath === r.filePath));\n\nconsole.log(`[analyst] Generating verbal gradients for ${failed.length} failed findings + ${noFindingsFiles.length} no-findings/low-confidence files`);\n\nconst reflexionEntries = [];\n\nfor (const { finding, reason } of failed) {\n  const analysisPrompt = `A vulnerability hypothesis was rejected by an independent verifier.\n\nFile: ${finding.filePath}\nVulnerability type: ${finding.type}\nOriginal hypothesis: ${finding.hypothesis}\nRejection reason: ${reason}\n\nAnalyze WHY this hypothesis failed and generate a corrected hypothesis direction (verbal gradient).\nBe specific:\n- What assumption was wrong?\n- What should be investigated differently?\n- What additional context or code path should be examined?\n\nRespond with a concrete, actionable verbal gradient (2-4 sentences).`;\n\n  const localMessages = [{ role: 'user', content: analysisPrompt }];\n  const response = await model.invoke(localMessages);\n  const verbalGradient = typeof response.content === 'string' ? response.content.trim() : JSON.stringify(response.content);\n\n  const attempt = (state.reflexionHistory || []).filter(h => h.target === finding.filePath).length + 1;\n  reflexionEntries.push({\n    target: finding.filePath,\n    attempt,\n    failureReason: reason,\n    verbalGradient,\n    timestamp: new Date().toISOString()\n  });\n  console.log(`[analyst] Gradient for ${finding.filePath} attempt ${attempt}: ${verbalGradient.slice(0, 80)}...`);\n}\n\nfor (const result of noFindingsFiles) {\n  const reasonLabel = result.findings.length === 0 ? 'no_findings' : `low_confidence_${result.confidence}`;\n\n  const analysisPrompt = `A security scanner found no confirmed vulnerabilities in the following file.\n\nFile: ${result.filePath}\nPrevious scan: ${result.findings.length === 0\n  ? 'No findings generated at all.'\n  : `${result.findings.length} finding(s) discarded due to low confidence (${result.confidence}).`\n}\n\nGenerate a verbal gradient (2-4 sentences) for a focused re-investigation:\n- What specific patterns should be re-examined?\n- What corner cases might hide real vulnerabilities?\n\nRespond with a concrete, actionable verbal gradient.`;\n\n  const localMessages = [{ role: 'user', content: analysisPrompt }];\n  const response = await model.invoke(localMessages);\n  const verbalGradient = typeof response.content === 'string' ? response.content.trim() : JSON.stringify(response.content);\n\n  const attempt = (state.reflexionHistory || []).filter(h => h.target === result.filePath).length + 1;\n  reflexionEntries.push({\n    target: result.filePath,\n    attempt,\n    failureReason: reasonLabel,\n    verbalGradient,\n    timestamp: new Date().toISOString()\n  });\n  console.log(`[analyst] Gradient for ${result.filePath} (${reasonLabel}) attempt ${attempt}: ${verbalGradient.slice(0, 80)}...`);\n}\n\nconst MAX_RETRY_FILES = 5;\nconst failedFilePaths = new Set(failed.map(f => f.finding.filePath));\nconst noFindingsFilePaths = new Set(noFindingsFiles.map(r => r.filePath));\n\nconst retryTargets = (state.huntTargets || []).filter(t =>\n  failedFilePaths.has(t.filePath) || noFindingsFilePaths.has(t.filePath)\n).slice(0, MAX_RETRY_FILES);\n\nconsole.log(`[analyst] Scheduling retry for ${retryTargets.length} targets`);\nreturn {\n  reflexionHistory: reflexionEntries,\n  huntTargets: retryTargets,\n  huntResults: []\n};"
+      }
+    },
+    {
+      "id": "exploiter_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "exploiter"
+          }
+        ],
+        "function": "const findings = state.verifiedFindings || [];\nconsole.log(`[exploiter] Processing ${findings.length} verified findings`);\n\nconst exploited = [];\n\nfor (const finding of findings) {\n  if ((finding.evidenceLevel || 0) < 2) {\n    console.log(`[exploiter] SKIP: ${finding.type} in ${finding.filePath}:${finding.line} (evidenceLevel=${finding.evidenceLevel} < 2)`);\n    exploited.push({ ...finding, poc: null, exploitStatus: 'insufficient_evidence' });\n    continue;\n  }\n\n  const exploitPrompt = [\n    'Generate a minimal proof-of-concept for the following vulnerability.',\n    `Finding: ${JSON.stringify(finding)}`,\n    'Requirements:',\n    '- Minimal code demonstrating the vulnerability mechanism',\n    '- Include comments explaining the exploit mechanism',\n    '- Do NOT include destructive payloads or real attack payloads',\n    '- Keep it conceptual and educational',\n    'Return ONLY a JSON object (no explanation, no markdown):',\n    '{\"pocCode\":\"code here\",\"language\":\"language name\",\"exploitMechanism\":\"brief explanation\"}'\n  ].join('\\n');\n\n  const localMessages = [{ role: 'user', content: exploitPrompt }];\n  const response = await model.invoke(localMessages);\n  const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\n  let poc = null;\n  try {\n    const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n    poc = jsonMatch ? JSON.parse(jsonMatch[0]) : null;\n  } catch (e) {\n    console.error(`[exploiter] Failed to parse PoC for ${finding.filePath}:${finding.line}:`, e.message);\n  }\n\n  const status = poc ? 'generated' : 'failed';\n  console.log(`[exploiter] ${status.toUpperCase()}: ${finding.type} in ${finding.filePath}:${finding.line}`);\n  exploited.push({ ...finding, poc, exploitStatus: status });\n}\n\nconsole.log(`[exploiter] Generated ${exploited.filter(e => e.exploitStatus === 'generated').length}/${exploited.length} PoCs`);\nreturn { _exploitedFindings: exploited };"
+      }
+    },
+    {
+      "id": "reporter_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "reporter"
+          }
+        ],
+        "function": "const findings = state._exploitedFindings && state._exploitedFindings.length > 0\n  ? state._exploitedFindings\n  : state.verifiedFindings || [];\nconst repoPath = state.repoPath || '(unknown)';\nconst reflexionCount = (state.reflexionHistory || []).length;\n\nconsole.log(`[reporter] Generating report for ${findings.length} findings (${reflexionCount} reflexion iterations)`);\n\nconst reportPrompt = [\n  'Generate a security vulnerability report in Markdown format.',\n  `Repository: ${repoPath}`,\n  `Total findings: ${findings.length}`,\n  `Reflexion iterations applied: ${reflexionCount}`,\n  '',\n  'Findings:',\n  JSON.stringify(findings, null, 2),\n  '',\n  'Required report structure:',\n  '# Security Audit Report',\n  '## Executive Summary',\n  '- Scan target, total findings count, breakdown by severity',\n  '## Findings',\n  '### [SEVERITY] filename:line',\n  '- Description, evidence level, PoC (if available), remediation recommendation',\n  '## Methodology',\n  '- Reflexion loop iterations, specialist modes used',\n  '## Appendix',\n  '- reflexionHistory summary'\n].join('\\n');\n\nconst localMessages = [{ role: 'user', content: reportPrompt }];\nconst response = await model.invoke(localMessages);\nconst markdownReport = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\nconst sarifReport = {\n  version: '2.1.0',\n  $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',\n  runs: [{\n    tool: {\n      driver: {\n        name: 'SGM-SourceHunt',\n        version: '1.0.0',\n        informationUri: 'https://github.com/akudo7/SceneGraphManager'\n      }\n    },\n    results: findings.map((f, idx) => ({\n      ruleId: f.type || 'unknown',\n      level: f.severity === 'critical' ? 'error'\n        : f.severity === 'high' ? 'warning'\n        : 'note',\n      message: { text: f.description || '' },\n      locations: [{\n        physicalLocation: {\n          artifactLocation: { uri: f.filePath || '' },\n          region: { startLine: f.line || 1 }\n        }\n      }]\n    }))\n  }]\n};\n\nconst byEvidenceLevel = findings.reduce((acc, f) => {\n  const lv = String(f.evidenceLevel || 'unknown');\n  acc[lv] = (acc[lv] || 0) + 1;\n  return acc;\n}, {});\n\nconst bySeverity = findings.reduce((acc, f) => {\n  const sev = f.severity || 'unknown';\n  acc[sev] = (acc[sev] || 0) + 1;\n  return acc;\n}, {});\n\nconst pocGenerated = findings.filter(f => f.exploitStatus === 'generated').length;\n\nconst finalReport = JSON.stringify({\n  markdown: markdownReport,\n  sarif: sarifReport,\n  json: findings,\n  stats: {\n    totalFindings: findings.length,\n    byEvidenceLevel,\n    bySeverity,\n    pocGenerated,\n    reflexionIterations: reflexionCount,\n    repoPath\n  }\n}, null, 2);\n\nconsole.log(`[reporter] Report generated (${markdownReport.length} chars markdown, ${findings.length} findings, ${pocGenerated} PoCs)`);\nreturn {\n  finalReport,\n  messages: [{ role: 'assistant', content: markdownReport }]\n};"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "ranker_node"
+    },
+    {
+      "from": "ranker_node",
+      "type": "conditional",
+      "condition": {
+        "name": "fanOutToHunters",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SourceHuntState.State"
+            }
+          ],
+          "function": "if (!state.huntTargets || state.huntTargets.length === 0) {\n  console.warn('[fanOut] No huntTargets — routing to __end__');\n  return '__end__';\n}\nconsole.log(`[fanOut] Dispatching ${state.huntTargets.length} hunters`);\nreturn state.huntTargets.map(target => new Send('hunter_node', { ...state, currentTarget: target }));"
+        }
+      }
+    },
+    {
+      "from": "hunter_node",
+      "to": "verifier_node"
+    },
+    {
+      "from": "verifier_node",
+      "type": "conditional",
+      "condition": {
+        "name": "reflexionOrProceed",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SourceHuntState.State"
+            }
+          ],
+          "function": "const MAX_REFLEXION = 2;\nconst CONFIDENCE_THRESHOLD = 0.7;\nconst failedFindings = state._failedFindings || [];\nconst huntResults = state.huntResults || [];\nconst reflexionHistory = state.reflexionHistory || [];\n\n// findings=0 または低 confidence のファイル（Reflexion の機会が必要）\nconst needsRetryFiles = huntResults.filter(r =>\n  r.findings.length === 0 || r.confidence < CONFIDENCE_THRESHOLD\n);\n\nconst hasRetryableFailures = failedFindings.some(f => {\n  const attempts = reflexionHistory.filter(h => h.target === f.finding.filePath).length;\n  return attempts < MAX_REFLEXION;\n});\n\nconst hasRetryableNoFindings = needsRetryFiles.some(r => {\n  const attempts = reflexionHistory.filter(h => h.target === r.filePath).length;\n  return attempts < MAX_REFLEXION;\n});\n\nif (!hasRetryableFailures && !hasRetryableNoFindings) {\n  if (failedFindings.length === 0 && needsRetryFiles.length === 0) {\n    console.log('[reflexion] No failures — proceeding to exploiter');\n  } else {\n    console.log(`[reflexion] MAX_REFLEXION (${MAX_REFLEXION}) reached for all targets — proceeding to exploiter`);\n  }\n  return 'exploiter_node';\n}\n\nconst pendingFailed = failedFindings.filter(f => {\n  const attempts = reflexionHistory.filter(h => h.target === f.finding.filePath).length;\n  return attempts < MAX_REFLEXION;\n});\nconst pendingNoFindings = needsRetryFiles.filter(r => {\n  const attempts = reflexionHistory.filter(h => h.target === r.filePath).length;\n  return attempts < MAX_REFLEXION;\n});\n\nconsole.log(`[reflexion] ${pendingFailed.length} failed + ${pendingNoFindings.length} no-findings/low-confidence eligible for retry — routing to failure_analyst`);\nreturn 'failure_analyst_node';"
+        }
+      }
+    },
+    {
+      "from": "failure_analyst_node",
+      "type": "conditional",
+      "condition": {
+        "name": "retryHunters",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SourceHuntState.State"
+            }
+          ],
+          "function": "if (!state.huntTargets || state.huntTargets.length === 0) {\n  console.warn('[retryFanOut] No retry targets — routing to __end__');\n  return '__end__';\n}\nconsole.log(`[retryFanOut] Retrying ${state.huntTargets.length} hunters with verbal gradients`);\nreturn state.huntTargets.map(target => new Send('hunter_node', { ...state, currentTarget: target }));"
+        }
+      }
+    },
+    {
+      "from": "exploiter_node",
+      "to": "reporter_node"
+    },
+    {
+      "from": "reporter_node",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "SourceHuntState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

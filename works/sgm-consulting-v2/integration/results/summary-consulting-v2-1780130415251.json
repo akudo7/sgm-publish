@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130415251",
+  "threadId": "slack-test-1780130415251",
+  "initialQuestion": [
+    "Dispatch Serverの起動方法を教えてください"
+  ],
+  "durationMs": 19959,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "Dispatch Serverの起動方法は、使用するクライアント（HTTP API / Slack / Telegram）によって異なります。\n\n### 1. 基本起動（HTTP API経由）\n最もシンプルな起動方法です。ワークフローJSONファイルを指定して起動します。\n\n```bash\nnpx tsx scripts/dispatch-server.ts --config ./json/your-workflow.json --port 3011\n```\n\n起動後、以下のようなエンドポイントでタスクを送信できます。\n*   `POST /message/send`: タスクの送信\n*   `GET /health`: ヘルスチェック\n\n### 2. Slack Bot連携時の起動\nSlack Botを使用する場合は、Dispatch Serverとは別にSlack Botプロセスを起動する必要があります。\n\n**手順:**\n1.  **環境変数の設定**\n    ```bash\n    export SLACK_BOT_TOKEN=xoxb-...\n    export SLACK_SIGNING_SECRET=...\n    export SLACK_APP_TOKEN=xapp-...\n    ```\n2.  **Dispatch Serverの起動**\n    ```bash\n    npx tsx scripts/dispatch-server.ts --config ./json/slack-chat-qwen.json --port 3011\n    ```\n3.  **Slack Botの起動**（別のターミナルで）\n    ```bash\n    npx tsx scripts/slack-dispatch-bot.ts\n    ```\n\n### 3. Telegram Bot連携時の起動\nTelegram Botを使用する場合も同様に、Dispatch Serverとは別にBotプロセスを起動します。\n\n**手順:**\n1.  **環境変数の設定**\n    ```bash\n    export TELEGRAM_BOT_TOKEN=123456789:AABBcc...\n    ```\n2.  **Telegram Botの起動**\n    ```bash\n    npx tsx scripts/telegram-dispatch-bot.ts\n    ```\n    ※ Dispatch Serverは別途起動しておく必要があります。\n\n---\n\n**補足: A2Aクライアントからの連携**\n他のA2AワークフローからDispatch Serverを呼び出す場合は、`/.well-known/agent.json` エンドポイントからAgent Cardを取得し、`a2aClients` として登録します。\n\n```json\n{\n  \"a2aClients\": {\n    \"dispatch\": {\n      \"cardUrl\": \"http://localhost:3011/.well-known/agent.json\"\n    }\n  }\n}\n```"
+  ],
+  "timestamp": "2026-05-30T08:40:35.229Z"
+}

@@ -1,0 +1,169 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in allocation size calculation for bipred_scratchpad. The expression '16 * 6 * alloc_size' is evaluated as a signed 32-bit int before being cast to size_t for av_fast_malloc. Large linesize values cause the multiplication to wrap around."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 111
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in allocation size calculation for edge_emu_buffer. The expression 'alloc_size * 2 * 21' is evaluated as a signed 32-bit int before being passed to av_fast_malloc."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 114
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in allocation size calculation for top_borders. The expression 'h->mb_width * 16 * 3 * sizeof(uint8_t) * 2' is evaluated as a signed 32-bit int. Large mb_width values cause wrap-around before allocation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 116
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Multiple integer overflows in init_table_pools. Variables like big_mb_num, mb_array_size, b4_stride, and b4_array_size are computed using signed int arithmetic (e.g., h->mb_stride * h->mb_height). These values are then used in further multiplications and passed to av_buffer_pool_init as size_t, causing severe truncation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 134
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in manual allocation size calculation for pic_size_in_ctb"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 69
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in frame extradata pool size calculation leads to undersized heap allocation and subsequent buffer overflow."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 114
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Signed integer overflow in frame dimension and block count calculations used for memory allocation and indexing."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 103
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in manual allocation size calculation for ctb_count"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 71
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

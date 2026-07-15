@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780127015656",
+  "threadId": "slack-test-1780127015656",
+  "initialQuestion": [
+    "Context Compressionの設定方法を教えてください"
+  ],
+  "durationMs": 37841,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "Context Compressionは、長時間の会話においてトークン消費を削減するための機能です。\nワークフローJSONの `config.config.contextCompression` に設定します。\n\n### 設定フィールド\n\n| フィールド | 型 | 説明 |\n|---|---|---|\n| `contextCompression.enabled` | `boolean` | 圧縮を有効にするかどうか |\n| `contextCompression.mode` | `\"threshold\"` \\| `\"autonomous\"` | 圧縮モード |\n| `contextCompression.trigger.messages` | `number` | (thresholdモード) メッセージ数の閾値 |\n| `contextCompression.trigger.tokens` | `number` | (thresholdモード) トークン数の閾値。`messages` とAND条件 |\n| `contextCompression.keep.messages` | `number` | 圧縮後に保持する末尾のメッセージ数 |\n\n### モードの説明\n\n1.  **Threshold mode**\n    *   指定したメッセージ数とトークン数の条件を満たした場合、ノード実行前に古いメッセージを要約して削除します。\n2.  **Autonomous mode**\n    *   モデルに `compress_context` ツールを注入し、モデル自身が圧縮のタイミングを判断させます。\n\n### 設定例\n\n**Threshold mode の設定例**\n\n```json\n{\n  \"config\": {\n    \"contextCompression\": {\n      \"enabled\": true,\n      \"mode\": \"threshold\",\n      \"trigger\": { \"messages\": 10, \"tokens\": 102400 },\n      \"keep\": { \"messages\": 4 }\n    }\n  },\n  \"annotation\": {\n    \"messages\": { \"type\": \"string[]\", \"reducer\": \"(x, y) => x.concat(y)\", \"default\": [] },\n    \"summary\": { \"type\": \"string\", \"reducer\": \"(_, y) => y\", \"default\": \"\" }\n  }\n}\n```\n\n**Autonomous mode の設定例**\n\n```json\n{\n  \"config\": {\n    \"contextCompression\": {\n      \"enabled\": true,\n      \"mode\": \"autonomous\",\n      \"keep\": { \"messages\": 4 }\n    }\n  },\n  \"annotation\": {\n    \"messages\": { \"type\": \"string[]\", \"reducer\": \"(x, y) => x.concat(y)\", \"default\": [] },\n    \"summary\": { \"type\": \"string\", \"reducer\": \"(_, y) => y\", \"default\": \"\" }\n  }\n}\n```\n\n### 状態アノテーションの要件\n\nこの機能を使用するには、ワークフローの `annotation` に以下のフィールドが必要です。\n\n*   `messages`: メッセージ履歴を管理するフィールド\n*   `summary`: 要約結果を格納するフィールド（圧縮された結果は最終結果としてこのフィールドに付与されます）"
+  ],
+  "timestamp": "2026-05-30T07:44:13.518Z"
+}

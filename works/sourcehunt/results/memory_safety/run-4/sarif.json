@@ -1,0 +1,245 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "Integer Overflow",
+          "level": "warning",
+          "message": {
+            "text": "The calculation of pic_size_in_ctb multiplies two values derived from frame dimensions without overflow checking. Maliciously large width and height values can cause the product to wrap around to a small positive or negative integer. This value is passed to av_malloc_array, potentially resulting in an undersized heap allocation for s->tab_slice_address and s->qp_y_tab, leading to heap buffer overflow during subsequent slice decoding operations."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 116
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Out-of-bounds Write",
+          "level": "warning",
+          "message": {
+            "text": "The loop iterates based on s->sh.nb_refs[L0], which is derived from the bitstream. The arrays luma_weight_l0_flag, s->sh.luma_weight_l0, and s->sh.luma_offset_l0 are fixed at 16 elements. If nb_refs[L0] exceeds 16 due to a malformed bitstream, the loop writes out of bounds to the stack-allocated flag array and the HEVCSh structure fields."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 167
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow leading to Heap Buffer Overflow",
+          "level": "error",
+          "message": {
+            "text": "The allocation size for motion_val_pool is computed using 32-bit signed integer arithmetic. b4_array_size is calculated as b4_stride * h->mb_height * 4, and the final size passed to av_buffer_pool_init is 2 * (b4_array_size + 4) * sizeof(int16_t). If h->mb_width or h->mb_height are crafted to be large, the intermediate multiplications overflow the int type, resulting in a negative or truncated size. This value is implicitly cast to size_t for av_buffer_pool_init, causing an undersized buffer to be allocated. Subsequent decoding operations writing motion vectors will trigger out-of-bounds writes."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 175
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in frame extradata pool size calculation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 123
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds_read",
+          "level": "note",
+          "message": {
+            "text": "Function reads 4 bytes unconditionally from the AVIOContext without verifying that the atom length (len) is at least 4."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 92
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "memory_leak",
+          "level": "note",
+          "message": {
+            "text": "Overwrites st->priv_data with a newly allocated MOVStreamContext without freeing the previously assigned pointer."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 173
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds-read",
+          "level": "warning",
+          "message": {
+            "text": "The function check_pes performs multiple array accesses on pointer p without verifying bounds against end. Specifically, p[3], p[4], and p[6] are read at the start, and later p[4], p[5], p[7], and p[9] are accessed after p is advanced, without checking if p + offset < end."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mpeg.c"
+                },
+                "region": {
+                  "startLine": 39
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds-read",
+          "level": "warning",
+          "message": {
+            "text": "In mpegps_probe, the code reads p->buf[i + 1] and p->buf[i + 2] at line 74 without ensuring i + 2 < p->buf_size. Additionally, i += len at lines 88 and 89 can cause i to jump beyond the buffer boundary, leading to out-of-bounds reads in subsequent iterations or invalid pointer arithmetic."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mpeg.c"
+                },
+                "region": {
+                  "startLine": 74
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Allocation Size",
+          "level": "warning",
+          "message": {
+            "text": "In alloc_scratch_buffers, the size argument for av_fast_malloc is computed as 16 * 6 * alloc_size. alloc_size is an int derived from linesize. If linesize is maliciously large, the multiplication 96 * alloc_size can overflow a 32-bit signed integer before being passed to av_fast_malloc, resulting in an undersized allocation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 137
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow leading to Heap Buffer Overflow",
+          "level": "error",
+          "message": {
+            "text": "The allocation size expression `16 * 6 * alloc_size` is evaluated using 32-bit signed integer arithmetic. If `linesize` is maliciously large, `alloc_size` overflows during multiplication, wrapping to a small positive value. `av_fast_malloc` allocates a small buffer, but subsequent decoding loops write the full unoverflowed size, causing a heap buffer overflow."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 143
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow leading to Heap Buffer Overflow",
+          "level": "error",
+          "message": {
+            "text": "The calculation `alloc_size * 2 * 21` on line 146 uses 32-bit signed integers. An overflow here causes `av_fast_malloc` to allocate a small `edge_emu_buffer`, while edge emulation routines subsequently write beyond the allocated bounds."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 146
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow leading to Pool Allocation Underestimation",
+          "level": "warning",
+          "message": {
+            "text": "In `init_table_pools`, allocation sizes for macroblock tables are computed using 32-bit signed integer arithmetic. Corrupted frame dimensions cause multiplications to overflow, creating undersized memory pools."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 165
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

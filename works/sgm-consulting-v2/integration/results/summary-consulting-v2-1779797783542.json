@@ -1,0 +1,17 @@
+{
+  "sessionId": "consulting-v2-1779797783542",
+  "threadId": "slack-1779797783542",
+  "initialQuestion": "SceneGraphManagerのWorkflowEngineの使い方を教えてください",
+  "durationMs": 14164,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answer": "申し訳ありませんが、具体的な質問内容が記載されていないようです。\n\nSceneGraphManager SDK について、以下のようなご質問にお答えできます：\n\n- **機能概要**: ワークフローエンジン、スキル機能、A2A連携などの機能について\n- **使用方法**: APIの使い方、セットアップ方法、クイックスタートについて\n- **モデル設定**: サポートされているモデルや設定方法について\n- **セキュリティ**: PIIフィルタリングやセキュリティ機能について\n- **トラブルシューティング**: よくある問題と解決方法について\n\nどのようなご質問でしょうか？お気軽にお知らせください。",
+  "timestamp": "2026-05-26T12:16:37.726Z"
+}

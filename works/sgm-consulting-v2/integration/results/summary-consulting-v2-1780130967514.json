@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130967514",
+  "threadId": "slack-test-1780130967514",
+  "initialQuestion": [
+    "WorkflowEngineのインスタンス作成方法を教えてください"
+  ],
+  "durationMs": 31541,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "WorkflowEngineのインスタンス作成は、ワークフロー定義を含む設定オブジェクトを渡してコンストラクタを呼び出し、その後 `build()` メソッドを呼び出すことで完了します。\n\n### 基本的な作成手順\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\n// 1. 設定オブジェクトの定義\nconst config = {\n  config: { name: \"My Workflow\", description: \"A basic workflow\" },\n  stateAnnotation: { name: \"WorkflowState\", type: \"Annotation.Root\" },\n  annotation: {\n    messages: { type: \"BaseMessage[]\", reducer: \"(x, y) => x.concat(y)\", default: \"[]\" }\n  },\n  models: [{ id: \"claude\", type: \"anthropic\", config: { model: \"claude-3-5-sonnet-20241022\", apiKey: \"sk-ant-...\" } }],\n  nodes: [{ id: \"chat\", type: \"model\", modelRef: \"claude\" }],\n  edges: [{ from: \"__start__\", to: \"chat\" }, { from: \"chat\", to: \"__end__\" }],\n  stateGraph: { annotationRef: \"WorkflowState\" }\n};\n\n// 2. インスタンス生成\nconst engine = new WorkflowEngine(config);\n\n// 3. 初期化・ビルド（必須）\nawait engine.build();\n```\n\n### 重要なポイント\n\n- **`build()` の呼び出し**: インスタンス生成後、必ず `await engine.build()` を呼び出してください。このメソッド内でMCPサーバー、A2Aクライアント、スキル、モデルの初期化が行われ、ワークフローグラフがコンパイルされます。\n- **APIキーの管理**: 設定オブジェクトに直接APIキーを設定することもできますが、本番環境では `loadSecrets()` を使用してOSのキーチェーンから環境変数を読み込むことが推奨されます。\n  ```typescript\n  import { loadSecrets } from 'scenegraphmanager';\n  loadSecrets(); // OSのキーチェーンからAPIキーを読み込む\n  const engine = new WorkflowEngine(config);\n  await engine.build();\n  ```\n- **設定構造**: 設定オブジェクトには、ワークフローのメタデータ (`config`)、状態定義 (`stateAnnotation`, `annotation`)、モデル設定 (`models`)、ノード定義 (`nodes`)、エッジ定義 (`edges`)、および状態グラフの設定 (`stateGraph`) を含める必要があります。\n\n詳細な設定項目やノードの型については、公式ドキュメントの「ワークフローJSON設計」セクションを参照してください。"
+  ],
+  "timestamp": "2026-05-30T08:49:59.073Z"
+}

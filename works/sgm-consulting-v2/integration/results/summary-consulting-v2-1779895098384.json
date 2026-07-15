@@ -1,0 +1,23 @@
+{
+  "sessionId": "consulting-v2-1779895098384",
+  "threadId": "slack-test-1779895098384",
+  "initialQuestion": [
+    "SceneGraphMangerのインスタンスの作成方法を教えて下さい",
+    "回答の続きを表示して下さい"
+  ],
+  "durationMs": 104069,
+  "turnCount": 2,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [
+    "```json\n{\n  \"config\": {\n    \"name\": \"Chat Workflow\",\n    \"description\": \"A basic chat workflow\"\n  },\n  \"stateAnnotation\": {\n    \"name\": \"WorkflowState\",\n    \"type\": \"Annotation.Root\"\n  },\n  \"annotation\": {\n    \"messages\": {\n      \"type\": \"BaseMessage[]\",\n      \"reducer\": \"(x, y) => x.concat(y)\",\n      \"default\": \"[]\"\n    }\n  },\n  \"models\": [\n    {\n      \"id\": \"claude\",\n      \"type\": \"anthropic\",\n      \"config\": {\n        \"model\": \"claude-3-5-sonnet-20241022\",\n        \"apiKey\": \"process.env.ANTHROPIC_API_KEY\"\n      }\n    }\n  ],\n  \"nodes\": [\n    { \"id\": \"chat\", \"type\": \"model\", \"modelRef\": \"claude\" }\n  ],\n  \"edges\": [\n    { \"from\": \"__start__\", \"to\": \"chat\" },\n    { \"from\": \"chat\", \"to\": \"__end__\" }\n  ],\n  \"stateGraph\": {\n    \"annotationRef\": \"WorkflowState\"\n  }\n}\n```",
+    "### Context Compression\nコンテキストウィンドウの自動圧縮をサポートします。\n- **Threshold mode**: メッセージ数**かつ**トークン数が閾値に達した際に要約\n- **Autonomous mode**: モデルが自律的に要約を判断\n\n## 技術スタック\n- **LangGraph** — ワークフローオーケストレーション\n- **LangChain Core** — AI抽象化\n- **A2A JS SDK** — エージェント通信\n- **TypeScript** 5.9.2+ — 型安全性"
+  ],
+  "timestamp": "2026-05-27T15:20:02.474Z"
+}

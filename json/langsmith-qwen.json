@@ -1,0 +1,52 @@
+{
+  "config": {
+    "name": "langsmith-demo",
+    "info": {
+      "version": "2.6.0",
+      "description": "LangSmith メタデータタグ JSON 設定例",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 25,
+    "langsmith": {
+      "tags": ["sgm-demo", "qwen"],
+      "metadata": {
+        "environment": "development",
+        "model": "unsloth/Qwen3.6-35B-A3B"
+      }
+    }
+  },
+  "stateAnnotation": {
+    "name": "LangSmithDemoState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    }
+  },
+  "nodes": [
+    {
+      "id": "greet",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof LangSmithDemoState.State"
+          }
+        ],
+        "output": {},
+        "function": "return { messages: [...state.messages, { role: 'assistant', content: 'Hello from SGM!' }]; };"
+      }
+    }
+  ],
+  "edges": [
+    { "from": "__start__", "to": "greet" },
+    { "from": "greet", "to": "__end__", "type": "normal" }
+  ],
+  "stateGraph": {
+    "annotationRef": "LangSmithDemoState"
+  }
+}

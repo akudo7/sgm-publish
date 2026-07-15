@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130436470",
+  "threadId": "slack-test-1780130436470",
+  "initialQuestion": [
+    "Slack Botの設定方法を教えてください"
+  ],
+  "durationMs": 47325,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "Slack Botの設定方法は以下の通りです。\n\n## 1. 環境変数の設定\n\n`.env`ファイルまたは環境変数に以下の3つの値を設定します。\n\n```bash\nSLACK_BOT_TOKEN=xoxb-...\nSLACK_SIGNING_SECRET=...\nSLACK_APP_TOKEN=xapp-...\n```\n\n- `SLACK_BOT_TOKEN`: Botとしての認証トークン（`xoxb-`で始まる）\n- `SLACK_SIGNING_SECRET`: Slack Appのシグニングシークレット\n- `SLACK_APP_TOKEN`: Appレベルのトークン（`xapp-`で始まる）\n\n## 2. Dispatch Serverの起動\n\nまず、タスクを実行するDispatch Serverを起動します。\n\n```bash\nnpx tsx scripts/dispatch-server.ts \\\n  --config ./json/slack-chat-qwen.json \\\n  --port 3011\n```\n\n## 3. Slack Botの起動\n\n別のターミナルでSlack Botを起動します。\n\n```bash\nnpx tsx scripts/slack-dispatch-bot.ts\n```\n\n## 4. 使用方法\n\n- SlackでBotに **DM（ダイレクトメッセージ）** を送信するか、チャンネルで **メンション** をします\n- 結果は同じスレッドに返信されます\n- Socket Modeで動作します\n\n## 5. セッションの終了\n\n以下のキーワードを送信すると、タスクの実行を待たずに即座に終了します：\n- 日本語: `終了`, `やめる`\n- 英語: `exit`, `quit`, `done`\n\n## 補足\n\n- Slack Botは内部でA2Aプロトコルを使用せず、単純なHTTP POSTでDispatch Serverと通信します\n- 会話履歴の保持には`MemorySaver`が使用されます（`json/slack-chat-qwen.json`参照）"
+  ],
+  "timestamp": "2026-05-30T08:41:23.813Z"
+}

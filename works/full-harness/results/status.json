@@ -1,0 +1,9 @@
+{
+  "sprintNumber": 1,
+  "passed": false,
+  "score": 0,
+  "feedback": "ビルドおよびテスト実行がTypeScriptコンパイルエラーにより失敗しています。ログによると、`@types/cors`と`@types/helmet`の型定義パッケージが不足しており、`server.ts`から`app`がエクスポートされていないためテストファイルでインポートできません。契約の条件「テストがない・実行失敗の場合は score: 0」に従い、最終スコアは0となります。修正には型定義のインストール(`npm i -D @types/cors @types/helmet`)、`app`のエクスポート設定、およびテストファイルのインポートパス修正が必要です。",
+  "contextResetCount": 0,
+  "retryCount": 1,
+  "timestamp": "2026-05-13T15:40:24.287Z"
+}

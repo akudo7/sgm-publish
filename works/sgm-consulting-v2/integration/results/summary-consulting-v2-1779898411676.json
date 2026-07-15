@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779898411676",
+  "threadId": "slack-test-1779898411676",
+  "initialQuestion": [
+    "SceneGraphManagerとは何ですか？"
+  ],
+  "durationMs": 36729,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [
+    "# SceneGraphManagerとは\n\nSceneGraphManagerは、**エージェントワークフローを管理するためのTypeScript SDK**です。JSON形式でワークフローを定義し、LangGraphとLangChainを基盤としてAIエージェントの動作を制御します。\n\n## 主な特徴\n\n### 1. JSON-First Design\nTypeScriptコードを変更することなく、JSONファイルのみで複雑なAIワークフローを定義・実行できます。デスクトップ、組み込みシステム、IoTデバイスなど、どこでも同じワークフローを実行可能です。\n\n### 2. ワークフローエンジン\n状態ベースのグラフ型ワークフローエンジンを提供します。\n- `WorkflowEngine.invoke(input)` — ワークフローを実行\n- `WorkflowEngine.stream(input)` — ワークフローをストリーミング実行\n- `WorkflowEngine.build()` — ワークフローを構築\n\n### 3. マルチモデル対応\n以下のLLMモデルをファクトリーパターンで管理できます：\n- Anthropic Claude\n- OpenAI / Azure OpenAI\n- Ollama\n- llama.cpp (GGUF)\n\n### 4. エージェント連携\n- **A2Aプロトコル**: Agent-to-Agent通信による外部エージェント連携\n- **Swaams Fan-out/Fan-in**: 並列エージェント実行パターン\n- **MCP統合**: Model Context Protocolによるツール連携\n\n### 5. 高度な機能\n- **スキル管理**: 外部スキルを動的に読み込み、ワークフローに注入\n- **コンテキスト圧縮**: 長期対話でのメモリ最適化\n- **PIIフィルタ**: 個人識別情報の自動検出・除去\n- **Memento-Skills**: 実行経験がSKILL.mdに蓄積される自己改善ワークフロー\n- **AutoResearch**: SKILL.mdの自律的改善ループ\n- **Dispatch**: リモートからのタスク実行システム（HTTP/Slack/Telegram対応）\n\n## 技術スタック\n- **LangGraph** v1.0.1+ — ワークフローオーケストレーション\n- **LangChain Core** v1.0.1+ — AI抽象化レイヤー\n- **A2A JS SDK** v0.3.4+ — エージェント通信\n- **TypeScript** 5.9.2+ — 型安全性\n\n## 使用例\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst config = { /* JSON設定 */ };\nconst engine = new WorkflowEngine(config);\nawait engine.build();\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\n```\n\nSceneGraphManagerは、JSON駆動のワークフロー設計により、AIエージェントの複雑な動作を直感的に定義・実行できることを目的としています。"
+  ],
+  "timestamp": "2026-05-27T16:14:08.423Z"
+}

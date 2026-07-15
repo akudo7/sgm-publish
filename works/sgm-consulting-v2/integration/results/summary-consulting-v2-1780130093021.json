@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130093021",
+  "threadId": "slack-test-1780130093021",
+  "initialQuestion": [
+    "useDiscoveredAgentsの使い方を教えてください"
+  ],
+  "durationMs": 21389,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`useDiscoveredAgents` は、**ToolNode（`type: \"tool\"`）** に設定する boolean 型のプロパティです。\n\nこれを `true` に設定することで、ワークフロー実行中に**動的に外部エージェント（A2A）を検出し、そのエージェントのスキルに基づいてツールを自動生成・バインド**することができます。\n\n### 基本的な使い方\n\nワークフローJSONの `nodes` 配列で、ツールを実行したいノードに `useDiscoveredAgents: true` を設定します。\n\n```json\n{\n  \"id\": \"worker_node\",\n  \"type\": \"tool\",\n  \"useDiscoveredAgents\": true\n}\n```\n\n### 動作の仕組み\n\n1. **エージェントの発見**: 事前に `discovery_node` などの処理によって、外部エージェントのカード情報（Agent Card）がワークフローの `state.availableAgents` に収集・格納されている必要があります。\n2. **ツールの自動生成**: `useDiscoveredAgents: true` が設定されたノードが実行される際、SDKは `state.availableAgents` にあるエージェントカードの `name`、`description`、`skills` を解析し、その場でA2Aツール定義を生成します。\n3. **実行**: 生成されたツールがLLMにバインドされ、エージェントとの通信が可能になります。\n\n### 典型的なワークフローパターン\n\nこの機能は、以下の3段階のパターンでよく使用されます。\n\n1. **Discovery**: 外部エージェントを探索し、その情報を収集するノード\n2. **Planning**: 収集した情報から、タスクに最適なエージェントを選別するノード\n3. **Execution**: `useDiscoveredAgents: true` を設定し、選別されたエージェントに対して動的にツール呼び出しを行うノード\n\n```\ndiscovery_node (エージェントカードの一括フェッチ)\n    ↓\nplanner_node (スキルマッチング — 最適なエージェントを選定)\n    ↓\nworker_node (useDiscoveredAgents: true — 動的A2Aツールで実行)\n```\n\n### 静的な設定との違い\n\n通常、A2Aエージェントと連携するにはワークフローのトップレベルに `a2aClients` を定義して静的に接続先を指定しますが、`useDiscoveredAgents` を使うことで、**実行時の状況に応じてエージェントを動的に切り替えたり、発見されたエージェントをそのまま利用したり**することが可能になります。"
+  ],
+  "timestamp": "2026-05-30T08:35:14.431Z"
+}

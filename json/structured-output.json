@@ -1,0 +1,104 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Structured output workflow — sentiment analysis with JSON Schema",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 25
+  },
+  "stateAnnotation": {
+    "name": "StructuredOutputState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "string[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "analysis": {
+      "type": "{ summary: string; sentiment: string; keyPoints: string[] }",
+      "reducer": "(x, y) => y ?? x",
+      "default": null
+    }
+  },
+  "models": [
+    {
+      "id": "analyzer",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "analyze",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof StructuredOutputState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "analyzer"
+          }
+        ],
+        "functionFile": "json/functions/analyze.js"
+      },
+      "structuredOutput": {
+        "schema": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "sentiment": {
+              "type": "string",
+              "enum": [
+                "positive",
+                "neutral",
+                "negative"
+              ]
+            },
+            "keyPoints": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "summary",
+            "sentiment",
+            "keyPoints"
+          ]
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "analyze"
+    },
+    {
+      "from": "analyze",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "StructuredOutputState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

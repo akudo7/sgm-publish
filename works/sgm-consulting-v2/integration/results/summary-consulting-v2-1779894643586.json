@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779894643586",
+  "threadId": "slack-test-1779894643586",
+  "initialQuestion": [
+    "SceneGraphManagerとは何ですか？"
+  ],
+  "durationMs": 93655,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerは、TypeScript製のAIエージェントワークフロー管理SDKです。LangGraphとLangChainを基盤とし、**JSONファーストの設計**を採用しています。複雑なAIの処理フロー（ダイアグラム）をJSONファイルで定義し、デスクトップ、組み込みシステム、IoTデバイスなど、コード変更なしでどこでも実行できるように設計されています。\n\n### 主な特徴\n- **グラフ型ワークフローエンジン**: `WorkflowEngine` を介して、ノードとエッジで構成されたワークフローの構築・実行（`invoke` / `stream`）を行います。状態遷移を明示的に管理し、条件付き分岐やループ処理にも対応しています。\n- **マルチモデル対応**: Anthropic、OpenAI、Azure OpenAI、Ollama、llama.cpp などの複数のLLMモデルをファクトリーパターンで管理し、ワークフロー内で柔軟に切り替え・併用できます。\n- **エージェント連携とツール統合**: A2A（Agent-to-Agent）プロトコルによる外部エージェント通信、MCP（Model Context Protocol）対応ツール、および動的なエージェントカード発見機能を備えています。\n- **スキル管理と自己改善**: 外部の `SKILL.md` ファイルを動的に読み込みワークフローに注入するスキルシステムを搭載。実行結果に基づいてスキルを自動改善する「Memento-Skills」や、自律的なスキル改良ループ「AutoResearch」も提供しています。\n- **コンテキスト最適化とセキュリティ**: 長期対話におけるコンテキストウィンドウの自動圧縮・ガード機能、および個人識別情報（PII）のフィルタリング・機密情報のマスキングをサポートします。\n- **リモートタスク実行（Dispatch）**: HTTP、Slack、Telegram 等からタスクを投入し、ローカルのワークフローエンジンで非同期実行後、Webhook で結果を通知するシステムを内蔵しています。\n\n### 基本的な使用パターン\n1. ワークフロー設定をJSON形式で定義する（モデル、ノード、エッジ、状態アノテーション等）\n2. `WorkflowEngine` に設定を渡してインスタンス化し、`build()` でグラフを構築\n3. `invoke()` または `stream()` で入力データを渡して実行し、結果を取得\n\nまた、`kudosflow2` VSCode 拡張機能と連携してビジュアルエディタでワークフローを設計・インポートすることも可能です。\n\n公開ドキュメントに基づき、機能概要と設計思想を整理しました。特定のワークフロー設計方法や、モデル設定・スキル注入の詳細な使い方について知りたい場合は、お気軽にお知らせください。"
+  ],
+  "timestamp": "2026-05-27T15:12:17.261Z"
+}

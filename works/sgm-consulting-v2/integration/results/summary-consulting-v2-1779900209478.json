@@ -1,0 +1,19 @@
+{
+  "sessionId": "consulting-v2-1779900209478",
+  "threadId": "slack-test-1779900209478",
+  "initialQuestion": [
+    "Solace Agent MeshとSolace PubSub+の違いを教えてください"
+  ],
+  "durationMs": 59359,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [],
+  "timestamp": "2026-05-27T16:44:28.853Z"
+}

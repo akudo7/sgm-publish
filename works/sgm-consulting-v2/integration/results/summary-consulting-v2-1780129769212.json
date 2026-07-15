@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780129769212",
+  "threadId": "slack-test-1780129769212",
+  "initialQuestion": [
+    "llama.cppモデルの設定方法を教えてください"
+  ],
+  "durationMs": 68823,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "llama.cpp（GGUF形式）モデルの設定は、SDKの公開ドキュメントおよび外部情報に基づき、以下のように行います。\n\n### 1. 前提：llama.cppサーバーの起動\nllama.cppはローカルでモデルを推論するためのフレームワークです。SDKはllama.cppサーバー（`llama-server`）との通信（OpenAI互換API）を介してモデルを利用します。\n\nまず、ターミナルでllama.cppサーバーを起動する必要があります。\n```bash\nllama-server --model model.gguf --port 8001\n```\n※ `model.gguf` はご利用のモデルファイルのパスに置き換えてください。\n\n### 2. ワークフローJSONでのモデル定義\nワークフローJSONの`models`配列に、`type`に`\"LlamaCpp\"`を指定したオブジェクトを追加します。\n\n```json\n{\n  \"id\": \"qwen\",\n  \"type\": \"LlamaCpp\",\n  \"config\": {\n    \"model\": \"unsloth/Qwen3.6-35B-A3B\",\n    \"serverUrl\": \"http://localhost:8001\",\n    \"temperature\": 0.7,\n    \"maxTokens\": 4096\n  }\n}\n```\n\n### 3. 設定フィールド一覧\n| フィールド | デフォルト値 | 説明 |\n|---|---|---|\n| `serverUrl` | `http://localhost:8001` | llama.cppサーバーの接続先URL |\n| `model` | （未設定） | モデル名（情報用としてサーバーに送信されます） |\n| `temperature` | （未設定） | サンプリング温度 |\n| `maxTokens` | （未設定） | 生成する最大トークン数 |\n\n### 4. モデルの参照\n定義したモデルを`model`ノードで参照するには、ノード設定の`modelRef`フィールドに`id`を指定します。\n\n```json\n{\n  \"id\": \"chat_node\",\n  \"type\": \"model\",\n  \"modelRef\": \"qwen\",\n  \"prompt\": \"...\"\n}\n```\n\n### 補足\nllama.cppはローカルサーバー経由で動作するモデルプロバイダーとしてサポートされています。APIキーは不要ですが、llama.cppサーバーが起動している必要があります。\n\n設定に関する詳細な仕様は、SDKの公開ドキュメントに記載されています。"
+  ],
+  "timestamp": "2026-05-30T08:30:38.052Z"
+}

@@ -1,0 +1,23 @@
+{
+  "sessionId": "consulting-v2-1779896258023",
+  "threadId": "test-source-code",
+  "initialQuestion": [
+    "WorkflowEngineの引数と戻り値を教えて",
+    "apiKeyを.envを使わずに設定する方法"
+  ],
+  "durationMs": 47562,
+  "turnCount": 2,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManager SDKについてご質問ありがとうございます。WorkflowEngineの引数と戻り値を教えてについてお答えします。",
+    "SceneGraphManagerでは、apiKeyを`.env`ファイルを使わずに設定する方法として、主に2つのアプローチがあります。\n\n## 1. ワークフロー設定内に直接apiKeyを指定する\n\nワークフロー設定（JSONまたはTypeScriptオブジェクト）の`models`配列内で、apiKeyを直接文字列として記述する方法です。\n\n**TypeScriptでの指定例:**\n```typescript\nconst config = {\n  // ...\n  models: [{\n    id: \"claude\",\n    type: \"anthropic\",\n    config: {\n      model: \"claude-3-5-sonnet-20241022\",\n      apiKey: \"sk-ant-xxxxx\"  // 直接文字列を指定\n    }\n  }],\n  // ...\n};\n```\n\n**JSONでの指定例:**\n```jsonc\n{\n  \"models\": [\n    {\n      \"id\": \"claude\",\n      \"type\": \"anthropic\",\n      \"config\": {\n        \"model\": \"claude-3-5-sonnet-20241022\",\n        \"apiKey\": \"sk-ant-xxxxx\"\n      }\n    }\n  ]\n}\n```\n\nこの方法では、`process.env.ANTHROPIC_API_KEY`のような環境変数参照を使わずに、設定ファイル内に直接APIキーを埋め込むことができます。\n\n## 2. OSネイティブのシークレットストアを使用する\n\nSceneGraphManagerには`SecretsProvider`という機能があり、OSネイティブのシークレットストアからAPIキーなどの機密情報を取得することができます。これにより、`.env`ファイルやワークフロー設定ファイルに直接キーを記載する必要がなくなります。\n\n## 注意点\n\n- 直接文字列でapiKeyを指定する方法は、開発環境やテスト環境では便利ですが、本番環境ではセキュリティ上のリスクがあるため、適切なシークレット管理（SecretsProviderや環境変数）の使用を推奨します。\n- 対応モデルタイプには、Anthropic、OpenAI、Azure OpenAI、Ollama、llama.cpp (GGUF) などがあり、それぞれ適切な`type`と`config`を指定する必要があります。"
+  ],
+  "timestamp": "2026-05-27T15:38:25.605Z"
+}

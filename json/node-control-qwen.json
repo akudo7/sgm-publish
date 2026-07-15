@@ -1,0 +1,117 @@
+{
+  "config": {
+    "info": {
+      "version": "3.0.0",
+      "description": "Phase 3 node control features — retryPolicy, timeout, cachePolicy, tags",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 30
+  },
+  "stateAnnotation": {
+    "name": "NodeControlState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "nodeLog": {
+      "type": "string[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    }
+  },
+  "models": [
+    {
+      "id": "primary",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "fast_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof NodeControlState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "primary"
+          }
+        ],
+        "function": "async (state, model) => { return { messages: [new AIMessage('fast response')], nodeLog: ['fast_node:completed'] }; }"
+      },
+      "timeout": { "runTimeout": 60000 },
+      "cachePolicy": { "ttl": 3600 },
+      "tags": ["sgm-fast", "sgm-critical"]
+    },
+    {
+      "id": "retry_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof NodeControlState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "primary"
+          }
+        ],
+        "function": "async (state, model) => { return { messages: [new AIMessage('retry response')], nodeLog: ['retry_node:completed'] }; }"
+      },
+      "retryPolicy": {
+        "maxAttempts": 3,
+        "backoffFactor": 2,
+        "initialInterval": 100,
+        "maxInterval": 5000
+      },
+      "tags": ["sgm-retry"]
+    },
+    {
+      "id": "timeout_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof NodeControlState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "primary"
+          }
+        ],
+        "function": "async (state, model) => { return { messages: [new AIMessage('timeout response')], nodeLog: ['timeout_node:completed'] }; }"
+      },
+      "timeout": {
+        "runTimeout": 120000,
+        "idleTimeout": 30000
+      },
+      "tags": ["sgm-timeout"]
+    }
+  ],
+  "edges": [
+    { "from": "__start__", "to": "fast_node" },
+    { "from": "fast_node", "to": "retry_node" },
+    { "from": "retry_node", "to": "timeout_node" },
+    { "from": "timeout_node", "to": "__end__" }
+  ],
+  "stateGraph": {
+    "annotationRef": "NodeControlState"
+  }
+}

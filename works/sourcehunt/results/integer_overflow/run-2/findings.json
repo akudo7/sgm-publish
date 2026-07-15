@@ -1,0 +1,250 @@
+[
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Integer overflow in pic_size_in_ctb calculation",
+    "line": 90,
+    "column": null,
+    "hypothesis": "Malformed SPS parameters with large width/height cause the multiplication ((width >> log2_min_cb_size) + 1) * ((height >> log2_min_cb_size) + 1) to wrap around a 32-bit signed integer. The wrapped small value is passed to av_malloc_array, resulting in an undersized heap allocation. Subsequent frame processing accesses the buffer using logical dimensions, triggering a heap buffer overflow.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:34:33.437Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main(void) {\n    // Malformed SPS parameters simulating extreme width/height\n    int32_t width = 1 << 16;\n    int32_t height = 1 << 16;\n    int32_t log2_min_cb_size = 4;\n\n    // Vulnerable calculation: multiplication wraps around 32-bit signed integer\n    // 65537 * 65537 = 4,295,098,369 > INT32_MAX (2,147,483,647)\n    // Result wraps to 131,073 (0x20001)\n    int32_t pic_size_in_ctb = ((width >> log2_min_cb_size) + 1) *\n                              ((height >> log2_min_cb_size) + 1);\n\n    printf(\"Logical dimensions require: %d elements\\n\",\n           (width >> log2_min_cb_size) * (height >> log2_min_cb_size));\n    printf(\"Overflowed allocation size: %d elements\\n\", pic_size_in_ctb);\n\n    // Simulate undersized heap allocation based on wrapped value\n    int32_t *pic_buffer = malloc(pic_size_in_ctb * sizeof(int32_t));\n    if (!pic_buffer) return 1;\n\n    // Conceptual demonstration of the overflow mechanism\n    // In the actual decoder, subsequent processing calculates offsets using\n    // the original logical dimensions and writes to pic_buffer,\n    // exceeding the allocated bounds and triggering a heap buffer overflow.\n    printf(\"Mechanism: Allocation uses wrapped size (%d), but processing uses logical size.\\n\", pic_size_in_ctb);\n    printf(\"Result: Heap buffer overflow when logical dimensions are applied.\\n\");\n\n    free(pic_buffer);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Malformed width/height cause the CTB size calculation to overflow a 32-bit signed integer, wrapping to a small value. This small value is used for heap allocation, but subsequent processing uses the original logical dimensions to access the buffer, causing a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Integer overflow in ctb_count calculation",
+    "line": 92,
+    "column": null,
+    "hypothesis": "Multiplication of sps->ctb_width and sps->ctb_height as signed integers can wrap with crafted values. This affects allocations for s->sao, s->deblock, s->filter_slice_edges, and the rpl_tab_pool. Undersized allocations lead to out-of-bounds writes during slice decoding and reference picture list management.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:34:57.064Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\ntypedef struct {\n    int32_t ctb_width;\n    int32_t ctb_height;\n} SPS;\n\nint main(void) {\n    SPS sps = {0};\n    int32_t ctb_count;\n\n    // Crafted SPS values that trigger signed integer overflow\n    // Multiplication wraps around to a small positive value due to 32-bit signed arithmetic\n    sps.ctb_width  = 65535;\n    sps.ctb_height = 65535;\n\n    // Vulnerable line: signed multiplication wraps around\n    ctb_count = sps.ctb_width * sps.ctb_height;\n\n    printf(\"Expected total CTBs: %ld\\n\", (long)sps.ctb_width * sps.ctb_height);\n    printf(\"Overflowed ctb_count: %ld\\n\", (long)ctb_count);\n\n    // Allocation uses the wrapped value, resulting in an undersized heap buffer\n    size_t alloc_size = (size_t)ctb_count * sizeof(int);\n    printf(\"Allocated buffer size: %zu bytes\\n\", alloc_size);\n\n    // In the real decoder, this corresponds to:\n    // s->sao = av_malloc(ctb_count * sizeof(*s->sao));\n    // s->deblock = av_malloc(ctb_count * sizeof(*s->deblock));\n    // s->filter_slice_edges = av_malloc(ctb_count * sizeof(*s->filter_slice_edges));\n    int* simulated_buffer = malloc(alloc_size);\n    if (!simulated_buffer) return 1;\n\n    // During slice decoding, the decoder iterates over the actual CTB count\n    // and writes to the buffer, causing a heap buffer overflow\n    printf(\"Decoder will write to %ld elements, but buffer only holds %zu elements.\\n\",\n           (long)sps.ctb_width * sps.ctb_height, alloc_size / sizeof(int));\n\n    free(simulated_buffer);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted signed integer values for ctb_width and ctb_height cause their multiplication to wrap around due to 32-bit signed integer overflow. The resulting small wrapped value is passed to the memory allocator, creating a severely undersized heap buffer. Subsequent slice decoding operations assume the original large CTB count and write beyond the allocated bounds, triggering a heap buffer overflow that can corrupt memory or enable code execution."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow in Allocation Size Calculation",
+    "severity": "high",
+    "description": "The multiplication `16 * 6 * alloc_size` is performed using 32-bit signed integers. If `alloc_size` exceeds ~21 million, the result wraps around, yielding a small positive value that is passed to `av_fast_malloc`.",
+    "line": 101,
+    "column": null,
+    "hypothesis": "A malicious stream sets `linesize` to a large value. The overflow causes `sl->bipred_scratchpad` to be allocated with a drastically reduced size. Subsequent writes during slice decoding overflow the heap buffer, corrupting adjacent metadata or triggering arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:36:32.242Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\n/*\n * Conceptual PoC for Integer Overflow in Allocation Size Calculation\n * Vulnerability: 16 * 6 * alloc_size overflows 32-bit signed integer\n */\nvoid simulate_vulnerability(int32_t alloc_size) {\n    // The multiplication uses 32-bit signed integers by default.\n    // INT32_MAX is 2,147,483,647. 16 * 6 = 96.\n    // Overflow threshold: 2,147,483,647 / 96 ≈ 22,369,621\n    int32_t calculated_size = 16 * 6 * alloc_size;\n\n    printf(\"Input alloc_size: %d\\n\", alloc_size);\n    printf(\"Calculated size: %d\\n\", calculated_size);\n\n    // If overflow occurs, calculated_size wraps to a small positive value\n    // and is passed to the allocator.\n    if (calculated_size > 0 && calculated_size < 1024) {\n        void *ptr = malloc(calculated_size);\n        if (ptr) {\n            printf(\"Allocated %zu bytes (expected ~%d)\\n\",\n                   (size_t)calculated_size, 16 * 6 * alloc_size);\n            // In the real vulnerability, subsequent slice decoding\n            // writes 16 * 6 * alloc_size bytes into this small buffer,\n            // causing a heap buffer overflow.\n            free(ptr);\n        }\n    }\n}\n\nint main(void) {\n    // Malicious stream value that triggers the overflow\n    int32_t malicious_linesize = 22369622;\n    simulate_vulnerability(malicious_linesize);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "A malicious input sets alloc_size above ~22.3 million. The 32-bit signed multiplication 16 * 6 * alloc_size wraps around to a small positive value. This undersized value is passed to the allocator, creating a buffer far too small for the expected data. Subsequent writes based on the original large size overflow the heap buffer, corrupting adjacent memory."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow in Allocation Size Calculation",
+    "severity": "high",
+    "description": "The calculation `h->mb_width * 16 * 3 * sizeof(uint8_t) * 2` is evaluated as a 32-bit signed integer. If `h->mb_width` exceeds ~21 million, the multiplication wraps around before being passed to `av_fast_mallocz`.",
+    "line": 107,
+    "column": null,
+    "hypothesis": "A crafted SPS header sets a malicious `mb_width`. The integer overflow results in a tiny allocation for `sl->top_borders[0]`. Subsequent border copying operations overflow the heap, corrupting the allocator state.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:37:27.796Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n#include <stdlib.h>\n\nint main() {\n    // Simulate a crafted mb_width that triggers 32-bit signed integer overflow\n    // The multiplier is 16 * 3 * 1 * 2 = 96\n    // Max safe value for int32_t is 2,147,483,647 / 96 ≈ 22,369,621\n    uint32_t mb_width = 22369622;\n\n    // Vulnerable calculation: evaluated as 32-bit signed integer\n    // Multiplication wraps around before being cast to size_t\n    int32_t wrapped_size = (int32_t)(mb_width * 16 * 3 * sizeof(uint8_t) * 2);\n\n    // Allocation uses the wrapped (tiny) size\n    size_t alloc_size = (size_t)wrapped_size;\n    if (alloc_size <= 0) alloc_size = 1;\n    uint8_t *buffer = malloc(alloc_size);\n\n    // Subsequent operation assumes the original large size\n    size_t expected_size = (size_t)(mb_width * 16 * 3 * sizeof(uint8_t) * 2);\n\n    // Educational demonstration of the mismatch\n    printf(\"Integer overflow causes allocation of %zu bytes instead of %zu bytes.\\n\", alloc_size, expected_size);\n    printf(\"Subsequent writes of %zu bytes will overflow the heap buffer.\\n\", expected_size);\n\n    free(buffer);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "A large mb_width causes the 32-bit signed multiplication to wrap around, yielding a small positive integer. This tiny value is used for heap allocation, but subsequent copy operations write the expected large size, causing a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow in Allocation Size Calculation",
+    "severity": "high",
+    "description": "The allocation size for `mb_type_pool` is computed as `(big_mb_num + h->mb_stride) * sizeof(uint32_t)`. This 32-bit signed multiplication can overflow even with moderately large wrapped values, passing a small size to `av_buffer_pool_init`.",
+    "line": 135,
+    "column": null,
+    "hypothesis": "Due to prior overflow in `big_mb_num`, the final size calculation wraps to a small positive number. `av_buffer_pool_init` creates a pool with insufficient capacity. Subsequent macroblock type decoding writes beyond the pool bounds, causing heap overflow.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:38:20.908Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main() {\n    // Simulate crafted frame parameters from a malformed H.264 stream\n    // These values are chosen to trigger a 32-bit integer overflow wrapping to a small positive size\n    uint32_t big_mb_num = 0xFFFFFFFF;\n    uint32_t mb_stride = 0x00000002;\n    const uint32_t elem_size = sizeof(uint32_t);\n\n    // VULNERABLE CALCULATION:\n    // (big_mb_num + mb_stride) * elem_size is evaluated in 32-bit arithmetic.\n    // 0xFFFFFFFF + 0x00000002 = 0x100000001 -> wraps to 0x00000001 in 32-bit\n    // 0x00000001 * 4 = 0x00000004\n    // This passes a tiny size (4 bytes) to the allocator instead of the expected large size\n    uint32_t overflowed_size = (big_mb_num + mb_stride) * elem_size;\n\n    printf(\"Intended size: %u bytes\\n\", (big_mb_num + mb_stride) * elem_size);\n    printf(\"Actual size (overflowed): %u bytes\\n\", overflowed_size);\n\n    // Allocate based on the wrapped size\n    uint32_t* mb_type_pool = malloc(overflowed_size);\n    if (!mb_type_pool) {\n        printf(\"Allocation failed\\n\");\n        return 1;\n    }\n\n    // SIMULATED EXPLOIT MECHANISM:\n    // The decoder proceeds assuming the pool has capacity for (big_mb_num + mb_stride) elements.\n    // Writing to the pool exceeds the actual allocated memory, causing a heap buffer overflow.\n    uint32_t expected_count = big_mb_num + mb_stride;\n    for (uint32_t i = 0; i < expected_count; i++) {\n        mb_type_pool[i] = i; // Out-of-bounds write\n    }\n\n    free(mb_type_pool);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted input values cause a 32-bit integer overflow during allocation size calculation, wrapping the computed size to a small positive value. The allocator reserves insufficient memory, but subsequent decoding operations write beyond the buffer bounds, triggering a heap overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow in Allocation Size Calculation",
+    "severity": "high",
+    "description": "The allocation size for `motion_val_pool` is computed as `2 * (b4_array_size + 4) * sizeof(int16_t)`. This 32-bit signed multiplication overflows with large `b4_array_size`, resulting in an undersized buffer pool.",
+    "line": 137,
+    "column": null,
+    "hypothesis": "Malicious stream parameters cause `b4_array_size` to overflow. The resulting small allocation size for `motion_val_pool` leads to heap buffer overflow when motion vectors are decoded and stored.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:38:48.830Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "Integer Overflow in Allocation Size Calculation",
+    "severity": "high",
+    "description": "The allocation size for `ref_index_pool` is computed as `4 * mb_array_size`. This 32-bit signed multiplication overflows with large `mb_array_size`, passing a wrapped small value to `av_buffer_pool_init`.",
+    "line": 139,
+    "column": null,
+    "hypothesis": "Overflow in `mb_array_size` causes `ref_index_pool` to be allocated with insufficient size. Reference index decoding writes overflow the pool, corrupting heap metadata or adjacent objects.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:39:08.887Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main() {\n    // Simulate a crafted mb_array_size from a malicious H.264 stream\n    // This value is chosen to trigger a 32-bit signed integer overflow\n    int32_t mb_array_size = 0x40000001;\n\n    // Vulnerable calculation: 32-bit signed multiplication\n    // 0x40000001 * 4 = 0x100000004, which exceeds INT32_MAX (0x7FFFFFFF)\n    // The result wraps around to 4 due to signed integer overflow\n    int32_t wrapped_size = 4 * mb_array_size;\n\n    printf(\"Input mb_array_size: 0x%08X (%d)\\n\", mb_array_size, mb_array_size);\n    printf(\"Expected allocation size: %d\\n\", 4 * mb_array_size);\n    printf(\"Actual wrapped size passed to allocator: %d\\n\", wrapped_size);\n\n    // Simulate the vulnerable pool allocation\n    // In the real code: av_buffer_pool_init(wrapped_size, NULL);\n    void *ref_index_pool = malloc(wrapped_size);\n    if (!ref_index_pool) {\n        printf(\"Allocation failed\\n\");\n        return 1;\n    }\n\n    // Educational note: In a real exploit, subsequent decoding operations\n    // would write 4 * mb_array_size bytes into this undersized buffer,\n    // causing a heap buffer overflow that could corrupt metadata or\n    // overwrite adjacent heap objects.\n    printf(\"Buffer allocated with %d bytes instead of %d bytes.\\n\", wrapped_size, 4 * mb_array_size);\n    printf(\"Vulnerability demonstrated: Integer overflow leads to undersized allocation.\\n\");\n\n    free(ref_index_pool);\n    return 0;\n}\n",
+      "language": "C",
+      "exploitMechanism": "A crafted mb_array_size causes the 32-bit signed multiplication 4 * mb_array_size to overflow, wrapping to a small positive value. The allocator uses this wrapped value, creating an undersized buffer. Subsequent writes using the original large size cause a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Integer overflow in min_pu_size calculation",
+    "line": 93,
+    "column": null,
+    "hypothesis": "Multiplication of sps->min_pu_width and sps->min_pu_height as signed integers can wrap. This impacts allocations for s->tab_ipm, s->is_pcm, and the tab_mvf_pool. A wrapped size causes undersized heap buffers, leading to heap corruption when parsing prediction unit data.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:53:40.927Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main() {\n    // Simulate crafted SPS parameters that trigger overflow\n    int32_t min_pu_width = 46341;\n    int32_t min_pu_height = 46341;\n\n    // VULNERABLE: Signed integer multiplication wraps on overflow\n    // 46341 * 46341 = 2,147,488,281 which exceeds INT32_MAX (2,147,483,647)\n    // The result wraps to a small positive value (4633) due to two's complement behavior\n    int32_t min_pu_size = min_pu_width * min_pu_height;\n\n    printf(\"Width: %d, Height: %d\\n\", min_pu_width, min_pu_height);\n    printf(\"Expected size: %lld\\n\", (long long)min_pu_width * min_pu_height);\n    printf(\"Wrapped allocation size: %d\\n\", min_pu_size);\n\n    // The wrapped size is passed to malloc, creating an undersized heap buffer\n    size_t alloc_size = (size_t)min_pu_size;\n    if (alloc_size > 0) {\n        void *tab_ipm = malloc(alloc_size);\n        if (tab_ipm) {\n            printf(\"Allocated %zu bytes for tab_ipm\\n\", alloc_size);\n            // In the vulnerable decoder, subsequent parsing code would write\n            // min_pu_width * min_pu_height elements into this buffer, causing\n            // a heap buffer overflow and potential code execution.\n            free(tab_ipm);\n        }\n    }\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted width/height values cause signed 32-bit integer multiplication to overflow and wrap to a small positive number. This wrapped value is used as the allocation size for heap buffers, resulting in undersized allocations. Subsequent parsing code writes beyond the allocated bounds, causing heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow in Allocation Size Calculation",
+    "severity": "high",
+    "description": "The expression `alloc_size * 2 * 21` uses 32-bit signed integer arithmetic. Overflow occurs if `alloc_size` > ~48 million, leading to an undersized allocation for `sl->edge_emu_buffer`.",
+    "line": 104,
+    "column": null,
+    "hypothesis": "Same mechanism as above. The wrapped allocation size causes `av_fast_malloc` to reserve insufficient memory. Edge emulation writes during decoding overflow the buffer, leading to heap corruption.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:54:56.405Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\n/*\n * Conceptual PoC for Integer Overflow in Allocation Size Calculation\n * Vulnerability: alloc_size * 2 * 21 overflows 32-bit signed integer\n * Impact: Undersized allocation leads to heap buffer overflow during edge emulation writes\n */\nvoid simulate_vulnerability(uint32_t alloc_size) {\n    // The original calculation uses 32-bit signed arithmetic\n    // When alloc_size exceeds ~51.3 million, the result wraps around to a negative or small value\n    int32_t wrapped_size = (int32_t)alloc_size * 2 * 21;\n\n    printf(\"[*] Input alloc_size: %u\\n\", alloc_size);\n    printf(\"[*] Calculated size (32-bit signed): %d\\n\", wrapped_size);\n\n    // In the real code, this wrapped value is passed to av_fast_malloc\n    // Casting a negative/wrapped int to size_t results in a drastically smaller allocation\n    // For safety in this PoC, we cap it to demonstrate the undersized allocation concept\n    size_t actual_alloc = (wrapped_size < 0) ? 64 : (size_t)wrapped_size;\n\n    printf(\"[!] Overflow detected! Allocation reduced to: %zu bytes\\n\", actual_alloc);\n\n    // Simulate the undersized buffer\n    char *edge_emu_buffer = (char *)malloc(actual_alloc);\n    if (!edge_emu_buffer) return;\n\n    // Simulate edge emulation writing data that expects the original large size\n    // In a real attack, this write would overflow the heap buffer\n    printf(\"[!] Edge emulation writes %u bytes into a %zu-byte buffer.\\n\",\n           (unsigned)(alloc_size * 2 * 21), actual_alloc);\n    printf(\"[!] This out-of-bounds write corrupts adjacent heap metadata or data.\\n\");\n\n    free(edge_emu_buffer);\n}\n\nint main() {\n    // Value chosen to trigger 32-bit signed integer overflow\n    uint32_t malicious_alloc_size = 55000000;\n    simulate_vulnerability(malicious_alloc_size);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The multiplication alloc_size * 2 * 21 exceeds the 32-bit signed integer maximum (~2.14 billion), causing arithmetic overflow. The wrapped result is passed to the allocator, reserving a drastically smaller buffer than expected. Subsequent edge emulation writes exceed the allocated bounds, corrupting adjacent heap memory."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow in Allocation Size Calculation",
+    "severity": "high",
+    "description": "Multiple intermediate calculations in `init_table_pools` use 32-bit signed integers: `h->mb_stride * (h->mb_height + 1)`, `h->mb_stride * h->mb_height`, `h->mb_width * 4`, and `b4_stride * h->mb_height * 4`. All can wrap around with large macroblock dimensions parsed from the bitstream.",
+    "line": 128,
+    "column": null,
+    "hypothesis": "Malicious SPS/PPS data sets `mb_stride`, `mb_height`, and `mb_width` to values that cause arithmetic overflow. The wrapped values propagate to `big_mb_num`, `mb_array_size`, `b4_stride`, and `b4_array_size`, which are then used to compute final allocation sizes.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:55:14.721Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n\ntypedef struct {\n    int mb_stride;\n    int mb_height;\n    int mb_width;\n} H264Context;\n\n// Demonstrates the vulnerable allocation size calculation\nvoid init_table_pools(H264Context *h) {\n    // EXPLOIT MECHANISM:\n    // When mb_stride and mb_height are set to large values (e.g., 0x40000000),\n    // the multiplication exceeds the 32-bit signed integer maximum (2^31 - 1).\n    // The result wraps around to a negative or small positive number.\n    int big_mb_num = h->mb_stride * (h->mb_height + 1);\n    int mb_array_size = h->mb_stride * h->mb_height;\n\n    // Similar overflow occurs here:\n    int b4_stride = h->mb_width * 4;\n    int b4_array_size = b4_stride * h->mb_height * 4;\n\n    // The wrapped values are then used as allocation sizes.\n    // A malicious bitstream can craft these fields to cause the allocator\n    // to reserve a tiny buffer, while subsequent code writes using the\n    // original large logical dimensions, triggering a heap overflow.\n    printf(\"Calculated sizes (overflowed): big_mb_num=%d, mb_array_size=%d, b4_array_size=%d\\n\",\n           big_mb_num, mb_array_size, b4_array_size);\n}\n\nint main() {\n    H264Context h;\n    // Crafted values to trigger 32-bit signed integer overflow\n    h.mb_stride = 0x40000000;\n    h.mb_height = 0x40000000;\n    h.mb_width = 0x40000000;\n\n    init_table_pools(&h);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Malicious SPS/PPS values cause 32-bit signed integer multiplication to wrap around, producing a small or negative allocation size. The allocator reserves insufficient memory, but subsequent operations assume the original large dimensions, leading to a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Arithmetic overflow in allocation size calculation within init_table_pools. Intermediate variables (big_mb_num, mb_array_size, b4_array_size) are declared as int and computed via multiplication of macroblock dimensions. For large or malformed dimensions, these 32-bit signed multiplications wrap around. The wrapped values are subsequently used to calculate allocation sizes for av_buffer_pool_init, resulting in severely undersized heap allocations.",
+    "line": 178,
+    "column": null,
+    "hypothesis": "An attacker provides a malicious H.264 stream with large mb_width/mb_height values. During init_table_pools, b4_array_size = b4_stride * h->mb_height * 4 (line 171) overflows a 32-bit int. This wrapped value is used in the expression 2 * (b4_array_size + 4) * sizeof(int16_t) on lines 178-179 to determine the pool size. The resulting allocation is too small. When the decoder later populates the motion_val_pool with per-macroblock data, it writes beyond the allocated buffer, causing a heap buffer overflow that can be leveraged for arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:56:49.809Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main() {\n    // Simulate malicious H.264 stream dimensions\n    int32_t b4_stride = 0x10000;  // 65536\n    int32_t mb_height = 0x10000;  // 65536\n\n    // Line 171: b4_array_size = b4_stride * h->mb_height * 4\n    // 32-bit signed integer overflow occurs here\n    int32_t b4_array_size = b4_stride * mb_height * 4;\n    printf(\"Logical size: %lld\\n\", (long long)b4_stride * mb_height * 4);\n    printf(\"Overflowed b4_array_size: %d\\n\", b4_array_size);\n\n    // Lines 178-179: Allocation size calculation\n    // 2 * (b4_array_size + 4) * sizeof(int16_t)\n    // The overflowed value causes the final size to wrap to a small positive number\n    int32_t alloc_size = 2 * (b4_array_size + 4) * sizeof(int16_t);\n    printf(\"Calculated allocation size: %d\\n\", alloc_size);\n\n    // Simulate av_buffer_pool_init allocation\n    // The allocator grants a tiny buffer based on the wrapped size\n    size_t safe_alloc = alloc_size > 0 ? (size_t)alloc_size : 1;\n    void *pool = malloc(safe_alloc);\n    printf(\"Allocated %zu bytes\\n\", safe_alloc);\n\n    // Exploit mechanism explanation in comments:\n    // The decoder later treats b4_array_size as the logical size and writes\n    // ~17GB of motion vector data into this 16-byte buffer, causing a\n    // heap buffer overflow. This can be leveraged for arbitrary code execution.\n    printf(\"Vulnerability: Decoder writes %lld bytes into %zu-byte buffer.\\n\",\n           (long long)b4_stride * mb_height * 4 * 2 * sizeof(int16_t),\n           safe_alloc);\n\n    free(pool);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Malicious mb_width/mb_height values cause 32-bit signed multiplication to wrap around. The wrapped value is used to calculate a heap allocation size, resulting in a severely undersized buffer. Subsequent decoder writes using the logical (large) size overflow the heap, enabling arbitrary code execution."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "The `dstlen` parameter is used to compute `end = dst + dstlen - 1`, which acts as the write boundary. If `dstlen` is a large positive integer (e.g., derived from an untrusted atom size), pointer arithmetic yields a pointer `end` significantly beyond the actual `dst` buffer. The subsequent `p < end` check remains true, allowing `p` to advance and write past the allocated memory, causing a heap/stack buffer overflow.",
+    "line": 192,
+    "column": null,
+    "hypothesis": "An attacker crafts a MOV file with a malformed metadata atom that causes `mov_read_mac_string` to be invoked with a large `dstlen` value (e.g., by exploiting a caller that passes the atom length instead of the buffer size). The calculation `char *end = dst+dstlen-1;` yields a pointer `end` significantly beyond the stack/heap buffer `dst`. Because `dstlen` is not validated against the actual buffer capacity, the condition `p < end` evaluates to true for many iterations. The loop then executes `*p++ = c`, sequentially writing data past the buffer boundary until memory corruption occurs or a crash is triggered, effectively bypassing the intended bounds check.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T03:57:11.932Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <string.h>\n\n/* Simulates the vulnerable boundary calculation and write loop */\nvoid vulnerable_copy(char *dst, size_t dstlen, char fill) {\n    char *p = dst;\n    /* VULNERABILITY: dstlen is used directly without checking against actual buffer capacity.\n       If dstlen is large/untrusted, 'end' points far beyond the allocated 'dst' buffer. */\n    char *end = dst + dstlen - 1;\n\n    /* The condition 'p < end' remains true for many iterations, causing writes past the buffer boundary */\n    while (p < end) {\n        *p++ = fill;\n    }\n}\n\nint main() {\n    /* Small fixed-size buffer representing the actual allocated memory */\n    char dst[16];\n    /* Simulates untrusted metadata length (e.g., from a malformed MOV atom) */\n    size_t malicious_dstlen = 1024;\n\n    printf(\"Buffer capacity: %zu bytes\\n\", sizeof(dst));\n    printf(\"Untrusted dstlen: %zu bytes\\n\", malicious_dstlen);\n    printf(\"Calculated end offset: %ld bytes beyond buffer start\\n\",\n           ((char*)(dst + malicious_dstlen - 1)) - dst);\n\n    /* Educational demonstration of the out-of-bounds write mechanism */\n    vulnerable_copy(dst, malicious_dstlen, 'X');\n\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "An unvalidated large 'dstlen' value causes pointer arithmetic to compute an 'end' boundary far beyond the actual buffer capacity. The loop condition 'p < end' remains true, allowing sequential writes past the allocated memory until corruption occurs."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "In pic_arrays_init, min_pu_size is declared as int and computed from unchecked SPS fields. When passed to av_buffer_pool_init on line 143, it is multiplied by sizeof(MvField) (size_t). C's usual arithmetic conversions promote the int operand to size_t before evaluation. Malformed inputs can cause min_pu_size to be negative or excessively large, causing the product to wrap around SIZE_MAX (especially on 32-bit systems) to a small value. av_buffer_pool_init may succeed with an undersized pool, leading to heap buffer overflows during subsequent PU decoding.",
+    "line": 143,
+    "column": null,
+    "hypothesis": "An attacker crafts a malformed HEVC bitstream that sets sps->min_pu_width and sps->min_pu_height to values causing their product to overflow int or become negative. This negative/large int is promoted to size_t and multiplied by sizeof(MvField), wrapping to a small allocation size. av_buffer_pool_init creates a pool with this small size. Later, the decoder populates the pool with MvField structures assuming it can hold min_pu_size elements, writing beyond the allocated bounds and corrupting heap metadata or adjacent objects.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T04:03:51.377Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\ntypedef struct {\n    int16_t ref_idx;\n    int16_t mv[2][2];\n    uint8_t mvp_idx;\n} MvField;\n\nvoid pic_arrays_init(int min_pu_width, int min_pu_height) {\n    // 1. Compute element count from unchecked SPS fields\n    int min_pu_size = min_pu_width * min_pu_height;\n\n    // 2. Vulnerable allocation\n    // C's usual arithmetic conversions promote the signed 'int' to unsigned 'size_t'\n    // before multiplication. On 32-bit systems, large positive values or negative\n    // values can cause the product to wrap around SIZE_MAX, resulting in a small\n    // allocation size despite the logical intent to allocate a large buffer.\n    size_t pool_size = min_pu_size * sizeof(MvField);\n\n    printf(\"Logical element count: %d\\n\", min_pu_size);\n    printf(\"Allocated pool size: %zu bytes\\n\", pool_size);\n\n    uint8_t *pool = malloc(pool_size);\n    if (!pool) {\n        printf(\"Allocation failed or returned NULL\\n\");\n        return;\n    }\n\n    // 3. Simulated decoder write\n    // The decoder assumes the pool can hold 'min_pu_size' elements.\n    // Due to the integer wraparound, the actual allocated memory is drastically\n    // smaller than expected, causing an out-of-bounds heap write.\n    printf(\"Attempting to write %d MvField elements...\\n\", min_pu_size);\n    for (int i = 0; i < min_pu_size; i++) {\n        ((MvField*)pool)[i] = (MvField){0}; // Heap overflow occurs here\n    }\n\n    free(pool);\n}\n\nint main() {\n    // Exploit trigger: values that cause the multiplication to wrap around SIZE_MAX\n    // On a 32-bit system: 0x40000001 * 8 = 0x200000008 -> wraps to 8 bytes\n    // The decoder will attempt to write 0x40000001 elements, corrupting heap metadata\n    pic_arrays_init(0x40000001, 1);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Malformed inputs cause min_pu_size to be large or negative. C promotes the signed int to unsigned size_t before multiplication, causing the product to wrap around SIZE_MAX to a small value. av_buffer_pool_init allocates a tiny buffer, but subsequent decoding writes min_pu_size elements, overflowing the heap."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "The calculation of `pic_size_in_ctb` performs multiplication in 32-bit signed `int` arithmetic. If `width` and `height` are large and `log2_min_cb_size` is small, the product can exceed `INT_MAX`, causing signed integer overflow. The resulting wrapped value is passed to `av_malloc_array` as the element count, potentially leading to an undersized heap allocation and subsequent buffer overflow during CTB data population.",
+    "line": 108,
+    "column": null,
+    "hypothesis": "A crafted bitstream with large picture dimensions (e.g., near 8192) and a small `log2_min_cb_size` causes the expression `((width >> log2_min_cb_size) + 1) * ((height >> log2_min_cb_size) + 1)` to overflow the 32-bit `int` type. Depending on compiler behavior and exact values, the overflow may wrap to a small positive integer or negative value. When passed to `av_malloc_array(pic_size_in_ctb, ...)`, the `int` is implicitly converted to `size_t`. If it wraps to a small positive value, a significantly smaller buffer is allocated than required. Subsequent decoding routines that write CTB metadata using the true dimensions will trigger a heap-based buffer overflow.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "integer_overflow",
+    "verifiedAt": "2026-05-08T04:04:19.058Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\n/* Simulates the vulnerable calculation from libavcodec/hevcdec.c */\nvoid simulate_overflow(int width, int height, int log2_min_cb_size) {\n    /* Vulnerable line: 32-bit signed int multiplication */\n    int pic_size_in_ctb = ((width >> log2_min_cb_size) + 1) * ((height >> log2_min_cb_size) + 1);\n\n    printf(\"Raw calculation result: %d\\n\", pic_size_in_ctb);\n\n    /* Simulate av_malloc_array(pic_size_in_ctb, sizeof(ctb_data_t)) */\n    /* In C, the signed int is implicitly converted to size_t (unsigned) */\n    size_t alloc_count = (size_t)pic_size_in_ctb;\n    size_t alloc_size = alloc_count * sizeof(int); /* Simplified element size */\n\n    printf(\"Allocated element count (as size_t): %zu\\n\", alloc_count);\n    printf(\"Allocated buffer size: %zu bytes\\n\", alloc_size);\n\n    /* Exploit mechanism explanation */\n    if (pic_size_in_ctb < 0) {\n        printf(\"[!] Signed overflow wrapped to negative. Cast to size_t yields huge value (usually caught by allocator).\\n\");\n    } else if (pic_size_in_ctb < ((width >> log2_min_cb_size) + 1)) {\n        printf(\"[!] Signed overflow wrapped to small positive value.\\n\");\n        printf(\"[!] Allocator grants undersized buffer. Subsequent CTB population will overflow heap.\\n\");\n    }\n}\n\nint main() {\n    /* Crafted parameters triggering the overflow */\n    int width = 46342;\n    int height = 46342;\n    int log2_min_cb_size = 0;\n\n    printf(\"Exploit parameters: width=%d, height=%d, log2_min_cb_size=%d\\n\", width, height, log2_min_cb_size);\n    simulate_overflow(width, height, log2_min_cb_size);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The expression ((width >> log2_min_cb_size) + 1) * ((height >> log2_min_cb_size) + 1) is evaluated using 32-bit signed int arithmetic. When width and height are sufficiently large, the product exceeds INT_MAX, causing signed integer overflow. The wrapped result (often a small positive integer) is implicitly cast to size_t and passed to the allocator. This grants a significantly undersized heap buffer. Subsequent decoding routines that write CTB metadata using the true dimensions will overwrite adjacent heap memory, triggering a heap-based buffer overflow."
+    },
+    "exploitStatus": "generated"
+  }
+]

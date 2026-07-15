@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130595025",
+  "threadId": "slack-test-1780130595025",
+  "initialQuestion": [
+    "Hooksイベントシステムの使い方を教えてください"
+  ],
+  "durationMs": 29469,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "Hooks（イベント）システムは、ワークフローの実行ライフサイクルを監視・制御するための仕組みです。`WorkflowEngine` の `addEventListener` メソッドを通じてハンドラを登録し、ワークフローの各フェーズで発生するイベントを受け取ることができます。\n\n## 利用可能なイベント一覧\n\n以下のライフサイクルイベントが提供されています：\n\n| イベント名 | 発生タイミング |\n|---|---|\n| `sessionStart` | セッション開始時 |\n| `nodeStart` | ノード実行開始時 |\n| `nodeComplete` | ノード実行完了時 |\n| `preToolUse` | ツール呼び出し前 |\n| `postToolUse` | ツール呼び出し成功後 |\n| `postToolUseFailure` | ツール呼び出し失敗後 |\n| `userPromptSubmit` | ユーザープロンプト送信時 |\n| `complete` | ワークフロー実行完了時 |\n| `error` | エラー発生時 |\n\n## ハンドラの登録方法\n\n`addEventListener` メソッドを使用してイベントハンドラを登録します。\n\n```typescript\nengine.addEventListener((event) => {\n  // イベント処理\n});\n```\n\n- **複数のハンドラ対応**: 複数のハンドラを登録でき、すべてのハンドラが各イベントを受け取ります。\n- **非同期対応**: ハンドラは非同期処理にも対応しています。\n\n## `HookFeedback` による制御\n\nイベントハンドラは `HookFeedback` を返すことで、ツール呼び出しの動作を制御できます。\n\n| 制御内容 | 説明 |\n|---|---|\n| **ツール呼び出しのブロック** | ツールの実行を中止する |\n| **ツール入力の書き換え** | ツールに渡される引数を動的に変更する |\n| **コンテキストの注入** | ツール実行前に追加の情報を注入する |\n\n## 主なユースケース\n\n1. **実行モニタリング**: `nodeStart` / `nodeComplete` でノードの実行時間を計測し、パフォーマンスデータを収集する\n2. **セキュリティガード**: `preToolUse` でツール呼び出しを検証し、危険な操作をブロックする\n3. **動的コンテキスト調整**: `postToolUse` でツール結果を分析し、次のノードに渡す情報を調整する\n4. **エラーハンドリング**: `error` イベントでワークフローの失敗をキャッチし、リカバリー処理を実行する\n\n公開ドキュメントに記載の詳細なイベントオブジェクトのフィールド構造や `HookFeedback` の具体的なシグネチャについては、ソースコードを参照してください。"
+  ],
+  "timestamp": "2026-05-30T08:43:44.512Z"
+}

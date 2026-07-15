@@ -1,0 +1,11 @@
+{
+  "runId": 1,
+  "startTime": "2026-05-13T15:40:24.291Z",
+  "durationMs": 688712,
+  "finalSprint": 1,
+  "finalPassed": false,
+  "finalScore": 0,
+  "contextResetCount": 0,
+  "totalRetries": 1,
+  "taskSpecLength": 2622
+}

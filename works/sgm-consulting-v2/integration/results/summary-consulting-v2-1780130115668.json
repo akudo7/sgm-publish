@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130115668",
+  "threadId": "slack-test-1780130115668",
+  "initialQuestion": [
+    "Context Compressionの設定方法を教えてください"
+  ],
+  "durationMs": 27998,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "Context Compression（コンテキスト圧縮）の設定は、ワークフローJSONの `config.config.contextCompression` オブジェクトに定義します。\n\nこの機能は、会話履歴が長くなりすぎた際にトークン消費を抑えるために、過去のメッセージを要約して削除する機能です。\n\n### 設定方法\n\nワークフローJSONの `config` セクション内に以下のように記述します。\n\n```json\n{\n  \"config\": {\n    \"contextCompression\": {\n      \"enabled\": true,\n      \"mode\": \"threshold\",\n      \"trigger\": { \"messages\": 10, \"tokens\": 102400 },\n      \"keep\": { \"messages\": 4 }\n    }\n  }\n}\n```\n\n### 主要パラメータ\n\n| パラメータ | 型 | 説明 |\n| :--- | :--- | :--- |\n| `enabled` | `boolean` | 機能を有効にするかどうか (`true` / `false`) |\n| `mode` | `string` | 動作モード。`\"threshold\"` または `\"autonomous\"` を指定 |\n| `trigger` | `object` | (thresholdモード用) 圧縮をトリガーする条件。`messages`（メッセージ数）と `tokens`（トークン数）のAND条件で判定 |\n| `keep` | `object` | 圧縮実行後、末尾から保持するメッセージの数 |\n\n### 動作モード\n\n1.  **Threshold Mode (閾値モード)**\n    *   定義された `trigger` の条件（メッセージ数やトークン数）を満たした時点で、システムが自動的に圧縮を実行します。\n2.  **Autonomous Mode (自律モード)**\n    *   モデルに `compress_context` ツールを注入し、モデル自身が「今が圧縮に適したタイミングである」と判断した際に実行します。\n\n### State定義の注意点\n\n圧縮された結果（要約文）を保存するために、ワークフローの `stateAnnotation` に `summary` フィールドを定義する必要があります。\n\n```json\n\"annotation\": {\n  \"messages\": { \"type\": \"string[]\", \"reducer\": \"(x, y) => x.concat(y)\", \"default\": [] },\n  \"summary\": { \"type\": \"string\", \"reducer\": \"(_, y) => y\", \"default\": \"\" }\n}\n```"
+  ],
+  "timestamp": "2026-05-30T08:35:43.686Z"
+}

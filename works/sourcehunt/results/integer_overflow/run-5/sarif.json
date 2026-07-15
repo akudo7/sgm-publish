@@ -1,0 +1,264 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow/truncation in buffer pool initialization size calculation. min_pu_size * sizeof(MvField) is evaluated before passing to av_buffer_pool_init. If sps->min_pu_width and sps->min_pu_height are large, the multiplication overflows the 32-bit int parameter, resulting in an undersized pool allocation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 146
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow/truncation in rpl_tab_pool initialization size calculation. ctb_count * sizeof(RefPicListTab) suffers from the same 32-bit multiplication overflow before being passed to av_buffer_pool_init."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 148
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Pointer Arithmetic",
+          "level": "note",
+          "message": {
+            "text": "The expression `block_size * 2` uses signed 32-bit integers. If `block_size` exceeds 1,073,741,823, the multiplication overflows, wrapping to a negative value. This value is used as an offset in subsequent pointer arithmetic, causing the pointer to wrap backwards in memory."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/mpeg4videodec.c"
+                },
+                "region": {
+                  "startLine": 93
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Array Indexing",
+          "level": "warning",
+          "message": {
+            "text": "The calculation `s->block_index[n] * 16` uses signed 32-bit integers. If `block_index` exceeds ~134 million, the multiplication overflows. The result is used as an offset for pointer arithmetic into the `ac_val` array, pointing to invalid memory locations."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/mpeg4videodec.c"
+                },
+                "region": {
+                  "startLine": 158
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Array Indexing",
+          "level": "warning",
+          "message": {
+            "text": "The expression `s->mb_y * s->mb_stride` performs signed 32-bit multiplication. If macroblock coordinates or stride are manipulated to be large, the multiplication overflows. The resulting `xy` is used as an index into `qscale_table`, leading to out-of-bounds array access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/mpeg4videodec.c"
+                },
+                "region": {
+                  "startLine": 163
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Allocation size calculations in alloc_scratch_buffers are performed using signed 32-bit integers before implicit conversion to size_t. The expressions '16 * 6 * alloc_size', 'alloc_size * 2 * 21', and 'h->mb_width * 16 * 3 * sizeof(uint8_t) * 2' can wrap around if linesize or mb_width are large."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 115
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "error",
+          "message": {
+            "text": "Pool size calculations in init_table_pools use int arithmetic before passing to av_buffer_pool_init. Expressions like '(big_mb_num + h->mb_stride) * sizeof(uint32_t)', '2 * (b4_array_size + 4) * sizeof(int16_t)', and '4 * mb_array_size' are vulnerable to 32-bit wrap-around when SPS parameters are maliciously crafted."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 147
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "note",
+          "message": {
+            "text": "Multiplication of avctx->extradata_size by 8 can overflow a signed 32-bit integer if extradata_size exceeds 0x1FFFFFFF, resulting in a negative or truncated bit count passed to init_get_bits."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/mjpegdec.c"
+                },
+                "region": {
+                  "startLine": 154
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in pic_size_in_ctb calculation. The multiplication of block dimensions is performed using 32-bit signed integers. Maliciously large width/height values in the SPS can cause the product to wrap around, resulting in a truncated or negative value passed to av_malloc_array."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 112
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "The multiplication to compute `pic_size_in_ctb` uses 32-bit signed integers without overflow protection. Attacker-controlled SPS dimensions can cause the result to wrap around to a small positive value, leading to an undersized heap allocation. Subsequent slice parsing loops that index `tab_slice_address` and `qp_y_tab` using the original unvalidated SPS dimensions will trigger out-of-bounds heap writes."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 103
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "buffer_underflow",
+          "level": "warning",
+          "message": {
+            "text": "Uncapped `uvlinesize` can be negative, causing `dct_offset` to become negative. This negative offset is added to base pointers (`dest_cb`, `dest_cr`) without bounds validation, resulting in out-of-bounds memory access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/mpeg4videodec.c"
+                },
+                "region": {
+                  "startLine": 114
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Pointer Arithmetic",
+          "level": "note",
+          "message": {
+            "text": "The multiplication `16 * s->block_wrap[n]` can overflow a 32-bit signed integer. The result is subtracted from `ac_val`, causing pointer wrap-around. This misaligns the AC prediction source pointer, leading to out-of-bounds reads during the prediction loop."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/mpeg4videodec.c"
+                },
+                "region": {
+                  "startLine": 178
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pointer_underflow",
+          "level": "warning",
+          "message": {
+            "text": "Negative uvlinesize causes dct_offset to become negative, leading to pointer underflow in idct_put calls."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/mpeg4videodec.c"
+                },
+                "region": {
+                  "startLine": 83
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

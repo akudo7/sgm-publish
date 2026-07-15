@@ -1,0 +1,139 @@
+{
+  "verdict": "PASS",
+  "detected": 5,
+  "runs": 5,
+  "avgDurationSec": 1482.7764,
+  "maxEvidenceLevel": 2,
+  "avgReflexionIterations": 7.2,
+  "rows": [
+    {
+      "runId": 1,
+      "startTime": "2026-05-08T00:57:06.481Z",
+      "durationMs": 1464301,
+      "detected": true,
+      "targetFile": "libavformat/mov.c",
+      "targetRank": 2,
+      "targetScore": 0.9,
+      "maxEvidenceLevel": 2,
+      "reflexionCount": 10,
+      "stats": {
+        "totalFindings": 9,
+        "byEvidenceLevel": {
+          "2": 9
+        },
+        "bySeverity": {
+          "high": 7,
+          "critical": 1,
+          "medium": 1
+        },
+        "pocGenerated": 9,
+        "reflexionIterations": 10,
+        "repoPath": "/home/akudo/Desktop/Work/ffmpeg-vuln"
+      }
+    },
+    {
+      "runId": 2,
+      "startTime": "2026-05-08T01:21:30.783Z",
+      "durationMs": 2129434,
+      "detected": true,
+      "targetFile": "libavformat/mov.c",
+      "targetRank": 3,
+      "targetScore": 0.9,
+      "maxEvidenceLevel": 2,
+      "reflexionCount": 12,
+      "stats": {
+        "totalFindings": 19,
+        "byEvidenceLevel": {
+          "1": 2,
+          "2": 17
+        },
+        "bySeverity": {
+          "high": 14,
+          "medium": 4,
+          "critical": 1
+        },
+        "pocGenerated": 17,
+        "reflexionIterations": 12,
+        "repoPath": "/home/akudo/Desktop/Work/ffmpeg-vuln"
+      }
+    },
+    {
+      "runId": 3,
+      "startTime": "2026-05-08T01:57:00.219Z",
+      "durationMs": 1337745,
+      "detected": true,
+      "targetFile": "libavformat/mov.c",
+      "targetRank": 1,
+      "targetScore": 0.9,
+      "maxEvidenceLevel": 2,
+      "reflexionCount": 6,
+      "stats": {
+        "totalFindings": 10,
+        "byEvidenceLevel": {
+          "1": 2,
+          "2": 8
+        },
+        "bySeverity": {
+          "high": 5,
+          "critical": 2,
+          "low": 2,
+          "medium": 1
+        },
+        "pocGenerated": 8,
+        "reflexionIterations": 6,
+        "repoPath": "/home/akudo/Desktop/Work/ffmpeg-vuln"
+      }
+    },
+    {
+      "runId": 4,
+      "startTime": "2026-05-08T02:19:17.966Z",
+      "durationMs": 1365988,
+      "detected": true,
+      "targetFile": "libavformat/mov.c",
+      "targetRank": 1,
+      "targetScore": 0.9,
+      "maxEvidenceLevel": 2,
+      "reflexionCount": 3,
+      "stats": {
+        "totalFindings": 11,
+        "byEvidenceLevel": {
+          "2": 11
+        },
+        "bySeverity": {
+          "high": 6,
+          "medium": 4,
+          "critical": 1
+        },
+        "pocGenerated": 11,
+        "reflexionIterations": 3,
+        "repoPath": "/home/akudo/Desktop/Work/ffmpeg-vuln"
+      }
+    },
+    {
+      "runId": 5,
+      "startTime": "2026-05-08T02:42:03.955Z",
+      "durationMs": 1116414,
+      "detected": true,
+      "targetFile": "libavformat/mov.c",
+      "targetRank": 1,
+      "targetScore": 0.91,
+      "maxEvidenceLevel": 2,
+      "reflexionCount": 5,
+      "stats": {
+        "totalFindings": 7,
+        "byEvidenceLevel": {
+          "1": 1,
+          "2": 6
+        },
+        "bySeverity": {
+          "critical": 2,
+          "medium": 2,
+          "high": 3
+        },
+        "pocGenerated": 6,
+        "reflexionIterations": 5,
+        "repoPath": "/home/akudo/Desktop/Work/ffmpeg-vuln"
+      }
+    }
+  ]
+}

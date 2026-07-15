@@ -1,0 +1,188 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in pic_size_in_ctb calculation can lead to undersized heap allocation and subsequent buffer overflow."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 91
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in ctb_count calculation can lead to undersized heap allocation for SAO and deblock arrays."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 93
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_write",
+          "level": "error",
+          "message": {
+            "text": "Missing upper bound validation on s->sh.nb_refs[L0] allows out-of-bounds array access in pred_weight_table."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 163
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds-read",
+          "level": "note",
+          "message": {
+            "text": "The function reads 4 bytes unconditionally without verifying that the atom length (`len`) is at least 4. If a crafted MOV file contains a metadata atom shorter than 4 bytes, the parser will read past the atom boundary into subsequent data, potentially causing desynchronization or reading sensitive memory if the stream buffer is tightly packed."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 119
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds-write",
+          "level": "note",
+          "message": {
+            "text": "The pointer calculation `char *end = dst+dstlen-1;` underflows when `dstlen` is 0. This results in `end` pointing before the start of the destination buffer. Although the loop checks `p >= end`, the subsequent null-termination `*p = 0;` on line 154 writes to `dst` regardless, and the underflowed `end` pointer can cause undefined behavior or incorrect bounds checking in edge cases."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 142
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow leading to Out-of-Bounds Access",
+          "level": "error",
+          "message": {
+            "text": "Unchecked signed integer multiplication in buffer size calculations allows crafted macroblock dimensions to wrap around to small positive values. This results in undersized pool allocations that are later indexed with the true (large) dimensions, causing out-of-bounds memory access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 181
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "heap_buffer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "The function `mov_read_mac_string` computes `char *end = dst+dstlen-1;` based on `dstlen`, which is derived from the MOV atom's `len` field. If the caller's allocation size calculation for `dst` suffers from integer truncation or overflow (e.g., due to `len` being a large `uint32_t`), the actual heap reservation will be smaller than `dstlen`. The computed `end` will therefore point past the allocated heap buffer. The subsequent loop iterates `len` times, and the bounds check `if (p >= end) continue;` only prevents writes once `p` reaches `end`. Since `end` is already beyond the heap boundary, `p` can advance past the allocated buffer while still satisfying `p < end`, resulting in a heap buffer overflow during `*p++ = c` or `*p++ = t`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 152
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds read",
+          "level": "note",
+          "message": {
+            "text": "The check_tag function declares a fixed-size 4-byte stack buffer 'tag[4]'. It reads 'len' bytes into this buffer, where 'len' is validated to be <= 4. However, when 'len' is less than 4, the remaining bytes in 'tag' remain uninitialized. The subsequent macro AV_RB32(tag) unconditionally reads exactly 4 bytes from 'tag', resulting in an out-of-bounds read of uninitialized stack memory."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 138
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "uninitialized memory read",
+          "level": "note",
+          "message": {
+            "text": "AV_RB32(tag) reads 4 bytes from the tag buffer, but avio_read only populates len bytes. When len < 4, the remaining bytes in tag are uninitialized stack memory. This results in reading uninitialized data."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 136
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

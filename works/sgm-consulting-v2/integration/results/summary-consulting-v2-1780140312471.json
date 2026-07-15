@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780140312471",
+  "threadId": "slack-test-1780140312471",
+  "initialQuestion": [
+    "excludeDirs の設定方法を教えてください"
+  ],
+  "durationMs": 17523,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`excludeDirs` は、`glob_files` や `grep_search` などのスキルツールが検索対象とするディレクトリを除外するための設定です。\n\n### 概要\nこの設定により、バイナリファイルの多いディレクトリ、大量の生成ファイルが出力されるフォルダ、または機密データを含むフォルダなどを検索対象から除外できます。\n\n### 設定方法\nワークフローの `skills` 設定内に `excludeDirs` キーとして配列で指定します。\n\n```jsonc\n{\n  \"config\": { \"name\": \"my-workflow\" },\n  \"skills\": {\n    \"excludeDirs\": [\"data\", \"coverage\", \"tmp\"]\n  },\n  \"nodes\": [...],\n  \"edges\": [...]\n}\n```\n\n### 注意点\n- `node_modules`、`.git`、`dist` は、`excludeDirs` で明示的に指定していなくても**常にデフォルトで除外**されます。\n- 指定できる値は文字列の配列（ディレクトリ名）です。\n\nこれにより、不要なディレクトリへのアクセスを防ぎ、検索パフォーマンスの向上やセキュリティの強化につながります。"
+  ],
+  "timestamp": "2026-05-30T11:25:30.012Z"
+}

@@ -1,0 +1,1 @@
+return { taskSpec: state.taskSpec || '' };

@@ -1,0 +1,120 @@
+[
+  {
+    "type": "NULL pointer dereference",
+    "severity": "medium",
+    "description": "In release_unused_pictures, the code dereferences h->DPB[i].f without checking for NULL. Unused DPB slots have f set to NULL, causing a crash when accessing buf[0].",
+    "line": 142,
+    "column": null,
+    "hypothesis": "During DPB cleanup or picture reuse, the loop encounters empty slots where f is NULL. Dereferencing it triggers a segmentation fault, leading to a denial of service.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T22:52:57.069Z",
+    "poc": {
+      "pocCode": "/* Conceptual PoC for NULL pointer dereference in DPB cleanup */\n#include <stdio.h>\n\ntypedef struct {\n    void *buf[1];\n} Picture;\n\ntypedef struct {\n    Picture *f; // NULL when slot is unused\n} DPBEntry;\n\ntypedef struct {\n    DPBEntry DPB[16];\n} H264Context;\n\nvoid release_unused_pictures(H264Context *h) {\n    for (int i = 0; i < 16; i++) {\n        /* VULNERABILITY: Missing NULL check on h->DPB[i].f */\n        /* Unused DPB slots have f == NULL. Dereferencing it to access buf[0] */\n        /* triggers a segmentation fault (NULL pointer dereference). */\n        h->DPB[i].f->buf[0] = NULL;\n    }\n}\n\nint main() {\n    H264Context ctx = {0}; // Initializes all DPB entries to NULL\n    release_unused_pictures(&ctx); // Crashes on first iteration\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The function iterates over a Decoded Picture Buffer (DPB) array to release unused pictures. Unused slots have their 'f' pointer set to NULL. The code dereferences 'f' to access 'buf[0]' without a NULL check, causing a segmentation fault when an empty slot is encountered."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "medium",
+    "description": "Unsigned integer underflow in length calculation bypasses bounds checks",
+    "line": 208,
+    "column": null,
+    "hypothesis": "avio_get_str returns the number of bytes that would be read if the buffer were large enough. If the 'place' string in the file exceeds sizeof(place)-1, avio_get_str returns a value larger than len. Subtracting this from the unsigned len causes wrap-around to a large positive value, bypassing the subsequent len < 1 and len < 12 checks. This allows the parser to read past the intended atom boundary or process malformed data.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T22:53:14.389Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n#include <string.h>\n\n/* Simulates avio_get_str: returns the number of bytes that WOULD be read\n   if the buffer were large enough, regardless of the actual buffer size. */\nuint64_t mock_avio_get_str(const char *input, uint64_t buffer_size) {\n    (void)buffer_size;\n    return strlen(input) + 1;\n}\n\nvoid demonstrate_underflow(uint64_t len) {\n    char place[16];\n    const char *malformed_data = \"This_string_exceeds_the_buffer_size_limit\";\n\n    /* 1. Parser returns a length larger than our buffer/limit */\n    uint64_t returned_len = mock_avio_get_str(malformed_data, sizeof(place));\n\n    /* 2. Unsigned subtraction causes wrap-around (underflow)\n       Since returned_len > len, the result wraps to a very large positive number. */\n    len -= returned_len;\n\n    /* 3. Subsequent bounds checks are bypassed because len is now huge */\n    if (len < 1 || len < 12) {\n        printf(\"Bounds check triggered (expected for valid data)\\n\");\n    } else {\n        printf(\"VULNERABILITY: Unsigned underflow bypassed bounds check. len=%lu\\n\", (unsigned long)len);\n    }\n}\n\nint main() {\n    uint64_t atom_size = 10;\n    demonstrate_underflow(atom_size);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Unsigned integer underflow occurs when a parser returns a required length larger than the current buffer limit. Subtracting this larger value from the limit wraps the unsigned integer to a large positive value, bypassing subsequent lower-bound checks and allowing out-of-bounds access."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_read",
+    "severity": "low",
+    "description": "Missing length validation before reading metadata bytes",
+    "line": 118,
+    "column": null,
+    "hypothesis": "The function reads 4 bytes from the AVIOContext without verifying that len is at least 4. If a crafted MOV file specifies a metadata atom with len < 4, avio_r8 will read past the atom boundary into the next atom or file data, causing an out-of-bounds read from the stream.",
+    "evidenceLevel": 1,
+    "filePath": "libavformat/mov.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T22:53:27.478Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "Integer Overflow / Out-of-Bounds Write",
+    "severity": "critical",
+    "description": "The calculation sz = 64 * s->sb_cols * s->sb_rows; uses 32-bit signed integer arithmetic. If s->sb_cols and s->sb_rows are sufficiently large (e.g., from unclamped or malicious bitstream dimensions), the multiplication can overflow, resulting in a negative or wrapped sz value.",
+    "line": 85,
+    "column": null,
+    "hypothesis": "A negative or wrapped sz causes f->extradata->data + sz to point to an invalid memory location (either before the allocated buffer or into a much smaller allocation). Subsequent writes to f->mv will corrupt memory outside the intended bounds, potentially overwriting adjacent heap metadata or control data.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/vp9.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T22:54:19.901Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n#include <stdlib.h>\n\ntypedef struct {\n    int32_t sb_cols;\n    int32_t sb_rows;\n    uint8_t *extradata;\n} VP9Context;\n\nvoid vulnerable_calculation(VP9Context *s) {\n    // Vulnerable line: 32-bit signed integer overflow\n    // Large dimensions cause the multiplication to exceed INT32_MAX\n    // and wrap around to a negative or unexpectedly small value.\n    int32_t sz = 64 * s->sb_cols * s->sb_rows;\n\n    // Pointer arithmetic uses the overflowed size\n    // A negative sz shifts the pointer backwards, pointing before the buffer\n    // A wrapped positive sz points to an incorrect offset\n    uint8_t *target = s->extradata + sz;\n\n    printf(\"Dimensions: %dx%d\\n\", s->sb_cols, s->sb_rows);\n    printf(\"Expected size: %lld bytes\\n\", (long long)64LL * s->sb_cols * s->sb_rows);\n    printf(\"Overflowed size (sz): %d bytes\\n\", sz);\n    printf(\"Buffer base: %p\\n\", (void*)s->extradata);\n    printf(\"Calculated write target: %p\\n\", (void*)target);\n\n    // Conceptual out-of-bounds write (disabled for safety)\n    // memcpy(target, source_data, sz);\n}\n\nint main(void) {\n    VP9Context ctx = {0};\n    ctx.extradata = (uint8_t*)malloc(1024);\n\n    // Malicious dimensions crafted to trigger 32-bit signed overflow\n    // 64 * 0x10000 * 0x10000 = 0x40000000000 (exceeds 32-bit range)\n    // Wraps to 0 in 32-bit signed arithmetic, causing target == base\n    ctx.sb_cols = 0x10000;\n    ctx.sb_rows = 0x10000;\n\n    vulnerable_calculation(&ctx);\n\n    free(ctx.extradata);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Large sb_cols/sb_rows cause 64*cols*rows to overflow 32-bit signed integer, wrapping to negative/small value. This wraps the pointer arithmetic, making the write target point before or incorrectly within the allocated buffer, leading to out-of-bounds memory corruption."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow leading to Buffer Overflow",
+    "severity": "high",
+    "description": "Integer overflow in `min_pu_size * sizeof(MvField)` passed to `av_buffer_pool_init`",
+    "line": 118,
+    "column": null,
+    "hypothesis": "The variable `min_pu_size` is computed as `sps->min_pu_width * sps->min_pu_height`. If the SPS fields `min_pu_width` and `min_pu_height` are crafted to be large (e.g., near `0x10000`), their product can overflow a signed 32-bit integer. This overflow propagates to the expression `min_pu_size * sizeof(MvField)`, which is evaluated as a 32-bit `int` before being passed to `av_buffer_pool_init`. The overflow can result in a small or negative size value, causing the buffer pool to be allocated with insufficient memory. Subsequent decoding logic that populates MV fields based on the true `min_pu_size` will write beyond the allocated pool buffer, resulting in a heap buffer overflow.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T22:59:14.249Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\ntypedef struct { int16_t x, y; uint8_t ref, flags; } MvField;\n\n// Simulates av_buffer_pool_init allocation logic\nvoid* simulated_pool_init(int size) {\n    printf(\"[+] Requested size: %d bytes\\n\", size);\n    // Vulnerability: small/negative size due to overflow leads to undersized allocation\n    return malloc(size > 0 ? size : 16);\n}\n\nint main() {\n    // Crafted SPS parameters that trigger 32-bit signed integer overflow\n    int32_t min_pu_width  = 0x10000;\n    int32_t min_pu_height = 0x10000;\n\n    // 0x10000 * 0x10000 = 0x100000000, which overflows int32_t to 0\n    int32_t min_pu_size = min_pu_width * min_pu_height;\n    printf(\"[-] min_pu_size after overflow: %d\\n\", min_pu_size);\n\n    // Propagates to allocation size calculation\n    int32_t pool_size = min_pu_size * (int32_t)sizeof(MvField);\n    printf(\"[-] pool_size after overflow: %d bytes\\n\", pool_size);\n\n    // Allocates undersized buffer\n    void* pool = simulated_pool_init(pool_size);\n\n    // Educational note: Decoder later writes min_pu_size elements,\n    // exceeding the actual allocated memory -> heap buffer overflow\n    printf(\"[!] Mismatch: Allocated %d bytes vs Required %ld bytes\\n\",\n           pool_size, (long)min_pu_size * sizeof(MvField));\n\n    free(pool);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted SPS values (0x10000 x 0x10000) cause a 32-bit signed integer overflow during min_pu_size calculation. The overflow propagates to the pool size multiplication, yielding a small or negative value. This triggers an undersized heap allocation, which is later exceeded by legitimate decoding writes, resulting in a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Integer overflow in `min_pu_size` calculation combined with missing overflow checks in `av_buffer_pool_init` leads to undersized heap allocations. Malicious SPS parameters can cause the multiplication to wrap around to a small positive value, resulting in a heap buffer overflow during subsequent decoding operations.",
+    "line": 47,
+    "column": null,
+    "hypothesis": "An attacker crafts a HEVC bitstream with oversized SPS parameters. At line 47, `sps->min_pu_width * sps->min_pu_height` overflows a signed 32-bit integer, wrapping to a small positive value. This value is passed to `av_buffer_pool_init` on line 95 without validation. The allocator reserves a small heap buffer. Later, the decoder treats the buffer as if it were sized for the actual (large) frame dimensions, writing beyond the allocated bounds and corrupting heap metadata or executing arbitrary code.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:04:06.052Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "use-after-free",
+    "severity": "high",
+    "description": "Missing null-assignment of `f->mv` in `vp9_frame_unref` leaves a dangling pointer after `f->extradata` is freed.",
+    "line": 104,
+    "column": null,
+    "hypothesis": "In `vp9_frame_unref`, `f->extradata` is unreferenced and potentially freed (line 101), but `f->mv` (which points into `f->extradata->data`) is not set to NULL. When `f->hwaccel_picture_private = NULL;` executes on line 104, the corresponding nullification for `f->mv` is absent. If the `VP9Frame` context is reused, swapped, or accessed during concurrent decode threads or error recovery before `vp9_frame_alloc` reinitializes it, the stale `f->mv` pointer is dereferenced, causing a use-after-free vulnerability.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/vp9.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:05:51.360Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n// Simplified structure mimicking VP9Frame\nstruct extradata {\n    char data[64];\n};\n\nstruct vp9_frame {\n    struct extradata *extradata;\n    char *mv;           // Dangling pointer points into extradata->data\n    void *hwaccel_picture_private;\n};\n\n// Simulates allocation and initialization\nstruct vp9_frame* vp9_frame_alloc() {\n    struct vp9_frame *f = malloc(sizeof(*f));\n    f->extradata = malloc(sizeof(*f->extradata));\n    strcpy(f->extradata->data, \"motion_vector_data\");\n    f->mv = f->extradata->data; // mv points into extradata\n    f->hwaccel_picture_private = NULL;\n    return f;\n}\n\n// Vulnerable unreference function\nvoid vp9_frame_unref(struct vp9_frame *f) {\n    // Frees extradata, which contains the memory mv points to\n    free(f->extradata);\n    // BUG: f->mv is NOT set to NULL here, leaving a dangling pointer\n    // f->mv = NULL; // Missing null-assignment\n\n    // Correctly nullifies another pointer (as per hypothesis)\n    f->hwaccel_picture_private = NULL;\n}\n\n// Simulates later access during decode/reuse\nvoid process_motion_vectors(struct vp9_frame *f) {\n    // Exploit mechanism: f->mv is accessed without checking if it's valid\n    // Since it wasn't NULLed, it still holds the old address\n    // Dereferencing it accesses freed memory (Use-After-Free)\n    if (f->mv) { // In real code, this check might be absent or bypassed\n        printf(\"Accessing stale pointer: %s\\n\", f->mv);\n    }\n}\n\nint main() {\n    struct vp9_frame *frame = vp9_frame_alloc();\n    printf(\"Initial mv pointer: %p\\n\", (void*)frame->mv);\n\n    vp9_frame_unref(frame);\n    printf(\"After unref, mv pointer: %p (dangling)\\n\", (void*)frame->mv);\n\n    // Simulate frame reuse or concurrent access before reallocation\n    process_motion_vectors(frame);\n\n    free(frame);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The vulnerability occurs when vp9_frame_unref frees extradata but fails to nullify f->mv, which points into the freed memory. Subsequent access to f->mv during frame reuse or decode operations dereferences the dangling pointer, triggering a use-after-free."
+    },
+    "exploitStatus": "generated"
+  }
+]

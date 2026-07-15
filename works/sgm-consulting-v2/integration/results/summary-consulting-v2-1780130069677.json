@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130069677",
+  "threadId": "slack-test-1780130069677",
+  "initialQuestion": [
+    "A2A Bearer認証の設定方法を教えてください"
+  ],
+  "durationMs": 22100,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "A2A（Agent-to-Agent）連携におけるBearer認証の設定方法について、公開ドキュメントとソースコードに基づき説明します。\n\n## A2A Bearer認証の設定\n\n`a2aClients` の各エージェント設定に、認証情報を指定します。\n\n### 設定フィールド\n\n| フィールド | 型 | 用途 |\n|---|---|---|\n| `bearerToken` | `string` | トークンを直接指定（開発・テスト用） |\n| `bearerTokenEnvVar` | `string` | 環境変数名を指定（本番推奨） |\n\n### 設定例\n\n```json\n{\n  \"a2aClients\": {\n    \"secure_agent\": {\n      \"cardUrl\": \"https://agent.example.com/.well-known/agent.json\",\n      \"bearerTokenEnvVar\": \"AGENT_API_KEY\"\n    }\n  }\n}\n```\n\n### 動作詳細\n\n- `bearerTokenEnvVar` が指定されている場合、その環境変数の値がBearerトークンとして使用されます\n- `bearerTokenEnvVar` が未指定の場合は、`bearerToken` の値が直接使用されます\n- 本番環境では、`bearerTokenEnvVar` を使用して環境変数からトークンを取得することを推奨します\n\n### 使用上の注意点\n\n- 環境変数からトークンを取得する場合、`loadSecrets()` を使用してOSネイティブのシークレットストア（macOS Keychain / Linux libsecret / Windows Credential Manager）から事前に `process.env` に読み込んでおくことを推奨します\n- `.env` ファイルは自動読み込みされないため、直接 `apiKey` を設定するか、`loadSecrets()` を使用してください"
+  ],
+  "timestamp": "2026-05-30T08:34:51.799Z"
+}

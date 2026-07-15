@@ -1,0 +1,206 @@
+[
+  {
+    "type": "Integer Overflow",
+    "severity": "high",
+    "description": "The multiplication `sps->min_pu_width * sps->min_pu_height` on line 61 can overflow a 32-bit signed integer if the SPS contains maliciously large dimensions. The truncated result is passed to `av_mallocz` on line 77, which lacks overflow protection. This results in an undersized heap allocation, leading to a heap buffer overflow when `s->tab_ipm` is subsequently accessed during decoding.",
+    "line": 61,
+    "column": null,
+    "hypothesis": "An attacker crafts an HEVC bitstream with oversized SPS parameters. The decoder parses these into `sps->min_pu_width` and `sps->min_pu_height`. Their product overflows `int`, yielding a small positive value. `av_mallocz` allocates a small buffer. Subsequent decoding steps write to `s->tab_ipm` using the true (large) PU size, corrupting heap metadata or adjacent objects, potentially enabling arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:26:36.546Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\n// Simulates the vulnerable allocation logic from hevcdec.c\nvoid vulnerable_allocation(int32_t min_pu_width, int32_t min_pu_height) {\n    // Line 61: Multiplication can overflow a 32-bit signed integer\n    // If width and height are large enough, their product exceeds INT32_MAX\n    // and wraps around to a small positive value due to signed integer overflow\n    int32_t allocated_size = min_pu_width * min_pu_height;\n\n    // Line 77: Allocation uses the truncated/overflowed size\n    // This results in a significantly undersized heap buffer\n    uint8_t *tab_ipm = (uint8_t *)malloc(allocated_size);\n    if (!tab_ipm) {\n        printf(\"Allocation failed\\n\");\n        return;\n    }\n\n    // Simulate subsequent decoding step that uses the TRUE dimensions\n    // The decoder expects to write to a buffer of size (min_pu_width * min_pu_height)\n    // but the allocated buffer is much smaller due to the overflow\n    int64_t true_size = (int64_t)min_pu_width * min_pu_height;\n    printf(\"Allocated size: %d, True required size: %ld\\n\", allocated_size, true_size);\n\n    // Conceptual write that exceeds the allocated buffer\n    // In a real decoder, this happens during IPM table population\n    // Writing up to true_size would corrupt heap metadata or adjacent objects\n    // printf(\"Writing beyond allocated buffer would occur here for indices %d to %ld\\n\", allocated_size, true_size);\n    free(tab_ipm);\n}\n\nint main() {\n    // Crafted values that trigger the overflow\n    // 0x10000 * 0x10000 = 0x100000000 (4GB), which overflows int32_t\n    // Result in int32_t: 0 (or small value depending on exact bits)\n    int32_t malicious_width = 0x10000;\n    int32_t malicious_height = 0x10000;\n\n    printf(\"Triggering integer overflow vulnerability...\\n\");\n    vulnerable_allocation(malicious_width, malicious_height);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted SPS parameters cause min_pu_width * min_pu_height to exceed INT32_MAX, wrapping to a small value. This truncated size is passed to malloc, allocating an undersized heap buffer. Subsequent decoding writes using the true large dimensions, causing a heap buffer overflow that can corrupt memory or enable arbitrary code execution."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "critical",
+    "description": "Integer overflow in buffer size calculations for motion vector pool allocation",
+    "line": 142,
+    "column": null,
+    "hypothesis": "The expression 'b4_stride * h->mb_height * 4' on line 142 is computed using 32-bit signed integers. If a malicious H.264 stream specifies large macroblock dimensions, the multiplication overflows, wrapping to a small positive value. This truncated size propagates to line 148 ('2 * (b4_array_size + 4) * sizeof(int16_t)'), causing av_buffer_pool_init to allocate a critically undersized buffer. Subsequent slice parsing writes motion vectors beyond the allocated pool, resulting in out-of-bounds heap writes and potential arbitrary code execution.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:26:57.917Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Integer overflow in scratch buffer allocation size calculation",
+    "line": 118,
+    "column": null,
+    "hypothesis": "The expression '16 * 6 * alloc_size' on line 118 is evaluated as a 32-bit signed integer. If 'linesize' is crafted to be sufficiently large, the multiplication overflows, resulting in a negative or small positive value passed to av_fast_malloc. This leads to an undersized bipred_scratchpad allocation, causing out-of-bounds writes during bidirectional prediction operations.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:27:28.795Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "buffer_overflow",
+    "severity": "critical",
+    "description": "The size argument for memset is an int, which can be negative. Casting a negative int to size_t results in a massive unsigned value.",
+    "line": 55,
+    "column": null,
+    "hypothesis": "If mb_width is negative due to malformed input, the line memset(plane, 0, width); will cause memset to write far beyond the allocated bitplane buffer, resulting in a heap/stack buffer overflow.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/vc1.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:28:39.879Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n\nint main() {\n    // Simulate allocated buffer (e.g., 1024 bytes)\n    size_t buffer_size = 1024;\n    char *plane = malloc(buffer_size);\n    if (!plane) return 1;\n\n    // Simulate malformed input causing negative width\n    int width = -1; // Malformed value from external source\n\n    // VULNERABILITY: width is signed int, but memset expects size_t (unsigned)\n    // Casting -1 to size_t results in SIZE_MAX (e.g., 18446744073709551615 on 64-bit)\n    // memset will attempt to write SIZE_MAX bytes, overflowing the heap buffer.\n    memset(plane, 0, width);\n\n    free(plane);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Passing a negative signed int to memset implicitly casts it to size_t, resulting in a massive unsigned value (e.g., SIZE_MAX). memset then writes far beyond the allocated buffer, causing a heap/stack buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_write",
+    "severity": "high",
+    "description": "Pointer arithmetic planep += stride - width can move the pointer backwards if stride is less than width.",
+    "line": 112,
+    "column": null,
+    "hypothesis": "If mb_stride is not strictly validated to be >= mb_width, the line planep += stride - width; calculates a negative offset. Subsequent *planep++ operations will write outside the allocated bitplane buffer bounds.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/vc1.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:29:26.667Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main() {\n    // Simulate a heap-allocated bitplane buffer\n    size_t buf_size = 256;\n    uint8_t *bitplane = (uint8_t *)malloc(buf_size);\n\n    // Malformed input parameters\n    int width = 16;\n    int stride = 8; // Intentionally less than width\n\n    uint8_t *planep = bitplane;\n\n    // VULNERABILITY: Negative pointer arithmetic\n    // stride - width = 8 - 16 = -8\n    // planep += -8 moves the pointer 8 bytes BEFORE the allocated buffer\n    planep += stride - width;\n\n    // In the actual decoder, subsequent *planep++ writes would corrupt\n    // adjacent heap metadata or other objects, causing a heap buffer underflow.\n    // *planep++ = 0xAA; // Conceptual OOB write\n\n    printf(\"Buffer start: %p\\n\", (void*)bitplane);\n    printf(\"Pointer after arithmetic: %p\\n\", (void*)planep);\n    printf(\"Negative offset: %td bytes (OUT OF BOUNDS)\\n\", (planep - bitplane));\n\n    free(bitplane);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "When stride is less than width, the expression stride - width evaluates to a negative integer. Adding this negative offset to the pointer moves it backwards in memory, pointing before the start of the allocated buffer. Subsequent dereference and write operations (e.g., *planep++) will therefore overwrite memory outside the buffer's lower bounds, resulting in a heap/stack buffer underflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer-overflow",
+    "severity": "medium",
+    "description": "Unsigned integer underflow due to type mismatch with avio_get_str return value",
+    "line": 268,
+    "column": null,
+    "hypothesis": "len is declared as unsigned, but avio_get_str returns int. If avio_get_str encounters an I/O error or malformed input and returns a negative error code, len -= negative_value causes an unsigned integer underflow, wrapping len to a large positive value. This bypasses subsequent bounds checks (len < 1, len < 12), potentially allowing reads past the atom boundary or with uninitialized data.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:34:27.457Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n\n// Simulates avio_get_str returning a negative error code on I/O failure\nint mock_avio_get_str(unsigned char *buf, int buf_size) {\n    return -22; // Simulated -EINVAL error code\n}\n\nvoid demonstrate_vulnerability() {\n    unsigned int len = 10; // Tracks remaining bytes in a buffer/atom\n    int ret;\n\n    ret = mock_avio_get_str(NULL, 0);\n\n    // VULNERABILITY: len is unsigned, ret is signed int.\n    // In C, the negative 'ret' is implicitly converted to a large unsigned value.\n    // Subtracting this large value from 'len' causes an unsigned integer underflow,\n    // wrapping 'len' to a massive positive number.\n    len -= ret; // Underflow occurs here\n\n    // Subsequent bounds check is bypassed because 'len' wrapped to a huge value\n    if (len < 12) {\n        printf(\"Safe path\\n\");\n    } else {\n        printf(\"Bounds check bypassed: len=%u (wrapped due to type mismatch)\\n\", len);\n        // In the real code, this oversized 'len' would be used for memory operations,\n        // potentially allowing reads past the atom boundary or with uninitialized data.\n    }\n}\n\nint main() {\n    demonstrate_vulnerability();\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Subtracting a negative signed int from an unsigned int triggers implicit conversion to a large unsigned value, causing an unsigned integer underflow that wraps the length variable to a massive value, bypassing subsequent bounds checks."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Signed integer overflow on the height * width calculation used for loop bounds and indexing logic.",
+    "line": 100,
+    "column": null,
+    "hypothesis": "When mb_width and mb_height are large, the expression (height * width) & 1 can overflow. This leads to incorrect loop termination in for (; y < height * width; y += 2) {, potentially causing out-of-bounds reads/writes or infinite loops.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/vc1.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:34:48.338Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n\n// Minimal PoC demonstrating signed integer overflow in loop bounds\nvoid vulnerable_loop(int mb_width, int mb_height) {\n    // Signed integer overflow occurs when mb_width * mb_height exceeds INT_MAX.\n    // For 32-bit signed int: 65536 * 65536 = 4,294,967,296 -> wraps to 0 or negative.\n    // The bitwise AND (& 1) does not cause overflow, but operates on the already-corrupted product.\n    int loop_bound = mb_width * mb_height;\n\n    // The loop uses the overflowed value as its termination condition.\n    // If loop_bound becomes negative, y < loop_bound is false initially -> loop skipped.\n    // If it wraps to a small positive value, loop terminates early.\n    // In the original code, this miscalculation breaks buffer size assumptions,\n    // causing subsequent indexing logic to access memory out-of-bounds.\n    for (int y = 0; y < loop_bound; y += 2) {\n        // Conceptual indexing: array[y] would be accessed here.\n        // Due to incorrect loop_bound, array bounds are violated.\n    }\n}\n\nint main() {\n    // Trigger signed 32-bit integer overflow\n    int w = 65536;\n    int h = 65536;\n    vulnerable_loop(w, h);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Multiplying large height and width values causes a signed 32-bit integer overflow, wrapping the product to a negative or unexpectedly small value. This corrupts the loop bound, causing premature termination or skipped iterations, which breaks downstream buffer indexing assumptions and leads to out-of-bounds memory access."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out-of-bounds-read-write",
+    "severity": "high",
+    "description": "Unvalidated stride multiplier in column-wise bitplane decoding causes out-of-bounds memory access.",
+    "line": 80,
+    "column": null,
+    "hypothesis": "The `stride` parameter is derived from the VC-1 bitstream (`v->s.mb_stride`) and used directly in the index calculation `plane[y*stride]` without validation against the allocated buffer size or checks for negative values. If a crafted bitstream provides a negative `stride`, the expression `plane[y*stride]` evaluates to a negative offset, triggering an out-of-bounds read/write before the start of the `plane` buffer. Even with positive strides, excessively large values bypass implicit bounds checks, potentially writing past the allocated bitplane buffer. This aligns with historical VC-1 stride validation bypasses where row strides were not strictly clamped or verified against frame dimensions.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/vc1.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:36:08.371Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n\n// Simulates the vulnerable VC-1 bitplane decoding routine\nvoid decode_bitplane(unsigned char* plane, int width, int height, int stride) {\n    // VULNERABILITY: 'stride' is derived from the bitstream without validation.\n    // The index calculation 'y * stride' is used directly without checking\n    // if it stays within [0, width*height-1] or if stride is negative.\n    for (int y = 0; y < height; y++) {\n        // Exploit: If stride < 0, y*stride becomes negative, accessing memory before 'plane'.\n        // If stride >> width, y*stride exceeds buffer bounds, causing heap/stack corruption.\n        plane[y * stride] = 0xFF;\n    }\n}\n\nint main() {\n    // Allocate a 10x10 bitplane buffer (100 bytes)\n    int width = 10, height = 10;\n    unsigned char* plane = malloc(width * height);\n\n    // Simulate crafted bitstream injecting an unvalidated stride value\n    int malicious_stride = -3; // Triggers negative offset OOB read/write\n\n    // Conceptual demonstration of the vulnerability\n    decode_bitplane(plane, width, height, malicious_stride);\n\n    free(plane);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The function uses an attacker-controlled stride value directly in the index calculation y * stride without validating its sign or magnitude. A negative stride produces a negative array index, causing a read/write before the allocated buffer. An excessively large stride causes writes past the buffer end, leading to out-of-bounds memory corruption."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "missing bounds check",
+    "severity": "medium",
+    "description": "Disabling bitstream reader bounds checks via macro",
+    "line": 28,
+    "column": null,
+    "hypothesis": "The line '#define UNCHECKED_BITSTREAM_READER 1' disables safety checks in the bitstream reader implementation. When enabled, CABAC decoding functions will not validate bitstream pointers, offsets, or lengths before accessing memory. This creates a plausible exploit path for out-of-bounds reads/writes and infinite loops when processing malformed, truncated, or adversarially crafted H.264 streams, as context index calculations and state normalization routines will operate on untrusted memory without guardrails.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/h264_cabac.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:51:01.118Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "heap_buffer_overflow",
+    "severity": "high",
+    "description": "Bounds-checking relies on dstlen parameter which may not match the actual heap allocation size derived from untrusted metadata.",
+    "line": 163,
+    "column": null,
+    "hypothesis": "The function initializes bounds with 'char *end = dst+dstlen-1;' and uses 'if (p >= end)' and 'if (p < end)' to gate writes at '*p++ = c;' and 'PUT_UTF8(...)'. If the caller allocates 'dst' based on untrusted MOV atom metadata (e.g., via integer truncation or miscalculation) while passing a fixed or larger 'dstlen', the bounds checks will pass while writes exceed the actual allocated region. Additionally, if dstlen is 0 or negative, 'end' underflows to 'dst-1', causing 'p >= end' to evaluate incorrectly and the final '*p = 0;' to write outside the buffer.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:51:34.880Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/* Simulates the vulnerable bounds-checking logic from libavformat/mov.c */\nvoid vulnerable_copy(char *dst, size_t dstlen, const char *src) {\n    char *p = dst;\n    /* Bounds calculation relies entirely on the dstlen parameter */\n    char *end = dst + dstlen - 1;\n\n    for (const char *c = src; *c; c++) {\n        /* Bounds check gates writes based on dstlen, not actual allocation */\n        if (p >= end) break;\n        *p++ = *c; /* Simulates *p++ = c; and PUT_UTF8(...) writes */\n    }\n    *p = 0; /* Final null terminator write */\n}\n\nint main(void) {\n    /* Simulate allocation based on untrusted MOV atom metadata */\n    /* e.g., integer truncation/miscalculation results in smaller actual allocation */\n    size_t actual_alloc_size = 16;\n    char *heap_buf = malloc(actual_alloc_size);\n    if (!heap_buf) return 1;\n\n    /* Caller passes a fixed/larger dstlen (e.g., from untrusted metadata or constant) */\n    size_t passed_dstlen = 64;\n\n    const char *input = \"This data exceeds the actual heap allocation size!\";\n\n    /* EXPLOIT MECHANISM:\n     * 1. heap_buf is only 16 bytes, but passed_dstlen is 64.\n     * 2. end = heap_buf + 63. The check 'p >= end' allows writes up to 63 bytes.\n     * 3. Writes proceed until input ends or p >= end, overflowing heap_buf.\n     * 4. Edge case: If passed_dstlen == 0, end = heap_buf - 1.\n     *    'p >= end' evaluates incorrectly, and the final '*p = 0;' writes at heap_buf - 1 (underflow).\n     */\n    vulnerable_copy(heap_buf, passed_dstlen, input);\n\n    printf(\"PoC executed. Heap corruption would occur in a real environment.\\n\");\n    free(heap_buf);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The vulnerability occurs when the bounds-checking parameter (dstlen) does not match the actual heap allocation size. The code calculates end = dst + dstlen - 1 and gates writes with p >= end. If dstlen is larger than the allocated buffer, the check passes while writes exceed the heap region. If dstlen is 0, end underflows to dst-1, causing incorrect boundary evaluation and out-of-bounds writes for the null terminator."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_truncation_overflow",
+    "severity": "high",
+    "description": "Signed int parameter truncates large MOV atom sizes, causing massive downstream allocation/read.",
+    "line": 198,
+    "column": null,
+    "hypothesis": "The parameter 'len' is declared as 'int', but MOV atom sizes are typically 32-bit or 64-bit unsigned. If an atom size exceeds INT_MAX, 'len' truncates to a negative value. When passed to 'ret = ff_add_attached_pic(c->fc, NULL, pb, NULL, len);', this negative value is likely cast to size_t internally, resulting in a massive allocation size or read length. This can trigger a heap overflow if partial allocation succeeds or bypasses internal size limits, or cause severe OOM/DoS.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:51:57.958Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n#include <stdlib.h>\n\n/* Simulates a downstream function that allocates or reads based on length.\n   In real code, this might call malloc(len) or fread(buf, 1, len, fp). */\nvoid allocate_and_process(size_t len) {\n    printf(\"[Downstream] Requested allocation size: %zu bytes\\n\", len);\n    // Conceptual: void *buf = malloc(len);\n    // If len is unexpectedly huge due to integer truncation, this causes OOM or heap overflow.\n}\n\n/* Simulates the vulnerable parsing logic from the original codebase.\n   The parameter 'len' is declared as 'int', but MOV atom sizes are typically 32-bit unsigned. */\nvoid parse_mov_atom(uint32_t raw_atom_size) {\n    // VULNERABILITY: Truncation/Sign Change\n    // When raw_atom_size > INT_MAX (2,147,483,647), casting to signed int wraps to negative.\n    int len = (int)raw_atom_size;\n\n    printf(\"[Parser] Raw size: %u, Cast to int: %d\\n\", raw_atom_size, len);\n\n    // EXPLOIT MECHANISM:\n    // The negative 'len' is implicitly cast to size_t (unsigned) when passed to allocate_and_process.\n    // A negative int like -1 becomes 0xFFFFFFFF (4,294,967,295) as size_t.\n    // This bypasses internal size checks and triggers massive allocation or out-of-bounds reads.\n    allocate_and_process((size_t)len);\n}\n\nint main(void) {\n    // Educational PoC: Simulate a MOV atom header with size > INT_MAX\n    uint32_t test_atom_size = 0xFFFFFFFF; // 4,294,967,295 bytes\n    parse_mov_atom(test_atom_size);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "A large unsigned 32-bit MOV atom size is cast to a signed 32-bit int, causing it to wrap to a negative value. When this negative int is passed to a downstream function expecting a size_t, it is implicitly cast to a massive unsigned value, triggering excessive memory allocation or out-of-bounds reads."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Out-of-bounds Write",
+    "severity": "high",
+    "description": "Incorrect pointer arithmetic in IMODE_DIFF2/NORM2 bitplane decoding assumes stride >= width, risking backward pointer movement and out-of-bounds access if stride is smaller.",
+    "line": 108,
+    "column": null,
+    "hypothesis": "The code performs `planep += stride - width;` inside the IMODE_DIFF2/NORM2 decoding loop. This operation assumes that `stride` (mb_stride) is always greater than or equal to `width` (mb_width). If a malformed stream or specific configuration results in `stride < width`, the subtraction yields a negative value, causing `planep` to move backwards in memory. This leads to out-of-bounds writes before the start of the allocated bitplane buffer. Furthermore, the loop condition `y < height * width` relies on 32-bit signed integer arithmetic, which could overflow for extremely large macroblock counts, potentially causing an infinite loop or premature termination.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/vc1.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-08T00:52:17.832Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\n/*\n * Minimal PoC for Out-of-bounds Write in VC1 bitplane decoding.\n * Vulnerability: Incorrect pointer arithmetic assumes stride >= width.\n * Impact: Backward pointer movement leads to writes before buffer start.\n */\n\nvoid vulnerable_decode(uint8_t *buffer, int width, int height, int stride) {\n    uint8_t *planep = buffer;\n    int y;\n\n    for (y = 0; y < height; y++) {\n        /*\n         * EXPLOIT MECHANISM:\n         * The decoder performs `planep += stride - width;`.\n         * This assumes `stride` is always >= `width`.\n         * If an attacker controls `stride` and `width` such that\n         * `stride < width`, the subtraction yields a negative value.\n         * This causes `planep` to move backwards in memory.\n         */\n        planep += stride - width;\n\n        /*\n         * The write operation now targets memory before the allocated buffer.\n         * In a real scenario, this corrupts adjacent heap/stack memory.\n         */\n        *planep = 0xFF;\n\n        /* Advance to next row (simulated) */\n        planep += stride;\n    }\n}\n\nint main() {\n    /*\n     * Setup parameters to trigger the vulnerability.\n     * Normally stride >= width, but here we force stride < width.\n     */\n    int width = 16;\n    int height = 4;\n    int stride = 8; // STRIDE < WIDTH triggers the bug\n\n    uint8_t *buffer = malloc(width * height);\n    if (!buffer) return 1;\n\n    memset(buffer, 0, width * height);\n\n    printf(\"Buffer start: %p\\n\", (void*)buffer);\n    printf(\"Triggering OOB write with stride(%d) < width(%d)...\\n\", stride, width);\n\n    /*\n     * Calling the function with malformed parameters causes\n     * planep to decrement, writing to memory before 'buffer'.\n     * This demonstrates the backward pointer movement vulnerability.\n     */\n    vulnerable_decode(buffer, width, height, stride);\n\n    free(buffer);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The vulnerability arises when `stride` is set smaller than `width`. The code executes `planep += stride - width`, which results in a negative offset. This moves the pointer backwards relative to the buffer start, causing subsequent writes to occur in memory preceding the allocated buffer (out-of-bounds write)."
+    },
+    "exploitStatus": "generated"
+  }
+]

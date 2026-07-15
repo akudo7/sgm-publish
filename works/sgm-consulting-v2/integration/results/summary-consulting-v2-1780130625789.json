@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130625789",
+  "threadId": "slack-test-1780130625789",
+  "initialQuestion": [
+    "AutoResearchの仕組みを教えてください"
+  ],
+  "durationMs": 60631,
+  "turnCount": 1,
+  "rewriteCount": 1,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [
+    "AutoResearch の仕組みについて、公開ドキュメントに基づいて説明します。\n\n## AutoResearch の基本概念\n\nAutoResearch は、SKILL.md（スキル定義ファイル）を自律的に改善するためのループ機構です。各実行で得られた教訓を SKILL.md に記録し、次の実行でその改善されたスキルを活用する「Read → Execute → Write」のフィードバックループを形成します。\n\n## 動作フロー\n\nAutoResearch は以下の2段階で動作します。\n\n### 1. 反復学習ループ（Training Loop）\n\n```\nplanner_node → SKILL.md を生成 → registerSkill()\n       ↓ Send fan-out\nworker_node × N（並列実行）\n       ↓ fan-in\naggregator → finalize → reflect_node（SKILL.md を更新）\n       ↓\neval harness が successRate を測定\n       ↓\nスコアが改善すれば accept、劣化すれば rollback\n```\n\n- **planner_node**: タスクのドメイン（research / coding / writing / analysis / general）を分類し、関連するスキルのみを worker_node に注入\n- **worker_node**: ドメインコンテキストと関連スキル制約のもとでタスクを実行\n- **reflect_node**: 実行結果を分析し、教訓を SKILL.md に追記（`edit_file` を使用）\n- **eval harness**: 各イテレーションの successRate を測定し、改善/劣化を判定\n\n### 2. ホールドアウト検証\n\nN 回のイテレーション後、別の holdout セットで汎化性能を検証します。\n\n- スコアが改善すればコミット\n- 改善しなければロールバック\n\n## Reward Hacking 検出\n\n過学習や意味のない改善を検出するためのガードレールが実装されています。\n\n| 条件 | 警告 |\n|---|---|\n| train/holdout スコアの乖離 > 0.2 | 過学習の可能性 |\n| SKILL.md の肥大化 > 50行/イテレーション | 意味のないパディングの可能性 |\n| 繰り返される diff パターン | コピペインフレーションの可能性 |\n\n## 使用コマンド\n\n```bash\n# 50イテレーションで実行\ntsx scripts/autoresearch.ts --iterations 50\n\n# カスタムワークフローとディレクトリを指定\ntsx scripts/autoresearch.ts --workflow json/teams/leader-qwen.json \\\n  --eval-dir eval/train --holdout-eval-dir eval/holdout\n\n# ドライラン（SKILL.md に変更を加えない）\ntsx scripts/autoresearch.ts --dry-run --iterations 3\n```\n\n## 関連ディレクトリ構造\n\n| パス | 用途 |\n|---|---|\n| `eval/train/` | 学習タスク（スキルごとに5件、reflect_node で使用） |\n| `eval/holdout/` | ホールドアウトタスク（スキルごとに3件、異なる表現、最終検証のみ） |\n| `logs/autoresearch/` | イテレーションごとのログ（summary.jsonl、holdout_result.json） |\n\n## 関連公開API\n\n- **`registerSkill()`**: SkillsManager が提供するメソッド。AutoResearch ループ内で動的にスキルを登録するために使用されます。\n\nこの仕組みにより、LLM エージェントのスキル定義を人間の手動介入なしに自律的に改善・検証することができます。"
+  ],
+  "timestamp": "2026-05-30T08:44:46.439Z"
+}

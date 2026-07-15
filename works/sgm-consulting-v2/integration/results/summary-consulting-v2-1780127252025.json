@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780127252025",
+  "threadId": "slack-test-1780127252025",
+  "initialQuestion": [
+    "WorkflowEngine.stream の使い方を教えてください"
+  ],
+  "durationMs": 83132,
+  "turnCount": 1,
+  "rewriteCount": 1,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`WorkflowEngine.stream` は、ワークフローの実行結果を逐次（ストリーミング）で取得するための非同期メソッドです。`invoke` が最終結果を一度に返すのに対し、`stream` はノードの実行ステップごとに状態や更新情報を返すため、リアルタイムUIの更新やプログレス表示に適しています。\n\n### メソッドシグネチャ\n`stream(input: WorkflowState, options?: { configurable?: ConfigurableOptions; recursionLimit?: number; streamMode?: \"values\" | \"updates\" }): Promise<AsyncIterable<any>>`\n\n### 引数とオプション\n- `input` (`WorkflowState`): ワークフローに渡す初期状態またはコマンド。\n- `options` (任意):\n  - `configurable`: LangGraph の設定オプション（スレッドID管理等）。\n  - `recursionLimit`: 再帰制限の上限値。指定しない場合はワークフロー構成で設定された値が使用されます。\n  - `streamMode` (`\"values\"` または `\"updates\"`): デフォルトは `\"values\"`。`\"values\"` を指定すると各ステップでの完全な状態が返され、`\"updates\"` を指定すると各ノードからの差分（更新分）のみが返されます。\n\n### 戻り値\n`AsyncIterable<any>` を返します。`for await...of` 構文でイテレートして、実行中の状態を逐次取得できます。\n\n### 使用例\n```typescript\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n\nfor await (const update of engine.stream(input, { streamMode: \"values\" })) {\n  console.log(\"Current state:\", update);\n}\n```\n\n### 重要な動作仕様\n1. **事前ビルド必須**: `build()` が正常に完了する前に呼び出すと、ビルド未完了エラーになります。\n2. **フック連携**: `addEventListener` で登録したハンドラーは、ストリーミング実行中でも `nodeStart`、`nodeComplete`、`tokenUsage` などのイベントをリアルタイムで受信します。`userPromptSubmit` フックで入力をブロックすることも可能です。\n3. **エラー処理**: 実行中に `GraphInterrupt` が発生した場合、そのまま再スローされます。それ以外のエラーは `WorkflowError` としてラップされて投げられます。\n4. **パフォーマンス**: `\"updates\"` モードを使用すると、送信されるデータ量が減り、ネットワークやUIレンダリングの負荷を低減できます。\n\n必要に応じて `streamMode` や `recursionLimit` を調整し、`for await` ループ内で状態を監視・表示してください。公開ドキュメントおよびソースコードの実装に基づいた標準的な使用方法です。"
+  ],
+  "timestamp": "2026-05-30T07:48:55.176Z"
+}

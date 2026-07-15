@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780129535744",
+  "threadId": "slack-test-1780129535744",
+  "initialQuestion": [
+    "WorkflowEngineのインスタンス作成方法を教えてください"
+  ],
+  "durationMs": 46244,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "WorkflowEngineのインスタンス作成と初期化には、コンストラクタによる生成と、非同期の `build()` メソッドによる構築の2段階が必要です。\n\n### 基本的な作成手順\n\n```typescript\nimport { WorkflowEngine } from \"scene-graph-manager\";\n\n// 1. インスタンスの生成\nconst engine = new WorkflowEngine(config);\n\n// 2. ワークフローの構築（必須）\nawait engine.build();\n```\n\n### 手順の詳細\n\n1.  **インスタンス生成 (`new WorkflowEngine(config)`)**\n    *   `WorkflowConfig` 型の設定オブジェクトを引数に渡してインスタンスを生成します。\n    *   この段階では、内部リソースの割り当てやイベントリスナーの設定が行われますが、モデルやグラフの実際の初期化は行われません。\n\n2.  **ビルド (`await engine.build()`)**\n    *   生成したインスタンスに対して `build()` メソッドを**必ず**呼び出してください。\n    *   このメソッドは非同期処理であり、以下の重要な初期化タスクを実行します：\n        *   指定されたLLMモデルの初期化\n        *   MCPサーバーおよびA2Aサーバーの接続設定\n        *   スキルマネージャーのセットアップ\n        *   グラフの検証とコンパイル\n    *   `build()` が完了する前に `invoke()` や `stream()` を呼び出すとエラーになります。\n\n### 設定オブジェクト (`WorkflowConfig`) の構成\n\nインスタンス生成時に渡す `config` オブジェクトには、以下の主要なフィールドを含める必要があります。\n\n*   **`config`**: ワークフロー全体のグローバル設定\n    *   `recursionLimit`: 再帰呼び出しの最大回数（デフォルトは25）\n    *   `tokenCounting`: トークン使用量の追跡設定\n    *   `contextCompression`: コンテキスト圧縮の設定\n    *   `skills`: スキルの有効化設定\n*   **`models`**: 使用するLLMモデルの設定配列\n    *   モデルごとのID、タイプ、APIキーなどの設定を含みます。\n*   **`nodes`**: ワークフローを構成するノードの設定配列\n    *   モデル呼び出しノード、ツールノード、カスタム関数ノードなどを定義します。\n*   **`edges`**: ノード間の接続（エッジ）の設定配列\n    *   ノードの遷移ルールや条件分岐を定義します。\n*   **`stateAnnotation`**: ワークフローの状態（State）の定義\n    *   状態の型やリデューサー関数を定義します。\n*   **`stateGraph`**: グラフのコンパイル設定\n    *   状態アノテーションへの参照や、ストア/チェックポインターの設定を含みます。"
+  ],
+  "timestamp": "2026-05-30T08:26:22.006Z"
+}

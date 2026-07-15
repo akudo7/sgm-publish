@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779896186355",
+  "threadId": "test-close-single",
+  "initialQuestion": [
+    "SceneGraphManagerとは何ですか？"
+  ],
+  "durationMs": 42052,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerは、AIエージェントのワークフローを管理・実行するためのTypeScript製SDK（ライブラリ）です。LangGraphとLangChainを基盤としており、ワークフローの設計をJSON形式で宣言的に記述し、コードを変更せずにデスクトップ、組み込みシステム、IoTデバイスなど様々な環境で実行できることを特徴としています。\n\n主な機能と設計思想は以下の通りです。\n\n### 主な機能\n- **JSON駆動ワークフローエンジン**：`WorkflowEngine`クラスを用いて、ノードとエッジで構成されたダイアグラムを構築・実行します。`invoke`による同期実行や`stream`によるストリーミング実行に対応しています。\n- **マルチモデル対応**：Anthropic Claude、OpenAI、Azure OpenAI、Ollama、llama.cpp（GGUF形式）など、複数のLLMモデルをファクトリーパターンで管理し、ワークフロー内で柔軟に切り替え可能です。\n- **エージェント連携（A2A）**：Agent-to-Agent通信プロトコルに対応し、外部エージェントとの動的な発見・連携や、並列展開・集約（Swarms Fan-out/Fan-in）ワークフローをサポートします。\n- **スキル管理（Skills）**：`SKILL.md`ファイルで外部スキルを定義し、ワークフロー実行時に動的にシステムプロンプトに注入します。実行結果を記録してスキルを自己改善する「Memento-Skills」パターンや、ドメインに応じたスキルルーティングも提供しています。\n- **コンテキスト最適化**：長期対話におけるメモリ最適化のためのコンテキスト圧縮機能と、閾値超過時の自動リセット機能（Context Guard）を搭載しています。\n- **セキュリティ**：個人識別情報（PII）の自動検出・フィルタリング、シークレット情報の隠蔽、ツールサンドボックス化などのセキュリティ機能を提供します。\n- **リモート実行（Dispatch）**：HTTP、Slack、Telegramなどからタスクを投入し、ローカルのワークフローエンジンで非同期実行・完了通知（Webhook）を行うシステムです。\n\n### 基本的な設計思想\nワークフローはJSON設定ファイルで完全に定義され、`config`（実行設定）、`stateAnnotation`（状態定義）、`models`（モデル設定）、`nodes`（処理ノード）、`edges`（遷移エッジ）を記述します。ノードタイプにはLLM呼び出し用の`model`、ツール実行用の`tool`、分岐ロジック用の`conditional`、任意の関数処理用の`custom`などがあり、複雑なAIエージェントの振る舞いを宣言的に構築・運用できます。\n\n### 技術スタック\n- **基盤**：LangGraph v1.0.1+、LangChain Core v1.0.1+\n- **通信**：A2A JS SDK v0.3.4+\n- **言語**：TypeScript 5.9.2+\n- **特徴**：型安全、オフライン対応、ストリーミング対応、E2Eテスト駆動の開発\n\nこれにより、開発者は低レベルのグラフ操作やモデル呼び出しの詳細に立ち入らず、ビジネスロジックやエージェントの行動ルールに集中してワークフローを設計・運用できます。"
+  ],
+  "timestamp": "2026-05-27T15:37:08.425Z"
+}

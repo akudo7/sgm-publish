@@ -1,0 +1,102 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Task creation agent for research planning",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 100,
+    "eventEmitter": {
+      "defaultMaxListeners": 20
+    },
+    "a2aEndpoint": {
+      "port": 3001,
+      "agentCard": {
+        "name": "TaskCreationAgent",
+        "description": "Task list creation agent - Generates structured task lists from user research requests",
+        "supportedMessageFormats": [
+          "text/plain",
+          "application/json"
+        ],
+        "acceptedInputs": [
+          {
+            "name": "research_request",
+            "description": "Research request content from user"
+          }
+        ],
+        "producedOutputs": [
+          {
+            "name": "task_list",
+            "description": "Structured task list (including objectives, methodology, and deliverables)"
+          }
+        ]
+      }
+    }
+  },
+  "models": [
+    {
+      "id": "taskModel",
+      "type": "OpenAI",
+      "config": {
+        "model": "gpt-5.2",
+        "temperature": 0.7
+      },
+      "systemPrompt": "You are an agent specialized in creating tasks for market research.\n\n🚨【CRITICAL RULE - MUST BE FOLLOWED】🚨\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nUse company and organization names from user input EXACTLY as they appear.\nNEVER change, infer, or replace company names with different ones.\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n【Examples】\n✅ Correct:\n  Input: \"Research company overview of Company A\"\n  Task: \"Research company overview of Company A\"\n  \n✅ Correct:\n  Input: \"Research products of Company B\"  \n  Task: \"Research products of Company B\"\n\n❌ Wrong:\n  Input: \"Research company overview of Company A\"\n  Task: \"Research company overview of Company B\" ← ABSOLUTELY FORBIDDEN!!!\n  (Never replace the company name specified by the user with a different company name)\n\nResponsibilities:\n1. Analyze user research requests and break them down into actionable tasks\n2. Set clear objectives, methodologies, deliverables, and success criteria for each task\n3. Identify task priorities and dependencies\n4. Validate task feasibility and scope\n\nTask Creation Guidelines:\n- Include the following for each task: clear objective, specific methodology, expected deliverables, success criteria, estimated effort\n- Consider data sources, research methods, and analytical approaches\n- Make tasks as independent as possible\n- Include verification and quality checkpoints\n- Consider potential challenges and alternatives\n\nRespond to research requests in any language and create comprehensive, actionable task lists."
+    }
+  ],
+  "stateAnnotation": {
+    "name": "AgentState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "taskList": {
+      "type": "any[]",
+      "reducer": "(x, y) => y",
+      "default": []
+    }
+  },
+  "nodes": [
+    {
+      "id": "task_creator",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "taskModel"
+          }
+        ],
+        "function": "const lastMessage = state.messages[state.messages.length - 1];\nlet userContent = '';\n\n// Extract user input from message\nif (lastMessage) {\n  if (lastMessage.content) {\n    userContent = lastMessage.content;\n  } else if (lastMessage.parts && Array.isArray(lastMessage.parts)) {\n    userContent = lastMessage.parts[0]?.text || lastMessage.parts[0]?.content || '';\n  } else if (typeof lastMessage === 'string') {\n    userContent = lastMessage;\n  }\n}\n\nconsole.log('📝 Task creation request:', userContent);\n\n// Extract company name\nconst companyNameMatch = userContent.match(/([^\\\\s]+) company overview|([^\\\\s]+) products|([^\\\\s]+) strengths|([^\\\\s]+) research/);\nconst companyName = companyNameMatch ? (companyNameMatch[1] || companyNameMatch[2] || companyNameMatch[3] || companyNameMatch[4]) : null;\n\nif (companyName) {\n  console.log('🏢 Detected company name:', companyName);\n}\n\n// Create LLM prompt\nconst taskPrompt = `Please create a detailed task list for the following research request:\n\n${userContent}\n\n🚨 【MUST FOLLOW】🚨\n${companyName ? `- The target company for this research is \"${companyName}\"\\n- Use the name \"${companyName}\" in all tasks\\n- Changing \"${companyName}\" to a different company name is strictly forbidden` : '- Use company and organization names specified by the user exactly as provided'}\n- Do not infer or replace company names with different names\n\nCreate each task in the following JSON format:\n{\n  \"id\": Task ID (numeric),\n  \"objective\": \"Task objective\",\n  \"methodology\": \"Research methodology\",\n  \"deliverables\": \"Deliverables\",\n  \"success_criteria\": \"Success criteria\",\n  \"estimated_effort\": \"Estimated effort (e.g., 2 hours)\",\n  \"dependencies\": \"Dependent tasks (e.g., Task 1, 2)\"\n}\n\nYou must return your response in the following format:\nTASK_LIST_START\n[JSON task array]\nTASK_LIST_END\n\nAlso calculate the total number of tasks and total estimated time.`;\n\n// LLM invocation\nconst response = await model.invoke([\n  { role: 'user', content: taskPrompt }\n]);\n\nconst content = response.content || '';\nconsole.log('🤖 LLM response received:', content.substring(0, 200));\n\n// Extract task list\nconst taskListMatch = content.match(/TASK_LIST_START\\s*([\\s\\S]*?)\\s*TASK_LIST_END/);\nlet taskList = [];\n\nif (taskListMatch) {\n  try {\n    taskList = JSON.parse(taskListMatch[1].trim());\n    console.log('✅ Task list parsed successfully:', taskList.length, 'tasks');\n  } catch (e) {\n    console.error('❌ Task list parsing error:', e);\n    // Fallback task\n    taskList = [\n      {\n        id: 1,\n        objective: userContent,\n        methodology: 'Information gathering and analysis',\n        deliverables: 'Research report',\n        success_criteria: 'Comprehensive information gathering',\n        estimated_effort: '3 hours',\n        dependencies: 'None'\n      }\n    ];\n  }\n} else {\n  console.warn('⚠️  TASK_LIST markers not found, using fallback');\n  taskList = [\n    {\n      id: 1,\n      objective: userContent,\n      methodology: 'Information gathering and analysis',\n      deliverables: 'Research report',\n      success_criteria: 'Comprehensive information gathering',\n      estimated_effort: '3 hours',\n      dependencies: 'None'\n    }\n  ];\n}\n\n// Calculate total time\nconst totalHours = taskList.reduce((sum, task) => {\n  const hours = parseInt((task.estimated_effort || '0 hours').replace(/[^\\d]/g, '')) || 0;\n  return sum + hours;\n}, 0);\n\n// Build response\nconst result = {\n  result: {\n    taskList: taskList,\n    totalTasks: taskList.length,\n    totalEstimatedHours: totalHours\n  }\n};\n\nconsole.log('📊 Task list completed:', result.result.totalTasks, 'tasks,', result.result.totalEstimatedHours, 'hours');\n\nreturn {\n  messages: [\n    {\n      role: 'assistant',\n      content: JSON.stringify(result, null, 2)\n    }\n  ],\n  taskList: taskList\n};"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "task_creator"
+    },
+    {
+      "from": "task_creator",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "AgentState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

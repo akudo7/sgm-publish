@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779897331605",
+  "threadId": "slack-test-1779897331605",
+  "initialQuestion": [
+    "SceneGraphManagerとは何ですか？"
+  ],
+  "durationMs": 35162,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "# SceneGraphManagerとは\n\nSceneGraphManagerは、**エージェントワークフローを管理するためのSDK**です。JSON形式でワークフローを定義し、LangGraphとLangChainを基盤としてAIワークフローを実行します。\n\n## 主な特徴\n\n- **JSON-First Design** — ワークフローをJSONファイルで定義し、コード変更なしで実行可能\n- **マルチモデル対応** — Anthropic Claude、OpenAI、Azure OpenAI、Ollama、llama.cpp (GGUF) などのLLMモデルをサポート\n- **エージェント間通信** — A2A（Agent-to-Agent）プロトコルによる外部エージェント連携\n- **ツール統合** — MCP（Model Context Protocol）による自動ツールバインディング\n- **オフライン対応** — ネットワーク分離環境でも実行可能\n\n## 主要機能\n\n| 機能 | 概要 |\n|------|------|\n| **ワークフローエンジン** | 状態ベースのグラフ型ワークフロー。ノードとエッジで構成されたダイアグラムを実行 |\n| **モデル管理** | 複数のLLMモデルをファクトリーパターンで管理 |\n| **A2Aプロトコル** | エージェント間通信による外部連携 |\n| **スキル管理** | 外部スキルを動的に読み込み、ワークフローに注入 |\n| **コンテキスト圧縮** | 長期対話でのメモリ最適化 |\n| **PIIフィルタ** | 個人識別情報のフィルタリング |\n\n## ワークフロー構造\n\nワークフローはJSON形式で定義され、**ノード**と**エッジ**で構成されたDAG（有向非循環グラフ）として実行されます。\n\n- **ノードタイプ**: `model`（LLM呼び出し）、`tool`（ツール実行）、`conditional`（分岐ロジック）、`custom`（カスタム関数）\n- **エッジ**: ノード間の遷移ルールを定義\n\n## 使用例\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst config = { /* ワークフロー設定 */ };\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\n```\n\n## 追加機能\n\n- **Memento-Skills**: 実行経験がSKILL.mdに蓄積される自己改善型ワークフロー\n- **AutoResearch**: 自律的なスキル改善ループ\n- **Dispatch**: リモートからのタスク実行システム（HTTP/Slack/Telegram対応）\n\nSceneGraphManagerは、複雑なAIワークフローをJSONで設計し、デスクトップ、組み込みシステム、IoTデバイスなど、どこでも実行可能なポータブルなソリューションを提供します。"
+  ],
+  "timestamp": "2026-05-27T15:56:06.784Z"
+}

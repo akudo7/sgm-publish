@@ -1,0 +1,1 @@
+return { retryCount: (state.retryCount ?? 0) + 1 };

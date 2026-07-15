@@ -1,0 +1,248 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Swarms Leader - Fan-out/Fan-in + A2A dynamic agent routing (LlamaCpp/Qwen)",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 50,
+    "eventEmitter": {
+      "defaultMaxListeners": 20
+    },
+    "store": {
+      "type": "InMemoryStore"
+    },
+    "bashCommandAllowedCommands": [
+      "git",
+      "yarn",
+      "npm",
+      "npx",
+      "node",
+      "tsx",
+      "docker",
+      "ls",
+      "cat",
+      "echo",
+      "pwd",
+      "mkdir",
+      "rm",
+      "mv",
+      "cp",
+      "chmod",
+      "find",
+      "head",
+      "tail",
+      "wc",
+      "grep",
+      "sed",
+      "awk",
+      "sort",
+      "uniq",
+      "tee"
+    ]
+  },
+  "stateAnnotation": {
+    "name": "SwarmsState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "workerPlans": {
+      "type": "{ name: string; role: string; task: string; agentName: string; agentUrl: string }[]",
+      "reducer": "(x, y) => (y && y.length > 0 ? y : x)",
+      "default": []
+    },
+    "currentPlan": {
+      "type": "{ name: string; role: string; task: string; agentName: string; agentUrl: string }",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "workerResults": {
+      "type": "{ name: string; result: string }[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "finalReport": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    },
+    "availableAgents": {
+      "type": "{ name: string; url: string; skills: any[]; description: string }[]",
+      "reducer": "(x, y) => y.length > 0 ? y : x",
+      "default": []
+    }
+  },
+  "models": [
+    {
+      "id": "leader",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "maxTokens": 1024,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindSystemSkills": true
+    }
+  ],
+  "nodes": [
+    {
+      "id": "discovery_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          }
+        ],
+        "function": "console.log('[discovery] Fetching agent cards from A2A servers...');\nconst servers = { task_agent: 'http://localhost:3001', research_agent: 'http://localhost:3002', quality_agent: 'http://localhost:3003' };\n\nconst results = await Promise.allSettled(\n  Object.entries(servers).map(async ([key, baseUrl]) => {\n    const controller = new AbortController();\n    const timer = setTimeout(() => controller.abort(), 30000);\n    try {\n      const res = await fetch(`${baseUrl}/.well-known/agent.json`, { signal: controller.signal });\n      clearTimeout(timer);\n      if (!res.ok) return null;\n      const card = await res.json();\n      return {\n        name: card.name || key,\n        url: baseUrl,\n        skills: card.skills || [],\n        description: card.description || ''\n      };\n    } catch {\n      clearTimeout(timer);\n      return null;\n    }\n  })\n);\n\nconst availableAgents = results\n  .filter(r => r.status === 'fulfilled' && r.value !== null)\n  .map(r => r.value);\n\nconsole.log(`[discovery] Found ${availableAgents.length} agents: ${availableAgents.map(a => a.name).join(', ')}`);\nreturn { availableAgents };"
+      }
+    },
+    {
+      "id": "planner_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "leader"
+          }
+        ],
+        "function": "console.log('[planner] Decomposing task and matching agents via skills...');\nconst lastMessage = state.messages[state.messages.length - 1];\nconst userTask = typeof lastMessage.content === 'string' ? lastMessage.content : JSON.stringify(lastMessage.content);\n\nconst agentsInfo = (state.availableAgents || []).map(a =>\n  `- ${a.name} (${a.url})\\n  desc: ${a.description}\\n  skills: ${JSON.stringify(a.skills)}`\n).join('\\n') || '(no agents discovered - will use fallback routing)';\n\nconst planPrompt = `You are an expert in task decomposition and agent selection.\nDefine the team of specialists needed to accomplish the following task.\n\nDiscovered agents:\n${agentsInfo}\n\nTask: ${userTask}\n\nReturn only the following JSON array (no explanation needed):\n[\n  {\"name\": \"snake_case_role_name\", \"role\": \"description of the role\", \"task\": \"specific assigned task\"},\n  ...\n]\n\nConstraints:\n- Define between 1 and 5 workers, only as many as needed for the task\n- If one person can complete the task alone, assign only one worker\n- name must be in snake_case English`;\n\nconst response = await model.invoke([{ role: 'user', content: planPrompt }]);\nconst content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\nlet workerPlans;\ntry {\n  const jsonMatch = content.match(/\\[.*\\]/s);\n  workerPlans = jsonMatch ? JSON.parse(jsonMatch[0]) : [];\n} catch (e) {\n  console.error('[planner] Failed to parse worker plans:', e);\n  workerPlans = [];\n}\n\nif (!Array.isArray(workerPlans) || workerPlans.length === 0) {\n  workerPlans = [{ name: 'general_worker', role: 'General handler', task: userTask }];\n}\n\nfunction matchAgent(task, availableAgents) {\n  if (!availableAgents || availableAgents.length === 0) return null;\n  const scored = availableAgents.map(agent => {\n    let score = 0;\n    const taskLower = task.toLowerCase();\n    for (const skill of (agent.skills || [])) {\n      const s = typeof skill === 'string' ? skill : JSON.stringify(skill).toLowerCase();\n      if (s.includes(taskLower)) score += 2;\n      for (const word of taskLower.split(/\\s+/)) {\n        if (word.length > 3 && s.includes(word)) score += 1;\n      }\n    }\n    const desc = (agent.description || '').toLowerCase();\n    for (const word of taskLower.split(/\\s+/)) {\n      if (word.length > 3 && desc.includes(word)) score += 1;\n    }\n    return { agent, score };\n  });\n  scored.sort((a, b) => b.score - a.score);\n  return scored[0].agent;\n}\n\nworkerPlans = workerPlans.map(plan => {\n  const match = matchAgent(plan.task, state.availableAgents);\n  if (match && (!plan.agentName || !plan.agentUrl)) {\n    return { ...plan, agentName: plan.agentName || match.name, agentUrl: plan.agentUrl || match.url };\n  }\n  return plan;\n});\n\nconst fallbackAgents = state.availableAgents || [];\nworkerPlans = workerPlans.map(plan => ({\n  name: plan.name,\n  role: plan.role,\n  task: plan.task,\n  agentName: plan.agentName || (fallbackAgents.length > 0 ? fallbackAgents[0].name : ''),\n  agentUrl: plan.agentUrl || (fallbackAgents.length > 0 ? fallbackAgents[0].url : '')\n}));\n\nconsole.log(`[planner] Defined ${workerPlans.length} workers:`, JSON.stringify(workerPlans, null, 2));\nreturn { workerPlans, messages: [response] };"
+      }
+    },
+    {
+      "id": "worker_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          }
+        ],
+        "function": "const plan = state.currentPlan;\nif (!plan || !plan.agentUrl) {\n  console.warn('[worker] No currentPlan or agentUrl, skipping');\n  return { workerResults: [{ name: plan?.name || 'unknown', result: 'No plan or agentUrl found' }] };\n}\nconsole.log(`[worker:${plan.name}] Connecting to ${plan.agentUrl}`);\n\nconst tool = await __registerA2AAgent(plan.name, {\n  cardUrl: `${plan.agentUrl}/.well-known/agent.json`,\n  timeout: 5000\n});\n\nlet result;\nif (tool) {\n  console.log(`[worker:${plan.name}] Sending task via A2A tool`);\n  result = await tool.invoke(plan.task);\n} else {\n  result = `Error: Failed to connect to agent at ${plan.agentUrl}`;\n}\n\nconsole.log(`[worker:${plan.name}] Completed`);\nreturn { workerResults: [{ name: plan.name, result: String(result) }] };"
+      }
+    },
+    {
+      "id": "worker_result_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          }
+        ],
+        "function": "console.log('[worker_result] All worker results collected:', state.workerResults.length);\nreturn {};"
+      }
+    },
+    {
+      "id": "aggregator_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "leader"
+          }
+        ],
+        "function": "console.log(`[aggregator] Aggregating ${state.workerResults.length} worker results`);\n\nconst resultsSummary = state.workerResults.map(r => `## ${r.name}\\n${r.result}`).join('\\n\\n');\n\nconst aggregatePrompt = `The following are the research and work results from each specialist team.\n\n${resultsSummary}\n\nIntegrate these results to create a comprehensive final report in English.\nCombine the contributions of each team member appropriately and organize the response to address the user's original request.`;\n\nlet finalReport = '';\nfor (let attempt = 0; attempt < 3; attempt++) {\n  const response = await model.invoke([{ role: 'user', content: aggregatePrompt }]);\n  const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n  if (content && content.trim()) {\n    finalReport = content;\n    break;\n  }\n  console.warn(`[aggregator] Empty response on attempt ${attempt + 1}, retrying...`);\n}\n\nif (!finalReport) {\n  console.warn('[aggregator] All attempts returned empty, falling back to worker results summary');\n  finalReport = state.workerResults.map(r => `## ${r.name}\\n${r.result || '(no result)'}`).join('\\n\\n');\n}\n\nconsole.log('[aggregator] Final report generated, length:', finalReport.length);\nreturn { finalReport, messages: [{ role: 'assistant', content: finalReport }] };"
+      }
+    },
+    {
+      "id": "finalize_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          }
+        ],
+        "function": "console.log('[finalize] Swarms workflow complete');\nconst report = (state.finalReport && state.finalReport.trim()) ? state.finalReport : (state.messages.slice().reverse().find(m => m.role === 'assistant' && m.content && m.content.trim())?.content) || 'No report generated';\nreturn { messages: [{ role: 'assistant', content: report }] };"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "discovery_node"
+    },
+    {
+      "from": "discovery_node",
+      "to": "planner_node"
+    },
+    {
+      "from": "planner_node",
+      "type": "conditional",
+      "condition": {
+        "name": "fanOutToWorkers",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SwarmsState.State"
+            }
+          ],
+          "function": "return state.workerPlans.map(plan => new Send('worker_node', { ...state, currentPlan: plan }));"
+        }
+      }
+    },
+    {
+      "from": "worker_node",
+      "to": "worker_result_node"
+    },
+    {
+      "from": "worker_result_node",
+      "to": "aggregator_node"
+    },
+    {
+      "from": "aggregator_node",
+      "to": "finalize_node"
+    },
+    {
+      "from": "finalize_node",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "SwarmsState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  },
+  "a2aServers": {
+    "task_agent": {
+      "cardUrl": "http://localhost:3001/.well-known/agent.json",
+      "timeout": 30000
+    },
+    "research_agent": {
+      "cardUrl": "http://localhost:3002/.well-known/agent.json",
+      "timeout": 30000
+    },
+    "quality_agent": {
+      "cardUrl": "http://localhost:3003/.well-known/agent.json",
+      "timeout": 30000
+    }
+  }
+}

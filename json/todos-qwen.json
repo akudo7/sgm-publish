@@ -1,0 +1,143 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "write_todos / read_todos を使ったTODO管理ワークフローのサンプル",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 25,
+    "eventEmitter": {
+      "defaultMaxListeners": 10
+    },
+    "store": {
+      "type": "InMemoryStore"
+    },
+    "bashCommandAllowedCommands": [
+      "git",
+      "yarn",
+      "npm",
+      "npx",
+      "node",
+      "tsx",
+      "docker",
+      "ls",
+      "cat",
+      "echo",
+      "pwd",
+      "mkdir",
+      "rm",
+      "mv",
+      "cp",
+      "chmod",
+      "find",
+      "head",
+      "tail",
+      "wc",
+      "grep",
+      "sed",
+      "awk",
+      "sort",
+      "uniq",
+      "tee"
+    ]
+  },
+  "models": [
+    {
+      "id": "agent",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.7,
+        "maxTokens": 512,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindSystemSkills": true,
+      "systemPrompt": "あなたはTODO管理を支援するAIアシスタントです。ユーザーのタスク管理をサポートします。\n\nTODO管理のルール:\n1. タスクを追加・更新する際は write_todos ツールを使用してください\n2. 現在のタスク一覧を確認する際は read_todos ツールを使用してください\n3. タスクのステータス変更は、read_todos で全件取得 → 編集 → write_todos で保存するパターンで行ってください\n4. 優先度はユーザーの指示がなければ medium を使用してください",
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "backend": {
+          "virtualMode": true,
+          "rootDir": "."
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "agent",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof StateAnnotation.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "agent"
+          }
+        ],
+        "functionFile": "json/functions/agent_5.js"
+      }
+    },
+    {
+      "id": "tools",
+      "type": "ToolNode",
+      "useSystemSkills": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "type": "conditional",
+      "condition": {
+        "name": "shouldContinue",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof StateAnnotation.State"
+            }
+          ],
+          "functionFile": "json/functions/node_39.js"
+        }
+      }
+    },
+    {
+      "from": "tools",
+      "to": "agent"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "StateAnnotation",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  },
+  "stateAnnotation": {
+    "name": "StateAnnotation",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "result": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  }
+}

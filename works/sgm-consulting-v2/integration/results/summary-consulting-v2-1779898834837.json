@@ -1,0 +1,19 @@
+{
+  "sessionId": "consulting-v2-1779898834837",
+  "threadId": "slack-test-1779898834837",
+  "initialQuestion": [
+    "Solace Agent Mesh および Solace PubSub+ の機能を SceneGraphManager (SGM) で実現できるか？"
+  ],
+  "durationMs": 57084,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [],
+  "timestamp": "2026-05-27T16:21:31.937Z"
+}

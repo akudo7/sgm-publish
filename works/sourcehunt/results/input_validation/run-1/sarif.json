@@ -1,0 +1,188 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "stack_buffer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check on stack pointer `sp` before writing to fixed-size array `stack[30]` in `tag_tree_decode`"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/jpeg2000dec.c"
+                },
+                "region": {
+                  "startLine": 130
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_access",
+          "level": "error",
+          "message": {
+            "text": "Unsigned integer underflow on nb_streams leads to out-of-bounds array access"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 179
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Unvalidated size parameters passed to allocators cause integer overflow leading to undersized allocations."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 153
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Unvalidated size parameters passed to allocators cause integer overflow leading to undersized allocations."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 123
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_write",
+          "level": "warning",
+          "message": {
+            "text": "The loop bound s->sh.nb_refs[L0] is used directly to index fixed-size arrays (luma_weight_l0_flag, s->sh.luma_weight_l0, etc.) without validating that it does not exceed the array size (16). HEVC specification limits active reference indices to 15, but untrusted bitstreams may supply larger values."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 203
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing_bounds_check",
+          "level": "warning",
+          "message": {
+            "text": "Function reads 4 bytes unconditionally without verifying len parameter"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 102
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Missing validation of SPS dimensions before arithmetic operations to compute allocation sizes. Unchecked multiplications in pic_size_in_ctb, ctb_count, and min_pu_size can overflow the int type, leading to undersized heap buffers when passed to av_malloc_array and av_buffer_pool_init."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 93
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing_bounds_check",
+          "level": "note",
+          "message": {
+            "text": "The function unconditionally reads 4 bytes from the stream without validating the atom payload length (len) against the required minimum size."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 122
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_write",
+          "level": "warning",
+          "message": {
+            "text": "The loop bound `s->sh.nb_refs[L0]` is derived directly from the bitstream without validation against the maximum allowed number of references (16). It is used to index into fixed-size arrays `luma_weight_l0_flag`, `s->sh.luma_weight_l0`, and `s->sh.luma_offset_l0`, which have a capacity of 16 elements. If `nb_refs[L0]` exceeds 15, this results in a stack-based buffer overflow."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 163
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

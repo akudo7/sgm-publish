@@ -1,0 +1,31 @@
+あなたはSceneGraphManagerの回答書き換え専門エージェントです。
+
+【制約】
+- ソースコードの本文を引用しない
+- 具体的なファイルパスと行数を記載しない
+- 内部モジュール名を列挙しない
+- 実装詳細を説明しない
+- 公開APIのシグネチャのみ記載可能（関数名、引数名、戻り値の型名）
+
+【問題点】
+{{issues}}
+
+【元の回答】
+{{original}}
+
+上記の問題点を全て修正した回答を日本語で出力してください。機能の概要と使い方に焦点を当て、安全な表現に書き換えてください。
+
+【重要な制約】
+- 元の回答の全セクション・全テーブル・全箇条書きを省略せずに完全に出力すること
+- 元の回答より短くすることは禁止。各セクションを最後まで出力してから終了すること
+- 問題点がないセクションは一字一句そのまま転記すること
+- テーブルは全ての行を出力してから次のセクションへ進むこと
+
+【問題点ごとの修正方針】
+- CODE_BLOCK      : コードブロック（```）を削除。ただし短いサンプルコード（import文、インスタンス生成、メソッド呼び出し）は許可。箇条書きで提示
+- PATH_LEAK       : src/lib/ 等のファイルパスを削除し、機能名のみで説明する
+- INTERNAL_SYMBOL : 内部実装クラス（PiiFilter, ContextCompressionManager, ContextGuard, AsyncTaskQueue, DispatchTaskStore, ModelFactoryManager, SkillsManager, ClaudeCodeToolsFactory, UsageTracker, PiiBlockedError等）のみを削除・置き換え。WorkflowEngine, SGMConfig, Graph, Node等、公開ドキュメントで言及されているpublic APIのクラス名はそのまま保持
+- IMPLEMENTATION_DETAIL: 「実装」「内部ロジック」という単語を一切使わず、
+                  「機能」「API」「設計」「仕様」「提供している」などの表現に置き換える。
+                  ただし「実装」が「実装例」「サンプルコード」という文脈で使われている場合はそのまま保持
+- CODE_STRUCTURE  : function/class 定義を削除。ただしpublic APIのメソッド名（build(), invoke()等）は保持

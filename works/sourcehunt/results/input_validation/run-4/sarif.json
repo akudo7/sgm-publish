@@ -1,0 +1,226 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in size calculation for AVBufferPool initialization. The multiplication min_pu_size * sizeof(MvField) and ctb_count * sizeof(RefPicListTab) can overflow a 32-bit signed integer before being passed to av_buffer_pool_init, resulting in an undersized heap allocation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 163
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_write",
+          "level": "note",
+          "message": {
+            "text": "Missing bounds check on s->sh.nb_refs[L0] before accessing fixed-size stack array luma_weight_l0_flag[16] in pred_weight_table."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 144
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing_null_check",
+          "level": "warning",
+          "message": {
+            "text": "Missing NULL check before dereferencing h->DPB[i].f in release_unused_pictures."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 114
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow_in_allocation_size",
+          "level": "error",
+          "message": {
+            "text": "Integer overflow in size calculation for buffer pool allocation in init_table_pools."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 139
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "unvalidated_allocation_size",
+          "level": "warning",
+          "message": {
+            "text": "Unvalidated mb_width used in allocation size calculation in alloc_scratch_buffers."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 125
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow / Out-of-Bounds Access",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in `sz` calculation at line 116 when `s->sb_cols` and `s->sb_rows` are large. The resulting negative or wrapped value is used to allocate a buffer at line 119 and compute a pointer offset at line 133, leading to out-of-bounds memory access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 116
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Missing Bounds Check / Out-of-bounds Read",
+          "level": "note",
+          "message": {
+            "text": "mov_metadata_int8_bypass_padding reads 4 bytes from pb unconditionally without checking if len is at least 4. If the atom length is less than 4, it reads past the atom boundary."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 87
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Missing Bounds Check / Out-of-bounds Read",
+          "level": "note",
+          "message": {
+            "text": "mov_metadata_int8_no_padding reads 1 byte from pb without verifying len >= 1. Similar to above, allows reading past the atom boundary if len is 0."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 99
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds-access",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check on max_num_sub_layers_minus1 before array indexing"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/cbs_h265_syntax_template.c"
+                },
+                "region": {
+                  "startLine": 148
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer-overflow",
+          "level": "note",
+          "message": {
+            "text": "Missing upper bound validation on current->bit_length before allocation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/cbs_h265_syntax_template.c"
+                },
+                "region": {
+                  "startLine": 80
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_access",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check on nb_streams before array indexing"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 209
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+[
+  {
+    "type": "integer_overflow",
+    "severity": "critical",
+    "description": "Integer overflow in frame extradata pool size calculation. The variable `sz` is computed using 32-bit `int` arithmetic, which can overflow for large frame dimensions. This results in a drastically smaller allocation than intended. Subsequent pointer arithmetic using the overflowed `sz` value leads to out-of-bounds heap access.",
+    "line": 116,
+    "column": null,
+    "hypothesis": "An attacker crafts a VP9 bitstream that results in extremely large `s->sb_cols` and `s->sb_rows` values. During `vp9_frame_alloc`, the calculation `sz = 64 * s->sb_cols * s->sb_rows;` overflows the `int` type. The overflowed `sz` is then used in `s->frame_extradata_pool = av_buffer_pool_init(sz * (1 + sizeof(VP9mvrefPair)), NULL);`, causing the allocator to reserve a tiny buffer. Later, when the decoder executes `f->mv = (VP9mvrefPair *) (f->extradata->data + sz);`, it writes beyond the allocated heap region, leading to heap corruption or arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/vp9.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:50:32.452Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\ntypedef struct { int mv[2]; } VP9mvrefPair;\n\nint main() {\n    // Attacker-controlled dimensions that trigger 32-bit integer overflow\n    int sb_cols = 0x10000; // 65536\n    int sb_rows = 0x10001; // 65537\n\n    // Vulnerable calculation: 64 * cols * rows uses 32-bit int arithmetic\n    // Expected: ~274 GB (exceeds INT_MAX)\n    // Actual: wraps around modulo 2^32 to a small positive value\n    int sz = 64 * sb_cols * sb_rows;\n\n    printf(\"Expected size: %ld\\n\", (long)64LL * sb_cols * sb_rows);\n    printf(\"Overflowed sz: %d\\n\", sz);\n\n    // Allocation uses the drastically smaller overflowed size\n    size_t alloc_size = (size_t)sz * (1 + sizeof(VP9mvrefPair));\n    void *frame_extradata_pool = malloc(alloc_size);\n    if (!frame_extradata_pool) return 1;\n\n    // Later, the decoder assumes 'sz' is correct and performs pointer arithmetic\n    // This writes/reads far beyond the allocated heap region\n    VP9mvrefPair *mv = (VP9mvrefPair *)((char *)frame_extradata_pool + sz);\n\n    printf(\"Allocated: %zu bytes | OOB Offset: %d bytes\\n\", alloc_size, sz);\n    printf(\"OOB Pointer: %p (Expected valid range: %p - %p)\\n\", \n           (void*)mv, (char*)frame_extradata_pool, \n           (char*)frame_extradata_pool + alloc_size);\n\n    free(frame_extradata_pool);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted large frame dimensions cause the 32-bit integer multiplication (64 * cols * rows) to overflow, wrapping to a small positive value. The heap allocator reserves a tiny buffer based on this overflowed size. Subsequent pointer arithmetic adds the overflowed offset to the buffer base, causing out-of-bounds heap access that corrupts adjacent memory."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow_in_allocation_size",
+    "severity": "critical",
+    "description": "The variables big_mb_num, mb_array_size, b4_stride, and b4_array_size are computed by multiplying untrusted bitstream-derived values (h->mb_width, h->mb_height, h->mb_stride). These multiplications can overflow a signed 32-bit integer, resulting in a negative or unexpectedly small size passed to av_buffer_pool_init. This leads to undersized heap allocations that are subsequently accessed out-of-bounds during slice decoding, causing heap corruption.",
+    "line": 140,
+    "column": null,
+    "hypothesis": "An attacker crafts an H.264 bitstream with malicious SPS parameters setting extremely large mb_width, mb_height, or mb_stride. The resulting integer overflow causes 'const int big_mb_num    = h->mb_stride * (h->mb_height + 1) + 1;' and subsequent calculations to wrap around. 'h->motion_val_pool   = av_buffer_pool_init(2 * (b4_array_size + 4) * sizeof(int16_t), av_buffer_allocz);' allocates a tiny buffer. When the decoder processes subsequent slices, it writes motion values or reference indices beyond the allocated buffer, leading to arbitrary code execution or crash.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:51:13.606Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\ntypedef struct {\n    int32_t mb_width;\n    int32_t mb_height;\n    int32_t mb_stride;\n} H264Context;\n\n// Simulates av_buffer_pool_init\nvoid* alloc_buffer(int32_t size) {\n    printf(\"[+] Requested allocation size: %d bytes\\n\", size);\n    // In real code, a negative or zero size might allocate a tiny buffer or fail\n    int actual_size = (size > 0) ? size : 1;\n    printf(\"[!] Actual allocation: %d bytes (severely undersized)\\n\", actual_size);\n    return malloc(actual_size);\n}\n\nint main() {\n    H264Context h = {0};\n\n    // Simulate malicious SPS parameters from a crafted bitstream\n    // These values are chosen to trigger 32-bit signed integer overflow during multiplication\n    h.mb_stride = 65536;  // 0x10000\n    h.mb_height = 65536;  // 0x10000\n\n    // Vulnerable calculation (simplified from h264_slice.c)\n    // big_mb_num = h->mb_stride * (h->mb_height + 1) + 1\n    // 65536 * 65537 = 4,295,032,832. In 32-bit signed int, this wraps to 65536.\n    // With slightly different values, it can wrap to a negative number.\n    int32_t big_mb_num = h.mb_stride * (h.mb_height + 1) + 1;\n    printf(\"[-] Computed big_mb_num: %d (expected ~4.29B, wrapped due to overflow)\\n\", big_mb_num);\n\n    // Subsequent size calculation\n    int32_t b4_array_size = big_mb_num * 2;\n    int32_t alloc_size = 2 * (b4_array_size + 4) * sizeof(int16_t);\n    printf(\"[-] Final allocation size: %d bytes\\n\", alloc_size);\n\n    // Allocate undersized buffer\n    void* pool = alloc_buffer(alloc_size);\n\n    // Simulate slice decoding writing motion values\n    // In reality, the decoder writes far beyond this tiny allocation\n    int16_t* buffer = (int16_t*)pool;\n    int write_offset = 1000000;\n    printf(\"[-] Decoder writes motion data at offset %d\\n\", write_offset);\n    printf(\"[!] Out-of-bounds write would corrupt heap metadata or adjacent objects.\\n\");\n\n    free(pool);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Malicious H.264 SPS parameters cause 32-bit signed integer overflow during stride/height multiplication. The wrapped value produces a negative or near-zero allocation size, leading to an undersized heap buffer. Subsequent slice decoding writes motion data beyond the buffer boundary, corrupting heap metadata or adjacent objects."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "missing_null_check",
+    "severity": "medium",
+    "description": "Inside alloc_picture, pic->f_grain is dereferenced to assign format, width, and height without verifying it is non-NULL. If pic->needs_fg is true but pic->f_grain was not previously allocated, this results in a NULL pointer dereference.",
+    "line": 168,
+    "column": null,
+    "hypothesis": "A malformed bitstream or specific decoder state triggers 'if (pic->needs_fg) {' without ensuring pic->f_grain is allocated. The subsequent dereference in 'pic->f_grain->format = pic->f->format;' causes a segmentation fault, leading to a denial of service.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:51:29.528Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n\nstruct picture_format { int format; int width; int height; };\nstruct picture { int needs_fg; struct picture_format *f_grain; struct picture_format *f; };\n\nvoid alloc_picture(struct picture *pic) {\n    /* \n     * EXPLOIT MECHANISM:\n     * The condition checks pic->needs_fg but does not verify if pic->f_grain is allocated.\n     * If an attacker can manipulate decoder state to set needs_fg=true while f_grain remains NULL,\n     * the subsequent dereference triggers a NULL pointer dereference (segfault), causing DoS.\n     */\n    if (pic->needs_fg) {\n        pic->f_grain->format = pic->f->format;\n        pic->f_grain->width = pic->f->width;\n        pic->f_grain->height = pic->f->height;\n    }\n}",
+      "language": "C",
+      "exploitMechanism": "Missing null check on pic->f_grain before dereference when pic->needs_fg is true, leading to NULL pointer dereference and denial of service."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "unvalidated_size_parameter",
+    "severity": "medium",
+    "description": "In alloc_scratch_buffers, alloc_size is derived from linesize, and subsequent calculations (16 * 6 * alloc_size, alloc_size * 2 * 21, h->mb_width * 16 * 3 * sizeof(uint8_t) * 2) can overflow if linesize or h->mb_width are maliciously large. Although av_fast_malloc checks for NULL, the overflow itself indicates a lack of input validation on size parameters.",
+    "line": 124,
+    "column": null,
+    "hypothesis": "A crafted video with extreme linesize or mb_width values causes the size calculations to wrap around to a small positive integer. 'av_fast_malloc(&sl->bipred_scratchpad, &sl->bipred_scratchpad_allocated, 16 * 6 * alloc_size);' allocates a small buffer, and later decoding routines write beyond its bounds, causing heap corruption.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:51:49.194Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "stack_buffer_overflow",
+    "severity": "high",
+    "description": "The loop iterates up to s->sh.nb_refs[L0] to write to the fixed-size stack array luma_weight_l0_flag[16] without validating that nb_refs[L0] is strictly less than 16. If nb_refs[L0] is 16 or greater, an out-of-bounds write occurs on the stack.",
+    "line": 152,
+    "column": null,
+    "hypothesis": "An attacker crafts a malicious HEVC bitstream with num_ref_idx_l0_active_minus1 >= 15, causing nb_refs[L0] to be >= 16. The loop executes `luma_weight_l0_flag[i] = get_bits1(gb);` which writes past the end of the 16-byte stack array, corrupting adjacent stack variables or control flow data, potentially leading to arbitrary code execution or crash.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:52:09.739Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n\n// Simulates the vulnerable loop from libavcodec/hevcdec.c\n// The array is fixed at 16 elements, but the loop bound depends on external input.\nvoid vulnerable_weight_flag_assignment(uint32_t nb_refs_L0) {\n    uint8_t luma_weight_l0_flag[16]; // Fixed-size stack buffer\n    int i;\n\n    // Vulnerability: No validation that nb_refs_L0 < 16\n    // If nb_refs_L0 >= 16, this loop writes past the end of the array\n    for (i = 0; i < nb_refs_L0; i++) {\n        // Simulates: luma_weight_l0_flag[i] = get_bits1(gb);\n        // In a real attack, this would read from a crafted bitstream\n        luma_weight_l0_flag[i] = 1; // Conceptual write\n    }\n\n    // Demonstrate overflow if nb_refs_L0 >= 16\n    printf(\"Loop completed. nb_refs_L0=%u\\n\", nb_refs_L0);\n}\n\nint main() {\n    // Conceptual demonstration: triggering overflow with nb_refs_L0 = 16\n    // In reality, this value comes from the HEVC bitstream header\n    vulnerable_weight_flag_assignment(16);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The loop iterates up to nb_refs_L0 without validating that it is strictly less than 16. When nb_refs_L0 >= 16, the assignment luma_weight_l0_flag[i] = 1 writes beyond the fixed-size stack array, corrupting adjacent stack memory. In a real scenario, nb_refs_L0 is derived from a malicious HEVC bitstream header (num_ref_idx_l0_active_minus1 >= 15)."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "NULL pointer dereference",
+    "severity": "high",
+    "description": "Missing NULL check before dereferencing st->codecpar. The codecpar field is not initialized by avformat_new_stream (called internally by ff_add_attached_pic) and is not allocated before assignment.",
+    "line": 234,
+    "column": null,
+    "hypothesis": "The covr atom handler calls ff_add_attached_pic, which creates a new stream via avformat_new_stream. This function leaves st->codecpar as NULL. The code then directly executes st->codecpar->codec_id   = id; without checking for NULL or allocating codecpar first. A malicious MOV file containing a covr atom will cause a NULL pointer dereference, leading to a denial of service.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:55:02.239Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n\n/* Simplified FFmpeg structures for educational demonstration */\ntypedef enum { AV_CODEC_ID_NONE, AV_CODEC_ID_AAC } AVCodecID;\n\ntypedef struct {\n    AVCodecID codec_id;\n} AVCodecParameters;\n\ntypedef struct {\n    AVCodecParameters *codecpar; /* Not initialized by avformat_new_stream */\n} AVStream;\n\ntypedef struct {\n    AVStream *streams[1];\n} AVFormatContext;\n\n/* Simulates the vulnerable code path in libavformat/mov.c */\nvoid ff_add_attached_pic_vulnerable(AVFormatContext *fmt, AVCodecID id) {\n    /* 1. Simulate avformat_new_stream: allocates stream but leaves codecpar as NULL */\n    AVStream *st = malloc(sizeof(AVStream));\n    st->codecpar = NULL; /* Missing initialization/allocation */\n\n    fmt->streams[0] = st;\n\n    /* 2. VULNERABILITY: Direct dereference without NULL check or avcodec_parameters_alloc() */\n    /* In a real FFmpeg build, this line triggers a segmentation fault (DoS) */\n    st->codecpar->codec_id = id;\n}\n\nint main(void) {\n    AVFormatContext *fmt = malloc(sizeof(AVFormatContext));\n    /* Triggered by parsing a malicious MOV file containing a 'covr' atom */\n    ff_add_attached_pic_vulnerable(fmt, AV_CODEC_ID_AAC);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "A malicious MOV file containing a 'covr' atom triggers stream creation, which leaves the codecpar pointer uninitialized (NULL). The subsequent direct assignment to st->codecpar->codec_id without a NULL check or memory allocation causes a NULL pointer dereference, resulting in a crash (Denial of Service)."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_access",
+    "severity": "high",
+    "description": "Missing bounds check on nb_streams before array access in mov_read_covr",
+    "line": 213,
+    "column": null,
+    "hypothesis": "An attacker crafts a MOV file with a covr atom preceding any trak atoms. During moov parsing, nb_streams is 0. The expression 'st = c->fc->streams[c->fc->nb_streams - 1];' evaluates to streams[-1], causing an out-of-bounds read/write. This can lead to a crash or arbitrary memory corruption.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:57:04.367Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct {\n    int nb_streams;\n    void **streams;\n} MockFormatContext;\n\ntypedef struct {\n    int id;\n} MockStream;\n\n// Simulates the vulnerable logic in mov_read_covr\nvoid mov_read_covr_vulnerable(MockFormatContext *fc) {\n    // In a crafted MOV file, the 'covr' atom can appear before any 'trak' atoms.\n    // This means nb_streams is still 0 when this function executes.\n    // The code lacks a check to ensure nb_streams > 0 before indexing.\n    \n    // VULNERABILITY: When nb_streams == 0, this evaluates to streams[-1]\n    // Accessing negative indices in C causes out-of-bounds memory access.\n    MockStream *st = (MockStream *)fc->streams[fc->nb_streams - 1];\n    \n    // Simulated OOB read that would crash or corrupt memory in a real scenario\n    printf(\"Accessing stream ID: %d\\n\", st->id);\n}\n\nint main() {\n    // Simulate initial parsing state: no streams registered yet\n    MockFormatContext fc = {0};\n    void *stream_array[10] = {NULL};\n    fc.streams = stream_array;\n    \n    // Trigger vulnerability: process covr atom before any trak atoms\n    mov_read_covr_vulnerable(&fc);\n    \n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Missing bounds check allows nb_streams to be 0, causing the index expression 'nb_streams - 1' to evaluate to -1. Accessing streams[-1] results in an out-of-bounds read/write, leading to undefined behavior or memory corruption."
+    },
+    "exploitStatus": "generated"
+  }
+]

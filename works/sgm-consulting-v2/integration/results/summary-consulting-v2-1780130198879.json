@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130198879",
+  "threadId": "slack-test-1780130198879",
+  "initialQuestion": [
+    "Sprint Contractパターンを教えてください"
+  ],
+  "durationMs": 61376,
+  "turnCount": 1,
+  "rewriteCount": 1,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "公開ドキュメント（`docs/FEATURES.md`）に基づき、**Sprint Contractパターン**について解説します。\n\n### Sprint Contractパターンとは\n\nSprint Contractパターンは、**「生成（Generator）」と「評価（Evaluator）」を繰り返す反復型ワークフロー**です。\n単に出力を生成するだけでなく、動的に「成功基準」を交渉・定義しながら、AIによる生成結果の品質を高めることを目的としています。\n\n### 動作フロー\n\nこのパターンは、以下の4つの主要なフェーズとルーティングロジックで構成されます。\n\n1.  **Planner（計画者）**: タスクの詳細な仕様（Task Spec）を生成します。\n2.  **Negotiator（交渉者）**: 目標と、そのタスクを完了とみなす「成功基準（Sprint Contract）」を定義します。\n3.  **Generator（生成者）**: Plannerの仕様に基づいて、具体的な実装や回答を生成します。\n4.  **Evaluator（評価者）**: Generatorの結果が、Negotiatorが定めた成功基準を満たしているかを評価します。\n\n**ループ制御:**\nEvaluatorの結果に基づき、Routerが制御を行います。\n*   **成功の場合**: ワークフローを終了します。\n*   **失敗の場合**: 最大リトライ回数（MAX_RETRIES）まで、Negotiatorフェーズに戻って条件を見直し、再試行します。\n\n### 状態管理\n\nワークフローの状態（State）には、主に以下の情報が保持されます。\n\n*   **taskSpec**: Plannerによって生成されたタスクの詳細仕様\n*   **sprintContract**: Negotiatorによって動的に決定された成功基準（目標、スコアリング基準など）\n*   **sprintResult**: Evaluatorによる評価結果（合格/不合格、フィードバック、スコア）\n*   **retryCount**: 現在のリトライ回数\n\n### Context Guardとの連携\n\nSprint Contractパターンは、**Context Guard（コンテキストリセット機能）**と連携するように設計されています。\n\nループ処理が長引いてコンテキストウィンドウが溢れそうになった場合、Context Guardが自動的にメッセージ履歴を要約に置き換えます（コンテキストリセット）。この際、`sprintContract`や`retryCount`などの重要な状態情報は保持されたまま、ワークフローを継続するため、長い反復処理でも安定して実行できます。\n\n### 設定方法\n\nワークフローJSONの `nodes` と `edges` を定義することで構成されます。\n具体的な設定例は、ドキュメント内の `json/sprint-contract-qwen.json` などを参照してください。"
+  ],
+  "timestamp": "2026-05-30T08:37:40.276Z"
+}

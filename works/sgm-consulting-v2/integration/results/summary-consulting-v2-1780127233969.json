@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780127233969",
+  "threadId": "slack-test-1780127233969",
+  "initialQuestion": [
+    "Slack Botの起動方法を教えてください"
+  ],
+  "durationMs": 14666,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "# Slack Botの起動方法\n\n公開ドキュメント（`docs/DISPATCH.md`）に基づき、Slack Botの起動手順を説明します。\n\n## 必要な環境変数\n\n`.env`ファイルまたは環境変数として以下を設定します：\n\n| 変数名 | 説明 |\n|---|---|\n| `SLACK_BOT_TOKEN` | `xoxb-...` で始まるBotトークン |\n| `SLACK_SIGNING_SECRET` | Slackアプリの署名シークレット |\n| `SLACK_APP_TOKEN` | `xapp-...` で始まるAppトークン |\n\n## 起動手順\n\n### 1. Dispatch Server の起動\n\n```bash\nnpx tsx scripts/dispatch-server.ts \\\n  --config ./json/slack-chat-qwen.json \\\n  --port 3011\n```\n\n### 2. Slack Bot の起動（別ターミナル）\n\n```bash\nnpx tsx scripts/slack-dispatch-bot.ts\n```\n\n## 動作概要\n\n- **DM またはチャンネルでメンション**するとタスクが投入されます\n- 結果は**同じスレッドに返信**されます\n- Slack Bot は Socket Mode で動作し、Dispatch Server へは plain HTTP POST で通信します\n\n## 会話の終了\n\n以下のいずれかのメッセージを送信すると、Bot が即時応答してセッションを終了します（dispatch は行われません）：\n\n- 「終了」\n- 「exit」\n- 「quit」\n- 「やめる」\n- 「done」"
+  ],
+  "timestamp": "2026-05-30T07:47:28.655Z"
+}

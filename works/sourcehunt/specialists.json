@@ -1,0 +1,17 @@
+[
+  {
+    "name": "memory_safety",
+    "description": "OOB・バッファオーバーフロー・UAF",
+    "guide": "Focus on: buffer overflows, use-after-free, double-free, integer overflows, out-of-bounds reads/writes, format string vulnerabilities."
+  },
+  {
+    "name": "input_validation",
+    "description": "境界チェック前アクセス・負インデックス・サイズ未検証",
+    "guide": "Focus on: missing bounds checks before array/pointer access, unchecked negative indices, missing NULL checks before dereference, unvalidated size parameters passed to allocators, unchecked return values of functions that can fail, use of untrusted values before range validation."
+  },
+  {
+    "name": "integer_overflow",
+    "description": "算術オーバーフロー・sentinel 衝突・符号変換",
+    "guide": "Focus on: uncapped integer counters that can wrap around and collide with sentinel values (e.g. 0xFFFF, 0xFF), signed/unsigned integer conversion bugs, arithmetic overflow in allocation size calculations (e.g. a*b before malloc), 32-bit truncation of 64-bit accumulations, shift operations exceeding type width."
+  }
+]

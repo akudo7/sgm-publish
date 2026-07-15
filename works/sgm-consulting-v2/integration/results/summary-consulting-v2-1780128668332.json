@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780128668332",
+  "threadId": "slack-test-1780128668332",
+  "initialQuestion": [
+    "apiKeyの設定方法を教えて下さい"
+  ],
+  "durationMs": 41141,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManager における API Key の設定方法は、以下の 2 つの主要なパターンがあります。\n\n### 1. ワークフロー JSON 内での直接指定\n`models` 配列内の各モデル定義に `apiKey` フィールドを直接記載する方法です。開発環境やテストで簡易的に使用する場合に適しています。\n\n```jsonc\n{\n  \"models\": [\n    {\n      \"id\": \"claude\",\n      \"type\": \"anthropic\",\n      \"config\": {\n        \"model\": \"claude-sonnet-4-20250514\",\n        \"apiKey\": \"sk-ant-...\"  // ここで直接指定\n      }\n    }\n  ]\n}\n```\n\n### 2. `loadSecrets()` による OS シークレットストア連携（推奨）\nSceneGraphManager は `.env` ファイルを自動読み込みしません。代わりに、OS ネイティブのシークレットストア（macOS Keychain / Linux libsecret / Windows Credential Manager）に登録したシークレットを `loadSecrets()` で読み込み、`process.env` に展開してからエンジン構築を行う方式を提供しています。\n\n```typescript\nimport { loadSecrets } from 'scenegraphmanager';\n\n// OS シークレットストアから process.env に読み込み\nloadSecrets();  \n\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\nこの場合、ワークフロー JSON 内の `apiKey` には環境変数名（例: `\"ANTHROPIC_API_KEY\"`）を指定するか、SDK が環境変数を自動検出する設定にします。\n\n### 🔒 セキュリティ機能\n- **ログ出力時の自動マスキング**: Anthropic, OpenAI, Google などの API キーや、`api_key` / `password` などの敏感なフィールドは、すべてのログ出力時に自動的にマスク（伏字化）されます。\n- 本番環境では、`loadSecrets()` と OS シークレットストアの併用を推奨します。\n\n詳細な OS 別のシークレット登録手順については、`docs/QUICK-START.md` の「API Key Setup」セクションをご参照ください。"
+  ],
+  "timestamp": "2026-05-30T08:11:49.495Z"
+}

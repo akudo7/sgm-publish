@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779900810562",
+  "threadId": "slack-test-1779900810562",
+  "initialQuestion": [
+    "WorkflowEngineの使い方を教えてください"
+  ],
+  "durationMs": 40365,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "# WorkflowEngine の使い方\n\nSceneGraphManager の `WorkflowEngine` は、JSON で定義したワークフローを実行するエンジンです。以下に基本的な使い方を説明します。\n\n## インストール\n\n```bash\nyarn add @kudos/scene-graph-manager\n```\n\n## 基本的な使い方\n\n### 1. ワークフローの設定（JSON）\n\nワークフローは JSON ファイルで定義します。\n\n```json\n{\n  \"config\": { \"name\": \"Chat Workflow\", \"description\": \"A basic chat workflow\" },\n  \"stateAnnotation\": { \"name\": \"WorkflowState\", \"type\": \"Annotation.Root\" },\n  \"annotation\": {\n    \"messages\": { \"type\": \"BaseMessage[]\", \"reducer\": \"(x, y) => x.concat(y)\", \"default\": \"[]\" }\n  },\n  \"models\": [\n    { \"id\": \"claude\", \"type\": \"anthropic\", \"config\": { \"model\": \"claude-3-5-sonnet-20241022\", \"apiKey\": \"...\" } }\n  ],\n  \"nodes\": [\n    { \"id\": \"chat\", \"type\": \"model\", \"modelRef\": \"claude\" }\n  ],\n  \"edges\": [\n    { \"from\": \"__start__\", \"to\": \"chat\" },\n    { \"from\": \"chat\", \"to\": \"__end__\" }\n  ]\n}\n```\n\n### 2. ワークフローの実行\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\nimport workflowConfig from './my-workflow.json';\n\n// エンジンの作成\nconst engine = new WorkflowEngine(workflowConfig);\n\n// グラフの構築\nawait engine.build();\n\n// 同期実行\nconst result = await engine.invoke({\n  messages: [{ role: \"user\", content: \"Hello!\" }]\n});\n\n// ストリーミング実行\n// const stream = await engine.stream({ messages: [...] });\n```\n\n## ワークフローの構成要素\n\n### ノードタイプ\n\n| タイプ | 用途 | 主なフィールド |\n|--------|------|---------------|\n| `model` | LLM 呼び出し | `modelRef`, `useSystemSkills` |\n| `tool` | ツール実行（MCP, A2A, ファイルシステム等） | `tools` 配列 |\n| `conditional` | ルーティングロジック | `conditions` 配列 |\n| `custom` | 任意の JavaScript 関数 | `handler.function` |\n\n### エッジ\n\nノード間の接続を定義します。`from` と `to` で接続先を指定します。\n- `__start__`: ワークフローの開始ノード\n- `__end__`: ワークフローの終了ノード\n\n## 主要な機能\n\n### ストリーミング実行\n\n```typescript\nconst stream = await engine.stream({ messages: [...] });\nfor await (const chunk of stream) {\n  // チャンクごとの処理\n}\n```\n\n### 状態の永続化\n\n`InMemoryStore` と `MemorySaver` により、会話履歴や中間状態を保持できます。\n\n### スキルシステム\n\n外部の `SKILL.md` ファイルを動的に読み込み、ワークフローに注入できます。\n\n### A2A 連携\n\nエージェント間通信プロトコルにより、外部エージェントと連携できます。\n\n### コンテキスト圧縮\n\n長期対話でのメモリ最適化のため、コンテキストウィンドウの自動圧縮が可能です。\n\n## 高度な使用パターン\n\n- シングルノードワークフロー\n- マルチエージェント対話\n- ツール付きエージェント\n- 条件付き分岐ワークフロー\n- Swarms Fan-out/Fan-in ワークフロー\n- Memento-Skills（自己改善型ワークフロー）\n- AutoResearch（自律的スキル改善ループ）\n- Dispatch（リモートタスク実行）\n\n詳細は [docs/EXAMPLES.md](docs/EXAMPLES.md) や [docs/API.md](docs/API.md) を参照してください。"
+  ],
+  "timestamp": "2026-05-27T16:54:10.951Z"
+}

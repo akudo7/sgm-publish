@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780128582534",
+  "threadId": "slack-test-1780128582534",
+  "initialQuestion": [
+    "SceneGraphManagerのインスタンス作成方法を教えて下さい"
+  ],
+  "durationMs": 38981,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManager SDKでは、`WorkflowEngine`クラスをインスタンス化してワークフローの管理を行います。\n\nインスタンス作成と初期化の手順は以下の通りです。\n\n### 1. インスタンスの生成\n`WorkflowEngine`のコンストラクタに、ワークフローの設定を定義した `WorkflowConfig` オブジェクトを渡します。\n\n```typescript\nconst engine = new WorkflowEngine(config);\n```\n\n### 2. ワークフローのビルド（必須）\nインスタンス生成後、ワークフローグラフを構築するために `build()` メソッドを呼び出す必要があります。\n\n```typescript\nawait engine.build();\n```\n\n### 3. APIキーの設定\nSDKはデフォルトで `.env` ファイルを自動読み込みしません。APIキーの設定には以下のいずれかの方法を使用します。\n\n*   **シークレットストアからの読み込み**: `loadSecrets()` 関数を使用して、OSのキーチェーンやシークレットストアから環境変数にシークレットを読み込みます。\n*   **直接設定**: `WorkflowConfig` 内のモデル設定に `apiKey` を直接記述します。\n\n### 使用例の概要\n\n```typescript\nimport { WorkflowEngine, loadSecrets } from 'scenegraphmanager';\n\n// 1. シークレットの読み込み（任意）\nawait loadSecrets();\n\n// 2. 設定の準備\nconst config = { /* WorkflowConfig */ };\n\n// 3. インスタンス生成\nconst engine = new WorkflowEngine(config);\n\n// 4. グラフの構築\nawait engine.build();\n```\n\nこれにより、`invoke()` や `stream()` などの実行メソッドを使用できるようになります。"
+  ],
+  "timestamp": "2026-05-30T08:10:21.533Z"
+}

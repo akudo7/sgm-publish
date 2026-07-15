@@ -1,0 +1,93 @@
+[
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "The claimed integer overflow is mathematically impossible. Even with the minimum HEVC CTB size (16x16, log2_min_cb_size=4) and maximum supported resolution (8192x4320), pic_size_in_ctb evaluates to at most ~139,023, which fits easily in a 32-bit signed integer. The hypothesis incorrectly assumes that unvalidated shift values combined with frame dimensions can exceed INT_MAX.",
+    "verbalGradient": "The hypothesis failed by assuming `pic_size_in_ctb` arithmetic could exceed `INT_MAX`, ignoring HEVC specification constraints that cap valid dimensions far below 32-bit limits. Redirect investigation toward unclamped, bitstream-derived SPS parameters like `log2_min_cb_size`, `sps_max_pic_width_in_luma_samples`, and `bit_depth`, which may feed into unchecked multiplications or left-shifts used for pointer arithmetic, slice indexing, or transform block calculations. Prioritize tracing these values through intermediate expressions that compute buffer bounds or array offsets, as these pre-allocation signed overflows can trigger undefined behavior before `av_malloc_array` validation catches them.",
+    "timestamp": "2026-05-08T04:25:20.610Z"
+  },
+  {
+    "target": "libavcodec/h264_slice.c",
+    "attempt": 1,
+    "failureReason": "H.264 macroblock dimensions are strictly bounded by the codec standard and FFmpeg's internal validation, ensuring mb_stride and mb_height remain small enough that their product cannot overflow a 32-bit signed integer. This is a static analysis false positive.",
+    "verbalGradient": "The hypothesis incorrectly assumed macroblock geometry was attacker-controllable, overlooking H.264 standard limits and FFmpeg’s mandatory dimension checks. Shift focus to bitstream-derived parameters like reference picture counts, weighted prediction factors, or quantization-dependent motion vector scaling, where values such as `s->ref_count`, `s->mb_num`, or `s->qp` can exceed safe bounds. Examine allocation sizes for reference index, motion vector, or weight tables that multiply these unchecked inputs by frame strides or slice lengths, as these arithmetic paths may bypass initial validation and trigger integer wraparound during buffer initialization.",
+    "timestamp": "2026-05-08T04:25:36.474Z"
+  },
+  {
+    "target": "libavcodec/h264_slice.c",
+    "attempt": 1,
+    "failureReason": "The overflow threshold (mb_width > 536,870,911) is far beyond the maximum possible macroblock width for H.264 (~256), making the condition practically unreachable.",
+    "verbalGradient": "The hypothesis erroneously attributed the overflow solely to `mb_width` magnitude, overlooking that integer overflows frequently occur when bounded macroblock dimensions are multiplied by large, manipulable multipliers or shifts derived from other header fields. Investigate the arithmetic expression for `b4_stride` and `b4_array_size` to identify operations involving `mb_height`, pixel dimensions, or slice offsets that can produce intermediate values exceeding 32-bit limits even when `mb_width` remains within valid H.264 bounds. Focus on whether calculations like `mb_width * mb_height * block_factor` or `mb_width << shift` allow overflow via the secondary operand, and verify if `b4_stride` depends on pixel-based widths rather than macroblock counts.",
+    "timestamp": "2026-05-08T04:25:56.332Z"
+  },
+  {
+    "target": "libavcodec/h264_slice.c",
+    "attempt": 1,
+    "failureReason": "Integer overflow is impossible: h->mb_stride and h->mb_height are derived from video dimensions. Even at maximum H.264 resolutions (e.g., 4096x4096), the calculated size is ~262KB, far below the 32-bit signed integer limit (~2GB). The arithmetic cannot overflow under any valid or extreme resolution constraints.",
+    "verbalGradient": "The original hypothesis incorrectly assumed the overflow originated from resolution-derived macroblock dimensions, overlooking that H.264 spec limits keep these values well within integer bounds. Instead, investigate allocations driven by bitstream-parsed slice header fields, particularly where multiple user-controlled counts (e.g., reference picture list lengths, weighted prediction tables, or slice group counts) are multiplied or added before being passed to `av_buffer_pool_init`. Focus on the exact size calculation in `h264_slice.c` surrounding reference frame or prediction weight arrays, and verify whether missing bounds checks, sign-extension issues, or intermediate arithmetic overflows allow crafted bitstreams to trigger undersized allocations or negative size interpretations.",
+    "timestamp": "2026-05-08T04:26:12.140Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 1,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine all context-index calculations and bitstream-parsing routines for off-by-one errors, integer overflows, and unvalidated Golomb-coded values that could trigger out-of-bounds array accesses or misaligned reads. Focus on CABAC state transitions and probability-model updates, specifically how truncated bitstreams, extreme syntax values, or reserved/undefined elements might bypass bounds checks and corrupt internal decoder state. Ensure all loop counters, bit/byte offsets, and context arrays are explicitly clamped, and that malformed inputs are rejected before any state mutation occurs.",
+    "timestamp": "2026-05-08T04:26:20.063Z"
+  },
+  {
+    "target": "libavcodec/vp9.c",
+    "attempt": 1,
+    "failureReason": "low_confidence_0",
+    "verbalGradient": "Focus re-investigation on coefficient decoding loops and loop filter boundary checks, specifically tracing how segment IDs, tile coordinates, and quantization parameters propagate into array indexing and memory offsets. Prioritize malformed or truncated bitstreams that may trigger early loop exits or skip validation steps, as well as extreme resolution or motion vector combinations that could overflow integer arithmetic in prediction and compensation routines. Stress-test these paths with fuzzed VP9 streams containing nested tile boundaries, invalid filter strengths, and out-of-range reference frame indices to expose latent out-of-bounds accesses or buffer overruns that low-confidence scanners typically miss.",
+    "timestamp": "2026-05-08T04:26:30.204Z"
+  },
+  {
+    "target": "libavformat/riff.c",
+    "attempt": 1,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine all chunk size arithmetic and boundary validations, focusing on 32-bit size fields that are added to offsets or multiplied by element counts, as these frequently mask integer overflows that silently bypass allocation limits. Scrutinize the odd-sized chunk padding logic and recursive LIST/AVI nesting handlers, which can desynchronize read pointers and enable out-of-bounds access when files are truncated or contain mismatched header declarations. Finally, enforce strict validation against zero-length, sign-extended negative, and excessively large payloads to prevent heap corruption or infinite loops during dynamic buffer allocation and recursive parsing.",
+    "timestamp": "2026-05-08T04:26:41.475Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 2,
+    "failureReason": "The calculation cannot overflow a 32-bit signed integer. HEVC maximum frame dimensions are 8192x8192, resulting in a maximum product of ~67 million, which is well within the INT_MAX limit (~2.1 billion). FFmpeg enforces strict dimension bounds, making the claimed overflow mathematically impossible for any supported or spec-compliant input.",
+    "verbalGradient": "The hypothesis failed because it incorrectly assumed the overflow occurs during the direct frame-dimension-to-CTB-count multiplication, which FFmpeg’s strict dimension limits safely constrain within 32-bit bounds. Instead, investigate how `pic_size_in_ctb` is subsequently used in secondary arithmetic: trace stride calculations, allocation sizes, or loop bounds where it is multiplied by CTB dimensions, pixel depth, or other runtime values that could push the result past `INT_MAX`. Focus on downstream code paths where `pic_size_in_ctb` is scaled or used as an array index, and verify whether FFmpeg’s bounds validation covers these derived calculations or if malformed SPS/PPS fields can bypass checks to trigger overflow in the actual memory allocation or iteration logic.",
+    "timestamp": "2026-05-08T04:41:16.135Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Focus re-investigation on context model indexing logic and bitstream boundary checks, specifically auditing all array accesses that derive indices from decoded syntax elements or external bitstream values for off-by-one errors, integer overflows, and missing bounds validation. Prioritize corner cases involving truncated or malformed slices, extreme quantization parameters, and multi-threaded decoding paths where shared context state may introduce race conditions or stale state reuse. Verify that all CABAC initialization routines strictly validate context IDs before state transitions, and stress-test with fuzzed H.264 streams designed to trigger unusual context switches or premature EOF conditions.",
+    "timestamp": "2026-05-08T04:41:27.112Z"
+  },
+  {
+    "target": "libavcodec/vp9.c",
+    "attempt": 2,
+    "failureReason": "low_confidence_0",
+    "verbalGradient": "Focus re-investigation on integer overflow risks in dimension calculations and buffer allocation sizes derived from untrusted bitstream parameters, particularly where `width`, `height`, or `stride` values are multiplied without saturation checks or bounds validation. Scrutinize loop restoration and segmentation logic for out-of-bounds memory accesses triggered by malformed syntax elements that could bypass boundary checks, paying close attention to edge cases involving zero-sized blocks, negative offsets, or truncated frames that might cause invalid pointer dereferences or heap corruption.",
+    "timestamp": "2026-05-08T04:41:37.317Z"
+  },
+  {
+    "target": "libavformat/riff.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine all integer arithmetic involving chunk sizes and file offsets, specifically targeting silent overflows in `size + header_size` calculations and unsigned-to-signed conversions that may yield negative or truncated values. Focus on unbounded memory allocations and buffer reads driven by untrusted RIFF chunk lengths, enforcing strict upper-bound validation and explicit EOF checks for truncated or malformed headers. Prioritize corner cases such as zero-length or negative-sized chunks, excessive nesting depth, and padding misalignment, as these often bypass standard bounds checks and expose exploitable out-of-bounds reads or writes.",
+    "timestamp": "2026-05-08T04:41:47.766Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Focus re-investigation on the arithmetic decoder’s renormalization loops, context index calculations, and bitstream read bounds, as these frequently conceal off-by-one errors, integer wraparounds, and uninitialized state propagation in malformed streams. Trace context model updates against slice and sequence parameter sets to identify out-of-bounds memory accesses or state desynchronization triggered by truncated CABAC blocks or adversarial bit patterns. Specifically validate corner cases involving extreme quantization parameters, constrained intra prediction modes, and premature end-of-stream conditions, which can bypass standard bounds checks and corrupt the decoder’s internal state machine.",
+    "timestamp": "2026-05-08T04:41:58.501Z"
+  },
+  {
+    "target": "libavformat/riff.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine the chunk size validation and payload extraction logic, specifically tracing how untrusted FourCC tags and length fields propagate into dynamic memory allocations and buffer bounds checks. Focus on integer overflow or truncation during size arithmetic, as well as error-return paths that may skip cleanup routines or dereference uninitialized stream indices. Corner cases like negative or near-maximum chunk sizes, deeply nested RIFF structures, and missing required sub-chunks frequently bypass default bounds checks and can trigger out-of-bounds reads, use-after-free conditions, or denial-of-service via unbounded memory consumption. Prioritize targeted fuzzing of these parsing entry points with malformed headers while instrumenting the code to verify that all allocated resources are properly freed and no uninitialized pointers are exposed.",
+    "timestamp": "2026-05-08T04:42:08.069Z"
+  }
+]

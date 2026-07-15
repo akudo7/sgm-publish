@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780129902497",
+  "threadId": "slack-test-1780129902497",
+  "initialQuestion": [
+    "apiKeyの設定方法を教えてください"
+  ],
+  "durationMs": 24931,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerにおけるapiKeyの設定方法は、主に以下の2つの方法があります。\n\n### 1. ワークフロー設定に直接記述する方法\nワークフローの構成オブジェクト（またはJSONファイル）の `models` 配列内に、直接 `apiKey` を設定します。\n\n```typescript\nconst config = {\n  // ...\n  models: [{ \n    id: \"claude\", \n    type: \"anthropic\", \n    config: { model: \"claude-3-5-sonnet-20241022\", apiKey: \"sk-ant-...\" } \n  }],\n  // ...\n};\n```\nこの方法は開発時の簡易設定として利用できますが、本番環境での使用は推奨されません。\n\n### 2. OSネイティブのシークレットストアを使用する方法（推奨）\nSceneGraphManagerは `.env` ファイルや `dotenv` を自動ロードしません。本番環境では、OSのネイティブなシークレットストア（キーチェーン）にAPIキーを登録し、`loadSecrets()` 関数で読み込むことが推奨されます。\n\n**基本的な手順**\n1. OSのシークレットストアにAPIキーを登録する\n2. コード内で `loadSecrets()` を呼び出し、`WorkflowEngine` をインスタンス化する\n\n```typescript\nimport { loadSecrets, WorkflowEngine } from 'scenegraphmanager';\n\nloadSecrets(); // OSキーチェーンからprocess.envへ展開\nconst engine = new WorkflowEngine(config);\n```\n\n**OS別の登録コマンド**\n対応している環境変数は `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_EMBEDDINGS_API_KEY`, `GOOGLE_API_KEY` です。\n\n*   **macOS (Keychain)**\n    ```bash\n    security add-generic-password -a scenegraphmanager -s ANTHROPIC_API_KEY -w \"sk-ant-...\"\n    ```\n\n*   **Linux (libsecret)**\n    ```bash\n    secret-tool store --label=\"SGM ANTHROPIC_API_KEY\" \\\n      service scenegraphmanager key ANTHROPIC_API_KEY\n    ```\n\n*   **Windows (Credential Manager)**\n    ```powershell\n    New-StoredCredential -Target \"scenegraphmanager/ANTHROPIC_API_KEY\" `\n      -UserName \"scenegraphmanager\" -Password \"sk-ant-...\" -Persist LocalMachine\n    ```\n\n**注意点**\n*   `loadSecrets()` は、既に `process.env` に値が存在する場合はその値を優先し、キーチェーンの値は読み込みません。\n*   Linuxで `secret-tool` を使用する場合、`libsecret-tools` パッケージのインストールが必要になる場合があります。"
+  ],
+  "timestamp": "2026-05-30T08:32:07.449Z"
+}

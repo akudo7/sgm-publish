@@ -1,0 +1,17 @@
+{
+  "sessionId": "consulting-v2-1779878772996",
+  "threadId": "slack-test-1779878772996",
+  "initialQuestion": "SceneGraphManagerのインスタンスの作成方法を教えて下さい",
+  "durationMs": 28667,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answer": "SceneGraphManagerのインスタンス作成は、`WorkflowEngine`クラスを使用します。\n\n## インスタンスの作成手順\n\n### 1. インポート\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n```\n\n### 2. 設定オブジェクトの準備\n\nワークフローの設定をJSON形式で定義します。主な構成要素は以下の通りです。\n\n| フィールド | 説明 |\n|-----------|------|\n| `config` | ワークフローのメタ情報（名前、説明、リカージョン制限など） |\n| `stateAnnotation` | 状態アノテーションの定義 |\n| `annotation` | 状態フィールドの詳細定義（メッセージの型、リデューサー、デフォルト値） |\n| `models` | 使用するLLMモデルの定義（ID、タイプ、設定） |\n| `nodes` | ワークフローのノード定義 |\n| `edges` | ノード間の接続定義 |\n| `stateGraph` | グラフの状態参照 |\n\n### 3. インスタンス生成と構築\n\n```typescript\nconst config = {\n  config: { name: \"Chat Workflow\", description: \"A basic chat workflow\" },\n  stateAnnotation: { name: \"WorkflowState\", type: \"Annotation.Root\" },\n  annotation: {\n    messages: { type: \"BaseMessage[]\", reducer: \"(x, y) => x.concat(y)\", default: \"[]\" }\n  },\n  models: [{ id: \"claude\", type: \"anthropic\", config: { model: \"claude-3-5-sonnet-20241022\", apiKey: process.env.ANTHROPIC_API_KEY } }],\n  nodes: [{ id: \"chat\", type: \"model\", modelRef: \"claude\" }],\n  edges: [{ from: \"__start__\", to: \"chat\" }, { from: \"chat\", to: \"__end__\" }],\n  stateGraph: { annotationRef: \"WorkflowState\" }\n};\n\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\n\n### 4. 実行\n\n構築後、`invoke()` または `stream()` でワークフローを実行できます。\n\n```typescript\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\n```\n\n## 補足\n\n- ワークフロー設定はJSONファイルで定義し、外部から読み込むことも可能です\n- 複数のモデルを `models` 配列で定義することで、マルチモデル連携も可能です\n- `build()` を呼び出すことで、設定に基づいてワークフローグラフが構築されます",
+  "timestamp": "2026-05-27T10:46:41.683Z"
+}

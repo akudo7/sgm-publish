@@ -1,0 +1,98 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Multi-model workflow — 1ノード内での3モデル協調使用"
+    },
+    "recursionLimit": 10
+  },
+  "stateAnnotation": {
+    "name": "MultiModelState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "string[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "result": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "modelA",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "modelB",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "modelC",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "agent",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof MultiModelState.State"
+          },
+          {
+            "name": "modelA",
+            "parameterType": "model",
+            "modelRef": "modelA"
+          },
+          {
+            "name": "modelB",
+            "parameterType": "model",
+            "modelRef": "modelB"
+          },
+          {
+            "name": "modelC",
+            "parameterType": "model",
+            "modelRef": "modelC"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/agent_3.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "MultiModelState"
+  }
+}

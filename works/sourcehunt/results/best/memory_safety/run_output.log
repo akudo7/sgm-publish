@@ -1,0 +1,737 @@
+Registering factory for type: OpenAI
+Registering factory for type: Anthropic
+Registering factory for type: Ollama
+Registering factory for type: LlamaCpp
+[dotenv@17.3.1] injecting env (7) from .env -- tip: 🛡️ auth for agents: https://vestauth.com
+[config] Specialist: all (memory_safety, input_validation, integer_overflow)
+[config] Results dir: /home/akudo/Desktop/Work/SceneGraphManager/works/sourcehunt/results
+
+[cve] CVE キャッシュを事前生成します...
+[cve] OSV.dev へ照合中...
+[cve] 71 件の CVE を取得
+[cve] キャッシュを保存しました
+
+============================================================
+SPECIALIST: memory_safety — OOB・バッファオーバーフロー・UAF
+============================================================
+
+============================================================
+[memory_safety] RUN 1/5 — 2026-05-07T22:44:11.753Z
+============================================================
+Configured recursionLimit: 50 (from JSON: 50)
+
+=== Building Workflow Engine ===
+Applied EventEmitter configuration: { defaultMaxListeners: 20 }
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: ranker (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: hunter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: verifier (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: analyst (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: exploiter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: reporter (LlamaCpp)
+✅ MessagesAnnotation.spec added successfully
+Creating reducer for messages: (x, y) => x.concat(y)
+Building annotation for messages with type BaseMessage[]
+Creating reducer for repoPath: (x, y) => y || x
+Using fallback reducer for repoPath due to: Reducer "(x, y) => y || x" is not in the allowed list
+Creating reducer for huntTargets: (x, y) => (y && y.length > 0 ? y : x)
+Using fallback reducer for huntTargets due to: Reducer "(x, y) => (y && y.length > 0 ? y : x)" is not in the allowed list
+Creating reducer for currentTarget: (x, y) => y ?? x
+Using fallback reducer for currentTarget due to: Reducer "(x, y) => y ?? x" is not in the allowed list
+Creating reducer for huntResults: (x, y) => x.concat(y)
+Building annotation for huntResults with type { filePath: string; specialist: string; confidence: number; findings: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number }[] }[]
+Creating reducer for verifiedFindings: (x, y) => x.concat(y)
+Building annotation for verifiedFindings with type { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string; verifiedAt: string }[]
+Creating reducer for _failedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _failedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for reflexionHistory: (x, y) => x.concat(y)
+Building annotation for reflexionHistory with type { target: string; attempt: number; failureReason: string; verbalGradient: string; timestamp: string }[]
+Creating reducer for _exploitedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _exploitedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for finalReport: (x, y) => y || x
+Using fallback reducer for finalReport due to: Reducer "(x, y) => y || x" is not in the allowed list
+Added edge: START -> ranker_node
+Added conditional edge from ranker_node
+Added edge: hunter_node -> verifier_node
+Added conditional edge from verifier_node
+Added conditional edge from failure_analyst_node
+Added edge: exploiter_node -> reporter_node
+Added edge: reporter_node -> END
+Compiling graph with recursionLimit: 50, useMemory: [object Object]
+✅ Graph.compile: コンパイル完了
+Workflow engine built successfully
+🚀 Invoking workflow with recursionLimit: 50
+[ranker] Collected 2537 .c files from libavcodec, libavformat, libavfilter
+[ranker] libavcodec: 82/1450 (quota=82, largest=libavcodec/metasound_data.c)
+[ranker] libavformat: 40/544 (quota=40, largest=libavformat/mov.c)
+[ranker] libavfilter: 20/543 (quota=20, largest=libavfilter/af_hdcd.c)
+[ranker] Pre-filter → 142 candidates (subsystem quota)
+[ranker] LLM chunk 1/3 (50 files)
+[ranker] LLM chunk 2/3 (50 files)
+[ranker] LLM chunk 3/3 (42 files)
+[ranker] Final: top 5 from 142 LLM-ranked
+[ranker] #1: libavcodec/hevcdec.c (score=0.9)
+[fanOut] Dispatching 5 hunters
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/h264_slice.c → 1 findings (confidence=0.85)
+[hunter:memory_safety] libavcodec/vp9.c → 3 findings (confidence=0.85)
+[hunter:memory_safety] libavformat/mov.c → 2 findings (confidence=0.85)
+[hunter:memory_safety] libavcodec/hevcdec.c → 1 findings (confidence=0.85)
+[verifier] Verifying 7 pending findings (0 already verified) from 5 files
+[verifier] FAIL: integer_overflow in libavcodec/hevcdec.c:47 — The provided code context does not contain the referenced calculation or allocation logic (line 47 is an include directive). The claim incorrectly describes min_pu_size as a product of width and height, whereas FFmpeg computes it via bit shifts. The vulnerability cannot be verified from the given context.
+[verifier] PASS: NULL pointer dereference in libavcodec/h264_slice.c:142 (Lv2)
+[verifier] PASS: integer_overflow in libavformat/mov.c:208 (Lv2)
+[verifier] PASS: out_of_bounds_read in libavformat/mov.c:118 (Lv1)
+[verifier] FAIL: Use-After-Free / Dangling Pointer in libavcodec/vp9.c:74 — f->mv is allocated separately for motion vectors and does not point into f->extradata. The missing NULL assignment is a code hygiene issue but not exploitable, as the frame is not accessed after unref until reallocation.
+[verifier] PASS: Integer Overflow / Out-of-Bounds Write in libavcodec/vp9.c:85 (Lv2)
+[verifier] FAIL: NULL Pointer Dereference / Use-After-Free Propagation in libavcodec/vp9.c:117 — The claimed line number (117) corresponds to vp9_frame_alloc, not vp9_frame_ref, indicating a misalignment in the report. The provided code context cuts off before the actual pointer assignment logic in vp9_frame_ref. Furthermore, FFmpeg's VP9 decoder strictly allocates frames via vp9_frame_alloc before they enter the reference chain, guaranteeing extradata is valid. av_buffer_ref safely handles NULL pointers, and the threading model prevents referencing uninitialized or freed frames. The finding is a false positive based on incomplete context and incorrect line references.
+[verifier] Results: 4 verified, 3 failed
+[reflexion] 3 failed + 1 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 3 failed findings + 1 no-findings/low-confidence files
+[analyst] Gradient for libavcodec/hevcdec.c attempt 1: The hypothesis failed by incorrectly assuming `min_pu_size` is derived from a di...
+[analyst] Gradient for libavcodec/vp9.c attempt 1: The hypothesis failed because it incorrectly assumed `f->mv` and `f->extradata` ...
+[analyst] Gradient for libavcodec/vp9.c attempt 1: The hypothesis incorrectly assumed `seg_map` and `mv` are independently managed ...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 1: Re-examine context index calculations, bitstream pointer arithmetic, and arithme...
+[analyst] Scheduling retry for 3 targets
+[retryFanOut] Retrying 3 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/hevcdec.c → 1 findings (confidence=0.9)
+[hunter:memory_safety] libavcodec/vp9.c → 1 findings (confidence=0.85)
+[verifier] Verifying 5 pending findings (4 already verified) from 8 files
+[verifier] FAIL: integer_overflow in libavcodec/hevcdec.c:47 — The provided code context does not contain the referenced calculation or allocation logic. Furthermore, the HEVC specification bounds log2_min_pu_size to 0-4, meaning min_pu_width and min_pu_height are at most 16. Their product cannot exceed 256, making a 32-bit integer overflow mathematically impossible. The claim contradicts known parameter bounds and lacks supporting code in the visible window.
+[verifier] FAIL: Use-After-Free / Dangling Pointer in libavcodec/vp9.c:74 — The assertion that f->mv points into f->extradata->data is incorrect; f->mv (motion vectors) and f->extradata (frame headers) are independently allocated in the VP9 decoder, so unreferencing extradata does not invalidate f->mv.
+[verifier] FAIL: NULL Pointer Dereference / Use-After-Free Propagation in libavcodec/vp9.c:117 — False positive. The code context shows vp9_frame_ref begins at line 153, not 117. The function performs standard pointer copies of reference-counted AVBufferRef fields. Copying NULL pointers is safe and consistent within FFmpeg's threading model. The claim of UAF propagation ignores the reference-counted nature of the buffers and the allocation guarantees in vp9_frame_alloc.
+[verifier] PASS: Integer Overflow leading to Buffer Overflow in libavcodec/hevcdec.c:118 (Lv2)
+[verifier] FAIL: Use-After-Free in libavcodec/vp9.c:84 — The claim incorrectly assumes f->mv is freed or invalidated by av_buffer_unref(&f->extradata). In VP9, extradata holds codec parameters while mv holds motion vectors allocated separately; they are independent. Unreferencing extradata does not create a dangling pointer for mv. The cited line number (84) also mismatches the function location (98), indicating a misaligned report.
+[verifier] Results: 1 verified, 4 failed
+[reflexion] 1 failed + 2 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 4 failed findings + 2 no-findings/low-confidence files
+[analyst] Gradient for libavcodec/hevcdec.c attempt 2: The hypothesis incorrectly assumed `min_pu_width` and `min_pu_height` could exce...
+[analyst] Gradient for libavcodec/vp9.c attempt 3: The hypothesis failed by incorrectly assuming memory aliasing between `f->mv` an...
+[analyst] Gradient for libavcodec/vp9.c attempt 3: The hypothesis incorrectly assumed `AVBufferRef` fields behave as raw pointers, ...
+[analyst] Gradient for libavcodec/vp9.c attempt 3: The hypothesis failed due to a false dependency assumption: `extradata` and `mv`...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 2: Re-examine the bit buffer refill logic and context index calculations for missin...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 2: Focus on re-examining context index arithmetic and probability state transitions...
+[analyst] Scheduling retry for 3 targets
+[retryFanOut] Retrying 3 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/vp9.c → 1 findings (confidence=0.95)
+[hunter:memory_safety] libavcodec/hevcdec.c → 1 findings (confidence=0.85)
+[verifier] Verifying 6 pending findings (5 already verified) from 11 files
+[verifier] PASS: integer_overflow in libavcodec/hevcdec.c:47 (Lv1)
+[verifier] FAIL: Use-After-Free / Dangling Pointer in libavcodec/vp9.c:74 — False positive. f->mv (motion vector data) is allocated independently from f->extradata (which stores frame headers and codec parameters). The claim that f->mv points into f->extradata->data is incorrect, so freeing extradata does not invalidate f->mv.
+[verifier] FAIL: NULL Pointer Dereference / Use-After-Free Propagation in libavcodec/vp9.c:117 — The finding misidentifies the line number (117 is in vp9_frame_alloc, not vp9_frame_ref). Furthermore, ff_thread_ref_frame only handles reference counting for the AVBufferRef/AVFrame and does not copy custom pointers like segmentation_map or mv. Even if pointer assignment were performed, it is safe under FFmpeg's reference counting model as the source frame remains valid while referenced. The claimed vulnerability mechanism does not exist.
+[verifier] FAIL: Use-After-Free in libavcodec/vp9.c:84 — The claim incorrectly assumes f->mv is freed or aliased by f->extradata. In VP9, extradata stores codec parameters while motion vectors are allocated in independent buffers. av_buffer_unref(&f->extradata) does not free f->mv, so failing to clear it does not create a dangling pointer from extradata deallocation. Additionally, f->mv is not a standard field in VP9Frame, indicating a conflation of unrelated data structures.
+[verifier] FAIL: integer_overflow_heap_buffer_overflow in libavcodec/hevcdec.c:87 — The finding is a false positive. Line 122 calls av_malloc_array with the same operands (sps->min_pu_width + 1 and sps->min_pu_height + 1). av_malloc_array includes explicit integer overflow checks and returns NULL on overflow, triggering the goto fail path on line 123. This ensures the function exits safely, preventing any use of the potentially undersized s->tab_ipm buffer.
+[verifier] PASS: use-after-free in libavcodec/vp9.c:104 (Lv2)
+[verifier] Results: 2 verified, 4 failed
+[reflexion] MAX_REFLEXION (2) reached for all targets — proceeding to exploiter
+[exploiter] Processing 7 verified findings
+[exploiter] GENERATED: NULL pointer dereference in libavcodec/h264_slice.c:142
+[exploiter] GENERATED: integer_overflow in libavformat/mov.c:208
+[exploiter] SKIP: out_of_bounds_read in libavformat/mov.c:118 (evidenceLevel=1 < 2)
+[exploiter] GENERATED: Integer Overflow / Out-of-Bounds Write in libavcodec/vp9.c:85
+[exploiter] GENERATED: Integer Overflow leading to Buffer Overflow in libavcodec/hevcdec.c:118
+[exploiter] SKIP: integer_overflow in libavcodec/hevcdec.c:47 (evidenceLevel=1 < 2)
+[exploiter] GENERATED: use-after-free in libavcodec/vp9.c:104
+[exploiter] Generated 5/7 PoCs
+[reporter] Generating report for 7 findings (10 reflexion iterations)
+[reporter] Report generated (6928 chars markdown, 7 findings, 5 PoCs)
+[memory_safety/run 1] done in 1477.3s | detected=true | evidenceLv=2 | reflexion=10
+
+============================================================
+[memory_safety] RUN 2/5 — 2026-05-07T23:08:49.027Z
+============================================================
+Configured recursionLimit: 50 (from JSON: 50)
+
+=== Building Workflow Engine ===
+Applied EventEmitter configuration: { defaultMaxListeners: 20 }
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: ranker (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: hunter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: verifier (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: analyst (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: exploiter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: reporter (LlamaCpp)
+✅ MessagesAnnotation.spec added successfully
+Creating reducer for messages: (x, y) => x.concat(y)
+Building annotation for messages with type BaseMessage[]
+Creating reducer for repoPath: (x, y) => y || x
+Using fallback reducer for repoPath due to: Reducer "(x, y) => y || x" is not in the allowed list
+Creating reducer for huntTargets: (x, y) => (y && y.length > 0 ? y : x)
+Using fallback reducer for huntTargets due to: Reducer "(x, y) => (y && y.length > 0 ? y : x)" is not in the allowed list
+Creating reducer for currentTarget: (x, y) => y ?? x
+Using fallback reducer for currentTarget due to: Reducer "(x, y) => y ?? x" is not in the allowed list
+Creating reducer for huntResults: (x, y) => x.concat(y)
+Building annotation for huntResults with type { filePath: string; specialist: string; confidence: number; findings: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number }[] }[]
+Creating reducer for verifiedFindings: (x, y) => x.concat(y)
+Building annotation for verifiedFindings with type { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string; verifiedAt: string }[]
+Creating reducer for _failedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _failedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for reflexionHistory: (x, y) => x.concat(y)
+Building annotation for reflexionHistory with type { target: string; attempt: number; failureReason: string; verbalGradient: string; timestamp: string }[]
+Creating reducer for _exploitedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _exploitedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for finalReport: (x, y) => y || x
+Using fallback reducer for finalReport due to: Reducer "(x, y) => y || x" is not in the allowed list
+Added edge: START -> ranker_node
+Added conditional edge from ranker_node
+Added edge: hunter_node -> verifier_node
+Added conditional edge from verifier_node
+Added conditional edge from failure_analyst_node
+Added edge: exploiter_node -> reporter_node
+Added edge: reporter_node -> END
+Compiling graph with recursionLimit: 50, useMemory: [object Object]
+✅ Graph.compile: コンパイル完了
+Workflow engine built successfully
+🚀 Invoking workflow with recursionLimit: 50
+[ranker] Collected 2537 .c files from libavcodec, libavformat, libavfilter
+[ranker] libavcodec: 82/1450 (quota=82, largest=libavcodec/metasound_data.c)
+[ranker] libavformat: 40/544 (quota=40, largest=libavformat/mov.c)
+[ranker] libavfilter: 20/543 (quota=20, largest=libavfilter/af_hdcd.c)
+[ranker] Pre-filter → 142 candidates (subsystem quota)
+[ranker] LLM chunk 1/3 (50 files)
+[ranker] LLM chunk 2/3 (50 files)
+[ranker] LLM chunk 3/3 (42 files)
+[ranker] Final: top 5 from 142 LLM-ranked
+[ranker] #1: libavformat/mov.c (score=0.915)
+[fanOut] Dispatching 5 hunters
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/hevcdec.c → 1 findings (confidence=0.85)
+[hunter:memory_safety] libavcodec/h264_slice.c → 3 findings (confidence=0.9)
+[hunter:memory_safety] libavformat/mov.c → 1 findings (confidence=0.9)
+[hunter:memory_safety] libavcodec/vp9.c → 2 findings (confidence=0.88)
+[verifier] Verifying 7 pending findings (0 already verified) from 5 files
+[verifier] FAIL: buffer_overflow in libavformat/mov.c:184 — The PUT_UTF8 macro expands the third argument multiple times for multi-byte sequences. The provided argument 'if (p < end) *p++ = t;' includes a bounds check that is evaluated before each byte write, preventing the overflow. The claim that the check is only evaluated once is incorrect based on the visible code.
+[verifier] PASS: Buffer Overflow in libavcodec/hevcdec.c:148 (Lv2)
+[verifier] FAIL: integer_overflow in libavcodec/h264_slice.c:145 — H.264 specification limits macroblock dimensions to a maximum of 256x144, and FFmpeg enforces these bounds upstream. The multiplications cannot overflow 32-bit signed integers with any valid or spec-compliant input, making the overflow impossible.
+[verifier] FAIL: integer_overflow in libavcodec/h264_slice.c:126 — The expression includes sizeof(uint8_t) (type size_t), which promotes the entire multiplication to unsigned arithmetic, eliminating signed overflow. Additionally, the overflow threshold implies a video width >350 million pixels, making the condition physically unreachable.
+[verifier] PASS: null_pointer_dereference in libavcodec/h264_slice.c:105 (Lv1)
+[verifier] PASS: integer_overflow in libavcodec/vp9.c:118 (Lv1)
+[verifier] PASS: use_after_free in libavcodec/vp9.c:138 (Lv1)
+[verifier] Results: 4 verified, 3 failed
+[reflexion] 3 failed + 1 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 3 failed findings + 1 no-findings/low-confidence files
+[analyst] Gradient for libavformat/mov.c attempt 1: The hypothesis failed because it incorrectly assumed the `PUT_UTF8` macro lacked...
+[analyst] Gradient for libavcodec/h264_slice.c attempt 1: The hypothesis failed because it incorrectly assumed `h->mb_*` fields bypass FFm...
+[analyst] Gradient for libavcodec/h264_slice.c attempt 1: The hypothesis incorrectly assumed signed integer overflow and ignored C type pr...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 1: Focus re-investigation on bitstream parsing boundaries and context index calcula...
+[analyst] Scheduling retry for 3 targets
+[retryFanOut] Retrying 3 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/h264_slice.c → 1 findings (confidence=0.9)
+[hunter:memory_safety] libavformat/mov.c → 1 findings (confidence=0.9)
+[verifier] Verifying 5 pending findings (4 already verified) from 8 files
+[verifier] FAIL: buffer_overflow in libavformat/mov.c:184 — The PUT_UTF8 macro evaluates the put_byte argument (if (p < end) *p++ = t;) for each generated byte, ensuring the boundary check is performed before every write. The claim incorrectly assumes the check is only evaluated once before macro expansion.
+[verifier] PASS: integer_overflow in libavcodec/h264_slice.c:145 (Lv2)
+[verifier] PASS: integer_overflow in libavcodec/h264_slice.c:126 (Lv2)
+[verifier] PASS: buffer_overflow in libavformat/mov.c:192 (Lv2)
+[verifier] FAIL: Integer Overflow leading to Out-of-Bounds Write in libavcodec/h264_slice.c:120 — The provided code context does not contain the claimed function init_table_pools or the variables b4_stride and b4_array_size. Line 120 corresponds to release_unused_pictures, indicating a direct mismatch between the finding's description and the provided code snippet.
+[verifier] Results: 3 verified, 2 failed
+[reflexion] 1 failed + 2 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 2 failed findings + 2 no-findings/low-confidence files
+[analyst] Gradient for libavformat/mov.c attempt 2: The hypothesis failed because it incorrectly assumed `PUT_UTF8` performs multipl...
+[analyst] Gradient for libavcodec/h264_slice.c attempt 3: The hypothesis failed by assuming the existence of `b4_stride` and `init_table_p...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 2: Begin by re-examining the CABAC bit-buffer refill loop and context-index arithme...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 2: Re-examine CABAC bitstream pointer arithmetic and dynamic context-index calculat...
+[analyst] Scheduling retry for 3 targets
+[retryFanOut] Retrying 3 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/h264_slice.c → 1 findings (confidence=0.85)
+[hunter:memory_safety] libavformat/mov.c → 1 findings (confidence=0.85)
+[verifier] Verifying 4 pending findings (7 already verified) from 11 files
+[verifier] FAIL: buffer_overflow in libavformat/mov.c:184 — The boundary check `if (p < end)` is passed as the third argument to `PUT_UTF8`, meaning it is evaluated each time the macro expands for a multi-byte sequence. This ensures the buffer limit is checked before every byte write, preventing the overflow. The claim that the check is only evaluated once is incorrect.
+[verifier] FAIL: Integer Overflow leading to Out-of-Bounds Write in libavcodec/h264_slice.c:120 — The provided code context does not contain the claimed function `init_table_pools` or the referenced variables (`b4_stride`, `b4_array_size`, `motion_val_pool`). Line 120 corresponds to `release_unused_pictures`, and the visible allocation logic uses `av_fast_malloc`, not `av_buffer_pool_init`. The vulnerability description is mismatched with the provided snippet, making it impossible to verify the claim.
+[verifier] FAIL: buffer_overflow in libavformat/mov.c:174 — dstlen is not derived from the file; it is the fixed size of the destination buffer passed by the caller. The file-derived 'len' parameter is correctly bounded by the 'p >= end' check, preventing out-of-bounds writes. The claim that a malformed atom length is passed as dstlen misinterprets the function's standard usage in FFmpeg.
+[verifier] PASS: integer_overflow_heap_buffer_overflow in libavcodec/h264_slice.c:143 (Lv2)
+[verifier] Results: 1 verified, 3 failed
+[reflexion] MAX_REFLEXION (2) reached for all targets — proceeding to exploiter
+[exploiter] Processing 8 verified findings
+[exploiter] GENERATED: Buffer Overflow in libavcodec/hevcdec.c:148
+[exploiter] SKIP: null_pointer_dereference in libavcodec/h264_slice.c:105 (evidenceLevel=1 < 2)
+[exploiter] SKIP: integer_overflow in libavcodec/vp9.c:118 (evidenceLevel=1 < 2)
+[exploiter] SKIP: use_after_free in libavcodec/vp9.c:138 (evidenceLevel=1 < 2)
+[exploiter] GENERATED: integer_overflow in libavcodec/h264_slice.c:145
+[exploiter] GENERATED: integer_overflow in libavcodec/h264_slice.c:126
+[exploiter] GENERATED: buffer_overflow in libavformat/mov.c:192
+[exploiter] GENERATED: integer_overflow_heap_buffer_overflow in libavcodec/h264_slice.c:143
+[exploiter] Generated 5/8 PoCs
+[reporter] Generating report for 8 findings (8 reflexion iterations)
+[reporter] Report generated (7253 chars markdown, 8 findings, 5 PoCs)
+[memory_safety/run 2] done in 1442.5s | detected=true | evidenceLv=2 | reflexion=8
+
+============================================================
+[memory_safety] RUN 3/5 — 2026-05-07T23:32:51.564Z
+============================================================
+Configured recursionLimit: 50 (from JSON: 50)
+
+=== Building Workflow Engine ===
+Applied EventEmitter configuration: { defaultMaxListeners: 20 }
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: ranker (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: hunter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: verifier (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: analyst (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: exploiter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: reporter (LlamaCpp)
+✅ MessagesAnnotation.spec added successfully
+Creating reducer for messages: (x, y) => x.concat(y)
+Building annotation for messages with type BaseMessage[]
+Creating reducer for repoPath: (x, y) => y || x
+Using fallback reducer for repoPath due to: Reducer "(x, y) => y || x" is not in the allowed list
+Creating reducer for huntTargets: (x, y) => (y && y.length > 0 ? y : x)
+Using fallback reducer for huntTargets due to: Reducer "(x, y) => (y && y.length > 0 ? y : x)" is not in the allowed list
+Creating reducer for currentTarget: (x, y) => y ?? x
+Using fallback reducer for currentTarget due to: Reducer "(x, y) => y ?? x" is not in the allowed list
+Creating reducer for huntResults: (x, y) => x.concat(y)
+Building annotation for huntResults with type { filePath: string; specialist: string; confidence: number; findings: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number }[] }[]
+Creating reducer for verifiedFindings: (x, y) => x.concat(y)
+Building annotation for verifiedFindings with type { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string; verifiedAt: string }[]
+Creating reducer for _failedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _failedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for reflexionHistory: (x, y) => x.concat(y)
+Building annotation for reflexionHistory with type { target: string; attempt: number; failureReason: string; verbalGradient: string; timestamp: string }[]
+Creating reducer for _exploitedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _exploitedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for finalReport: (x, y) => y || x
+Using fallback reducer for finalReport due to: Reducer "(x, y) => y || x" is not in the allowed list
+Added edge: START -> ranker_node
+Added conditional edge from ranker_node
+Added edge: hunter_node -> verifier_node
+Added conditional edge from verifier_node
+Added conditional edge from failure_analyst_node
+Added edge: exploiter_node -> reporter_node
+Added edge: reporter_node -> END
+Compiling graph with recursionLimit: 50, useMemory: [object Object]
+✅ Graph.compile: コンパイル完了
+Workflow engine built successfully
+🚀 Invoking workflow with recursionLimit: 50
+[ranker] Collected 2537 .c files from libavcodec, libavformat, libavfilter
+[ranker] libavcodec: 82/1450 (quota=82, largest=libavcodec/metasound_data.c)
+[ranker] libavformat: 40/544 (quota=40, largest=libavformat/mov.c)
+[ranker] libavfilter: 20/543 (quota=20, largest=libavfilter/af_hdcd.c)
+[ranker] Pre-filter → 142 candidates (subsystem quota)
+[ranker] LLM chunk 1/3 (50 files)
+[ranker] LLM chunk 2/3 (50 files)
+[ranker] LLM chunk 3/3 (42 files)
+[ranker] Final: top 5 from 142 LLM-ranked
+[ranker] #1: libavcodec/hevcdec.c (score=0.9)
+[fanOut] Dispatching 5 hunters
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavformat/id3v2.c → 1 findings (confidence=0.9)
+[hunter:memory_safety] libavcodec/h264_slice.c → 1 findings (confidence=0.85)
+[hunter:memory_safety] libavcodec/hevcdec.c → 3 findings (confidence=0.9)
+[hunter:memory_safety] libavformat/mov.c → 2 findings (confidence=0.85)
+[verifier] Verifying 7 pending findings (0 already verified) from 5 files
+[verifier] PASS: integer_overflow in libavcodec/hevcdec.c:91 (Lv2)
+[verifier] PASS: integer_overflow in libavcodec/hevcdec.c:93 (Lv2)
+[verifier] PASS: out_of_bounds_write in libavcodec/hevcdec.c:163 (Lv2)
+[verifier] FAIL: integer_overflow in libavcodec/h264_slice.c:240 — The provided code context does not contain the alleged vulnerable line at line 240 (which is empty), nor does it show the allocation logic for motion_val_pool. The vulnerability description references code outside the provided window, making the finding unverifiable and likely misattributed.
+[verifier] PASS: out-of-bounds-read in libavformat/mov.c:119 (Lv1)
+[verifier] FAIL: out-of-bounds-write in libavformat/mov.c:142 — The parameter `dstlen` is a caller-controlled buffer size (typically `sizeof(dst)`), not attacker input. The underflowed `end` pointer only affects the loop condition `p >= end`, which evaluates to true, causing the loop to skip all writes. The final `*p = 0` writes to `dst[0]`, which is within the destination buffer. No out-of-bounds write occurs.
+[verifier] FAIL: integer_overflow in libavformat/id3v2.c:140 — The maximum possible syncsafe integer value (0x7F7F7F7F) is strictly less than the maximum signed 32-bit integer (0x7FFFFFFF). Adding the header size (10) cannot trigger a signed integer overflow. The exploit hypothesis relies on an incorrect mathematical premise.
+[verifier] Results: 4 verified, 3 failed
+[reflexion] 3 failed + 1 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 3 failed findings + 1 no-findings/low-confidence files
+[analyst] Gradient for libavcodec/h264_slice.c attempt 1: The hypothesis failed by assuming the exact vulnerable line and allocation logic...
+[analyst] Gradient for libavformat/mov.c attempt 1: The hypothesis failed by incorrectly treating `dstlen` as direct attacker input,...
+[analyst] Gradient for libavformat/id3v2.c attempt 1: The hypothesis failed because syncsafe decoding mathematically constrains values...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 1: Prioritize manual tracing of context index derivation and probability table acce...
+[analyst] Scheduling retry for 4 targets
+[retryFanOut] Retrying 4 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/h264_slice.c → 1 findings (confidence=0.9)
+[hunter:memory_safety] libavformat/id3v2.c → 1 findings (confidence=0.85)
+[hunter:memory_safety] libavformat/mov.c → 1 findings (confidence=0.9)
+[verifier] Verifying 6 pending findings (4 already verified) from 9 files
+[verifier] FAIL: integer_overflow in libavcodec/h264_slice.c:240 — The claimed vulnerable line and buffer size calculation logic are not present in the provided code context. The visible snippet only shows buffer pool retrieval and pointer offset arithmetic, making the integer overflow claim unverifiable based on the given window.
+[verifier] PASS: out-of-bounds-write in libavformat/mov.c:142 (Lv1)
+[verifier] FAIL: integer_overflow in libavformat/id3v2.c:140 — The maximum valid syncsafe integer (0x7F7F7F7F) is 2,139,062,271, which is strictly less than the maximum signed 32-bit integer (0x7FFFFFFF, 2,147,483,647). Adding ID3v2_HEADER_SIZE (typically 10) cannot cause a signed integer overflow, rendering the mathematical premise of the claim incorrect.
+[verifier] PASS: Integer Overflow leading to Out-of-Bounds Access in libavcodec/h264_slice.c:181 (Lv2)
+[verifier] PASS: heap_buffer_overflow in libavformat/mov.c:152 (Lv2)
+[verifier] PASS: out-of-bounds read in libavformat/id3v2.c:138 (Lv2)
+[verifier] Results: 4 verified, 2 failed
+[reflexion] 2 failed + 2 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 2 failed findings + 2 no-findings/low-confidence files
+[analyst] Gradient for libavcodec/h264_slice.c attempt 2: The hypothesis failed by incorrectly assuming the vulnerability originated in an...
+[analyst] Gradient for libavformat/id3v2.c attempt 2: The hypothesis incorrectly assumed the maximum syncsafe length would exceed `INT...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 2: Re-examine all context index calculations and array accesses in the CABAC state ...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 2: Focus re-investigation on context index calculations, probability model state tr...
+[analyst] Scheduling retry for 3 targets
+[retryFanOut] Retrying 3 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/h264_slice.c → 1 findings (confidence=0.9)
+[hunter:memory_safety] libavformat/id3v2.c → 1 findings (confidence=0.8)
+[verifier] Verifying 4 pending findings (8 already verified) from 12 files
+[verifier] FAIL: integer_overflow in libavcodec/h264_slice.c:240 — The claimed vulnerable line and allocation logic are not present in the provided code context. The context only shows buffer pool retrieval, not the size calculation or initialization of motion_val_pool. Without the allocation code, the integer overflow claim cannot be verified.
+[verifier] FAIL: integer_overflow in libavformat/id3v2.c:140 — The maximum possible value of the syncsafe integer (0x7F7F7F7F) is strictly less than the maximum value of a signed 32-bit int (0x7FFFFFFF). Adding the header size cannot cause a signed integer overflow, rendering the exploit hypothesis mathematically incorrect.
+[verifier] FAIL: integer_overflow in libavcodec/h264_slice.c:113 — The claimed vulnerable code and line number do not match the provided context. Line 113 in the snippet is part of a static array initialization, not an allocation size calculation.
+[verifier] PASS: uninitialized memory read in libavformat/id3v2.c:136 (Lv1)
+[verifier] Results: 1 verified, 3 failed
+[reflexion] MAX_REFLEXION (2) reached for all targets — proceeding to exploiter
+[exploiter] Processing 9 verified findings
+[exploiter] GENERATED: integer_overflow in libavcodec/hevcdec.c:91
+[exploiter] GENERATED: integer_overflow in libavcodec/hevcdec.c:93
+[exploiter] GENERATED: out_of_bounds_write in libavcodec/hevcdec.c:163
+[exploiter] SKIP: out-of-bounds-read in libavformat/mov.c:119 (evidenceLevel=1 < 2)
+[exploiter] SKIP: out-of-bounds-write in libavformat/mov.c:142 (evidenceLevel=1 < 2)
+[exploiter] GENERATED: Integer Overflow leading to Out-of-Bounds Access in libavcodec/h264_slice.c:181
+[exploiter] GENERATED: heap_buffer_overflow in libavformat/mov.c:152
+[exploiter] GENERATED: out-of-bounds read in libavformat/id3v2.c:138
+[exploiter] SKIP: uninitialized memory read in libavformat/id3v2.c:136 (evidenceLevel=1 < 2)
+[exploiter] Generated 6/9 PoCs
+[reporter] Generating report for 9 findings (8 reflexion iterations)
+[reporter] Report generated (18111 chars markdown, 9 findings, 6 PoCs)
+[memory_safety/run 3] done in 1463.4s | detected=true | evidenceLv=2 | reflexion=8
+
+============================================================
+[memory_safety] RUN 4/5 — 2026-05-07T23:57:14.928Z
+============================================================
+Configured recursionLimit: 50 (from JSON: 50)
+
+=== Building Workflow Engine ===
+Applied EventEmitter configuration: { defaultMaxListeners: 20 }
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: ranker (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: hunter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: verifier (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: analyst (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: exploiter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: reporter (LlamaCpp)
+✅ MessagesAnnotation.spec added successfully
+Creating reducer for messages: (x, y) => x.concat(y)
+Building annotation for messages with type BaseMessage[]
+Creating reducer for repoPath: (x, y) => y || x
+Using fallback reducer for repoPath due to: Reducer "(x, y) => y || x" is not in the allowed list
+Creating reducer for huntTargets: (x, y) => (y && y.length > 0 ? y : x)
+Using fallback reducer for huntTargets due to: Reducer "(x, y) => (y && y.length > 0 ? y : x)" is not in the allowed list
+Creating reducer for currentTarget: (x, y) => y ?? x
+Using fallback reducer for currentTarget due to: Reducer "(x, y) => y ?? x" is not in the allowed list
+Creating reducer for huntResults: (x, y) => x.concat(y)
+Building annotation for huntResults with type { filePath: string; specialist: string; confidence: number; findings: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number }[] }[]
+Creating reducer for verifiedFindings: (x, y) => x.concat(y)
+Building annotation for verifiedFindings with type { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string; verifiedAt: string }[]
+Creating reducer for _failedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _failedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for reflexionHistory: (x, y) => x.concat(y)
+Building annotation for reflexionHistory with type { target: string; attempt: number; failureReason: string; verbalGradient: string; timestamp: string }[]
+Creating reducer for _exploitedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _exploitedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for finalReport: (x, y) => y || x
+Using fallback reducer for finalReport due to: Reducer "(x, y) => y || x" is not in the allowed list
+Added edge: START -> ranker_node
+Added conditional edge from ranker_node
+Added edge: hunter_node -> verifier_node
+Added conditional edge from verifier_node
+Added conditional edge from failure_analyst_node
+Added edge: exploiter_node -> reporter_node
+Added edge: reporter_node -> END
+Compiling graph with recursionLimit: 50, useMemory: [object Object]
+✅ Graph.compile: コンパイル完了
+Workflow engine built successfully
+🚀 Invoking workflow with recursionLimit: 50
+[ranker] Collected 2537 .c files from libavcodec, libavformat, libavfilter
+[ranker] libavcodec: 82/1450 (quota=82, largest=libavcodec/metasound_data.c)
+[ranker] libavformat: 40/544 (quota=40, largest=libavformat/mov.c)
+[ranker] libavfilter: 20/543 (quota=20, largest=libavfilter/af_hdcd.c)
+[ranker] Pre-filter → 142 candidates (subsystem quota)
+[ranker] LLM chunk 1/3 (50 files)
+[ranker] LLM chunk 2/3 (50 files)
+[ranker] LLM chunk 3/3 (42 files)
+[ranker] Final: top 5 from 142 LLM-ranked
+[ranker] #1: libavcodec/hevcdec.c (score=0.9)
+[fanOut] Dispatching 5 hunters
+[hunter:memory_safety] libavcodec/vp9.c → 1 findings (confidence=0.85)
+[hunter:memory_safety] libavcodec/hevcdec.c → 2 findings (confidence=0.9)
+[hunter:memory_safety] libavcodec/h264_slice.c → 2 findings (confidence=0.9)
+[hunter:memory_safety] libavformat/mpeg.c → 2 findings (confidence=0.85)
+[hunter:memory_safety] libavformat/mov.c → 2 findings (confidence=0.85)
+[verifier] Verifying 9 pending findings (0 already verified) from 5 files
+[verifier] PASS: Integer Overflow in libavcodec/hevcdec.c:116 (Lv2)
+[verifier] PASS: Out-of-bounds Write in libavcodec/hevcdec.c:167 (Lv2)
+[verifier] PASS: Integer Overflow leading to Heap Buffer Overflow in libavcodec/h264_slice.c:175 (Lv2)
+[verifier] FAIL: Integer Overflow in Allocation Size in libavcodec/h264_slice.c:137 — The multiplication 16 * 6 * alloc_size uses 32-bit signed integer arithmetic. Overflow with alloc_size bounded by INT_MAX typically yields a large negative value, which when implicitly converted to size_t becomes a very large positive number, causing a large allocation or failure, not an undersized one. Achieving a small wrapped value requires linesize to be specifically crafted to ~44.7 million, which exceeds physically possible video frame strides, making the exploit path impractical.
+[verifier] PASS: Integer Overflow in libavcodec/vp9.c:123 (Lv2)
+[verifier] PASS: out-of-bounds_read in libavformat/mov.c:92 (Lv2)
+[verifier] PASS: memory_leak in libavformat/mov.c:173 (Lv2)
+[verifier] PASS: out-of-bounds-read in libavformat/mpeg.c:39 (Lv2)
+[verifier] PASS: out-of-bounds-read in libavformat/mpeg.c:74 (Lv2)
+[verifier] Results: 8 verified, 1 failed
+[reflexion] 1 failed + 0 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 1 failed findings + 0 no-findings/low-confidence files
+[analyst] Gradient for libavcodec/h264_slice.c attempt 1: The hypothesis failed because it incorrectly assumed signed-to-unsigned conversi...
+[analyst] Scheduling retry for 1 targets
+[retryFanOut] Retrying 1 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_slice.c → 3 findings (confidence=0.9)
+[verifier] Verifying 4 pending findings (8 already verified) from 6 files
+[verifier] PASS: Integer Overflow in Allocation Size in libavcodec/h264_slice.c:137 (Lv1)
+[verifier] PASS: Integer Overflow leading to Heap Buffer Overflow in libavcodec/h264_slice.c:143 (Lv2)
+[verifier] PASS: Integer Overflow leading to Heap Buffer Overflow in libavcodec/h264_slice.c:146 (Lv2)
+[verifier] PASS: Integer Overflow leading to Pool Allocation Underestimation in libavcodec/h264_slice.c:165 (Lv2)
+[verifier] Results: 4 verified, 0 failed
+[reflexion] No failures — proceeding to exploiter
+[exploiter] Processing 12 verified findings
+[exploiter] GENERATED: Integer Overflow in libavcodec/hevcdec.c:116
+[exploiter] GENERATED: Out-of-bounds Write in libavcodec/hevcdec.c:167
+[exploiter] GENERATED: Integer Overflow leading to Heap Buffer Overflow in libavcodec/h264_slice.c:175
+[exploiter] GENERATED: Integer Overflow in libavcodec/vp9.c:123
+[exploiter] GENERATED: out-of-bounds_read in libavformat/mov.c:92
+[exploiter] GENERATED: memory_leak in libavformat/mov.c:173
+[exploiter] GENERATED: out-of-bounds-read in libavformat/mpeg.c:39
+[exploiter] GENERATED: out-of-bounds-read in libavformat/mpeg.c:74
+[exploiter] SKIP: Integer Overflow in Allocation Size in libavcodec/h264_slice.c:137 (evidenceLevel=1 < 2)
+[exploiter] GENERATED: Integer Overflow leading to Heap Buffer Overflow in libavcodec/h264_slice.c:143
+[exploiter] GENERATED: Integer Overflow leading to Heap Buffer Overflow in libavcodec/h264_slice.c:146
+[exploiter] GENERATED: Integer Overflow leading to Pool Allocation Underestimation in libavcodec/h264_slice.c:165
+[exploiter] Generated 11/12 PoCs
+[reporter] Generating report for 12 findings (1 reflexion iterations)
+[reporter] Report generated (17162 chars markdown, 12 findings, 11 PoCs)
+[memory_safety/run 4] done in 1276.9s | detected=true | evidenceLv=2 | reflexion=1
+
+============================================================
+[memory_safety] RUN 5/5 — 2026-05-08T00:18:31.788Z
+============================================================
+Configured recursionLimit: 50 (from JSON: 50)
+
+=== Building Workflow Engine ===
+Applied EventEmitter configuration: { defaultMaxListeners: 20 }
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: ranker (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: hunter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: verifier (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: analyst (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: exploiter (LlamaCpp)
+Getting factory for type: LlamaCpp
+Creating model with type: LlamaCpp
+Getting factory for type: LlamaCpp
+Initialized model: reporter (LlamaCpp)
+✅ MessagesAnnotation.spec added successfully
+Creating reducer for messages: (x, y) => x.concat(y)
+Building annotation for messages with type BaseMessage[]
+Creating reducer for repoPath: (x, y) => y || x
+Using fallback reducer for repoPath due to: Reducer "(x, y) => y || x" is not in the allowed list
+Creating reducer for huntTargets: (x, y) => (y && y.length > 0 ? y : x)
+Using fallback reducer for huntTargets due to: Reducer "(x, y) => (y && y.length > 0 ? y : x)" is not in the allowed list
+Creating reducer for currentTarget: (x, y) => y ?? x
+Using fallback reducer for currentTarget due to: Reducer "(x, y) => y ?? x" is not in the allowed list
+Creating reducer for huntResults: (x, y) => x.concat(y)
+Building annotation for huntResults with type { filePath: string; specialist: string; confidence: number; findings: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number }[] }[]
+Creating reducer for verifiedFindings: (x, y) => x.concat(y)
+Building annotation for verifiedFindings with type { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string; verifiedAt: string }[]
+Creating reducer for _failedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _failedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for reflexionHistory: (x, y) => x.concat(y)
+Building annotation for reflexionHistory with type { target: string; attempt: number; failureReason: string; verbalGradient: string; timestamp: string }[]
+Creating reducer for _exploitedFindings: (x, y) => y !== undefined ? y : x
+Using fallback reducer for _exploitedFindings due to: Reducer "(x, y) => y !== undefined ? y : x" is not in the allowed list
+Creating reducer for finalReport: (x, y) => y || x
+Using fallback reducer for finalReport due to: Reducer "(x, y) => y || x" is not in the allowed list
+Added edge: START -> ranker_node
+Added conditional edge from ranker_node
+Added edge: hunter_node -> verifier_node
+Added conditional edge from verifier_node
+Added conditional edge from failure_analyst_node
+Added edge: exploiter_node -> reporter_node
+Added edge: reporter_node -> END
+Compiling graph with recursionLimit: 50, useMemory: [object Object]
+✅ Graph.compile: コンパイル完了
+Workflow engine built successfully
+🚀 Invoking workflow with recursionLimit: 50
+[ranker] Collected 2537 .c files from libavcodec, libavformat, libavfilter
+[ranker] libavcodec: 82/1450 (quota=82, largest=libavcodec/metasound_data.c)
+[ranker] libavformat: 40/544 (quota=40, largest=libavformat/mov.c)
+[ranker] libavfilter: 20/543 (quota=20, largest=libavfilter/af_hdcd.c)
+[ranker] Pre-filter → 142 candidates (subsystem quota)
+[ranker] LLM chunk 1/3 (50 files)
+[ranker] LLM chunk 2/3 (50 files)
+[ranker] LLM chunk 3/3 (42 files)
+[ranker] Final: top 5 from 142 LLM-ranked
+[ranker] #1: libavcodec/h264_cabac.c (score=0.925)
+[fanOut] Dispatching 5 hunters
+[hunter:memory_safety] libavcodec/h264_slice.c → 2 findings (confidence=0.9)
+[hunter:memory_safety] libavcodec/hevcdec.c → 1 findings (confidence=0.9)
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/vc1.c → 4 findings (confidence=0.85)
+[hunter:memory_safety] libavformat/mov.c → 2 findings (confidence=0.85)
+[verifier] Verifying 9 pending findings (0 already verified) from 5 files
+[verifier] PASS: Integer Overflow in libavcodec/hevcdec.c:61 (Lv2)
+[verifier] PASS: integer_overflow in libavcodec/h264_slice.c:142 (Lv1)
+[verifier] PASS: integer_overflow in libavcodec/h264_slice.c:118 (Lv1)
+[verifier] FAIL: out-of-bounds-write in libavformat/mov.c:211 — The finding incorrectly claims *p=0 writes to dst-1; p is initialized to dst and never decremented, so it writes to dst, which is valid. dstlen=0 is a legitimate case for an empty string, and the logic safely writes the null terminator at the buffer start. The mechanism description contains a mathematical error, and the line number mismatch (211 vs 182) confirms a false positive.
+[verifier] FAIL: integer-overflow in libavformat/mov.c:268 — The unsigned integer underflow bypasses local bounds checks, but subsequent operations only perform fixed-size reads (12 bytes) via avio_rb32, which safely handles EOF without out-of-bounds memory access. The destination buffer for avio_get_str is also bounded by sizeof(place). The impact is limited to incorrect metadata parsing or early termination, not memory corruption or arbitrary data exposure.
+[verifier] PASS: buffer_overflow in libavcodec/vc1.c:55 (Lv2)
+[verifier] FAIL: integer_overflow in libavcodec/vc1.c:100 — width and height are macroblock counts derived from frame dimensions, which are strictly bounded by the decoder's maximum resolution limits. Their product will never approach the 32-bit signed integer overflow threshold, making the overflow impossible in practice.
+[verifier] PASS: out_of_bounds_write in libavcodec/vc1.c:112 (Lv2)
+[verifier] FAIL: out_of_bounds_read in libavcodec/vc1.c:149 — The cited vulnerable line is not present in the provided code context. The visible code does not exhibit the described out-of-bounds read pattern, rendering the finding unverifiable from the given snippet.
+[verifier] Results: 5 verified, 4 failed
+[reflexion] 4 failed + 1 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 4 failed findings + 1 no-findings/low-confidence files
+[analyst] Gradient for libavformat/mov.c attempt 1: The hypothesis failed by misreading the pointer initialization and loop mechanic...
+[analyst] Gradient for libavformat/mov.c attempt 1: The hypothesis failed by incorrectly assuming the underflow would trigger heap-b...
+[analyst] Gradient for libavcodec/vc1.c attempt 1: The hypothesis failed by assuming unbounded macroblock counts could exceed 32-bi...
+[analyst] Gradient for libavcodec/vc1.c attempt 1: The original hypothesis incorrectly assumed a direct `planep[x-stride]` access p...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 1: Focus re-investigation on context index bounds validation, arithmetic decoder st...
+[analyst] Scheduling retry for 3 targets
+[retryFanOut] Retrying 3 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_cabac.c → 0 findings (confidence=0)
+[hunter:memory_safety] libavcodec/vc1.c → 1 findings (confidence=0.85)
+[hunter:memory_safety] libavformat/mov.c → 1 findings (confidence=0.9)
+[verifier] Verifying 6 pending findings (5 already verified) from 8 files
+[verifier] FAIL: out-of-bounds-write in libavformat/mov.c:211 — The reported line number (211) mismatches the vulnerable code context (lines 172-182). The hypothesis incorrectly claims the write occurs at dst-1, whereas the code writes to p (which equals dst). Furthermore, dstlen=0 represents an invalid buffer size for a string conversion function, making the condition untriggerable by external input.
+[verifier] PASS: integer-overflow in libavformat/mov.c:268 (Lv2)
+[verifier] PASS: integer_overflow in libavcodec/vc1.c:100 (Lv2)
+[verifier] FAIL: out_of_bounds_read in libavcodec/vc1.c:149 — The provided code context does not contain the referenced array access planep[x-stride]; line 149 in the snippet is a conditional check. Additionally, stride is derived from width and is always positive in this decoder, making the exploit hypothesis invalid.
+[verifier] FAIL: buffer_overflow in libavformat/mov.c:187 — The claim misattributes the vulnerability to line 187, which contains mov_read_covr, not mov_read_mac_string. Furthermore, the provided context shows no derivation of dstlen from untrusted metadata; it is a function parameter that in FFmpeg is consistently passed as a fixed buffer size. The internal bounds check (p >= end) correctly restricts writes to dstlen, making an overflow impossible unless dstlen itself is untrusted, which is not evidenced in the visible code.
+[verifier] PASS: out-of-bounds-read-write in libavcodec/vc1.c:80 (Lv2)
+[verifier] Results: 3 verified, 3 failed
+[reflexion] 0 failed + 2 no-findings/low-confidence eligible for retry — routing to failure_analyst
+[analyst] Generating verbal gradients for 3 failed findings + 2 no-findings/low-confidence files
+[analyst] Gradient for libavformat/mov.c attempt 3: The original hypothesis failed by assuming `dstlen=0` is externally reachable an...
+[analyst] Gradient for libavcodec/vc1.c attempt 3: The hypothesis incorrectly assumed `stride` could be zero or negative, overlooki...
+[analyst] Gradient for libavformat/mov.c attempt 3: The hypothesis failed because `dstlen` is a fixed function parameter rather than...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 2: Prioritize re-examining context index calculations within `get_cabac` and `decod...
+[analyst] Gradient for libavcodec/h264_cabac.c (no_findings) attempt 2: Re-examine all context-index calculations and bitstream pointer arithmetic in th...
+[analyst] Scheduling retry for 3 targets
+[retryFanOut] Retrying 3 hunters with verbal gradients
+[hunter:memory_safety] libavcodec/h264_cabac.c → 1 findings (confidence=0.75)
+[hunter:memory_safety] libavformat/mov.c → 2 findings (confidence=0.85)
+[hunter:memory_safety] libavcodec/vc1.c → 1 findings (confidence=0.85)
+[verifier] Verifying 7 pending findings (8 already verified) from 11 files
+[verifier] FAIL: out-of-bounds-write in libavformat/mov.c:211 — Line number mismatch and missing context for `dstlen`/`end` initialization; the claim that `end` becomes `dst-1` when `dstlen=0` is unverifiable from the provided snippet.
+[verifier] FAIL: out_of_bounds_read in libavcodec/vc1.c:149 — The provided code context does not contain the claimed vulnerable line or any access to planep[x-stride]. The code at line 149 in the snippet is completely different from the description, indicating a mismatch between the vulnerability report and the provided context.
+[verifier] FAIL: buffer_overflow in libavformat/mov.c:187 — dstlen is the destination buffer size passed by the caller (typically sizeof(dst)), not derived from untrusted file metadata. The function correctly bounds checks writes against end, and the claim incorrectly assumes dstlen originates from the input stream.
+[verifier] PASS: missing bounds check in libavcodec/h264_cabac.c:28 (Lv1)
+[verifier] PASS: heap_buffer_overflow in libavformat/mov.c:163 (Lv2)
+[verifier] PASS: integer_truncation_overflow in libavformat/mov.c:198 (Lv2)
+[verifier] PASS: Out-of-bounds Write in libavcodec/vc1.c:108 (Lv2)
+[verifier] Results: 4 verified, 3 failed
+[reflexion] MAX_REFLEXION (2) reached for all targets — proceeding to exploiter
+[exploiter] Processing 12 verified findings
+[exploiter] GENERATED: Integer Overflow in libavcodec/hevcdec.c:61
+[exploiter] SKIP: integer_overflow in libavcodec/h264_slice.c:142 (evidenceLevel=1 < 2)
+[exploiter] SKIP: integer_overflow in libavcodec/h264_slice.c:118 (evidenceLevel=1 < 2)
+[exploiter] GENERATED: buffer_overflow in libavcodec/vc1.c:55
+[exploiter] GENERATED: out_of_bounds_write in libavcodec/vc1.c:112
+[exploiter] GENERATED: integer-overflow in libavformat/mov.c:268
+[exploiter] GENERATED: integer_overflow in libavcodec/vc1.c:100
+[exploiter] GENERATED: out-of-bounds-read-write in libavcodec/vc1.c:80
+[exploiter] SKIP: missing bounds check in libavcodec/h264_cabac.c:28 (evidenceLevel=1 < 2)
+[exploiter] GENERATED: heap_buffer_overflow in libavformat/mov.c:163
+[exploiter] GENERATED: integer_truncation_overflow in libavformat/mov.c:198
+[exploiter] GENERATED: Out-of-bounds Write in libavcodec/vc1.c:108
+[exploiter] Generated 9/12 PoCs
+[reporter] Generating report for 12 findings (10 reflexion iterations)
+[reporter] Report generated (14876 chars markdown, 12 findings, 9 PoCs)
+[memory_safety/run 5] done in 2314.7s | detected=true | evidenceLv=2 | reflexion=10
+
+# SourceHunt — memory_safety / FFmpeg Blind Test Summary
+
+- Target: `libavformat/mov.c`
+- Commit: `ced0dc807eb67516b341d68f04ce5a87b02820de`
+- Specialist: `memory_safety`
+- Verdict: **PASS** (5/5 runs detected)
+
+## Per-Run Results
+
+| Run | Detected | MaxEvLv | Reflexion | Duration(s) | Error |
+|-----|----------|---------|-----------|-------------|-------|
+| 1 | ✅ | Lv.2 | 10 | 1477.3 | - |
+| 2 | ✅ | Lv.2 | 8 | 1442.5 | - |
+| 3 | ✅ | Lv.2 | 8 | 1463.4 | - |
+| 4 | ✅ | Lv.2 | 1 | 1276.9 | - |
+| 5 | ✅ | Lv.2 | 10 | 2314.7 | - |
+
+## Aggregate
+
+| Metric | Value |
+|--------|-------|
+| Detection rate | 5/5 |
+| Max evidence level reached | Lv.2 |
+| Avg reflexion iterations | 7.4 |
+| Avg duration | 1594.9s |
+
+Results saved to: /home/akudo/Desktop/Work/SceneGraphManager/works/sourcehunt/results/memory_safety
+[cve] キャッシュから読み込み (71 件)
+[combined] 46 unique findings → /home/akudo/Desktop/Work/SceneGraphManager/works/sourcehunt/results/memory_safety/combined_report.md

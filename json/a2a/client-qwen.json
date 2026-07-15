@@ -1,0 +1,306 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Multi-agent research orchestrator with A2A integration (Qwen-compatible)",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 100,
+    "eventEmitter": {
+      "defaultMaxListeners": 20
+    }
+  },
+  "stateAnnotation": {
+    "name": "AgentState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "currentPhase": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": "task_creation"
+    },
+    "taskServerResponse": {
+      "type": "any",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "researchServerResponse": {
+      "type": "any",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "evaluationServerResponse": {
+      "type": "any",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "userDecision": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "userFeedback": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "reportData": {
+      "type": "any",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "reportText": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "availableAgents": {
+      "type": "{ name: string; url: string; skills: any[]; description: string }[]",
+      "reducer": "(x, y) => y.length > 0 ? y : x",
+      "default": []
+    },
+    "agentRegistry": {
+      "type": "Record<string, string>",
+      "reducer": "(x, y) => ({ ...x, ...y })",
+      "default": {}
+    }
+  },
+  "models": [
+    {
+      "id": "mainModel",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindA2AServers": true,
+      "systemPrompt": "You are an orchestrator for a multi-agent research system with three specialized agents: TaskCreationAgent, ResearchExecutionAgent, and QualityEvaluationAgent."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "discovery_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          }
+        ],
+        "function": "console.log('[discovery] Fetching agent cards from A2A servers...');\nconst servers = { task_agent: 'http://localhost:3001', research_agent: 'http://localhost:3002', quality_agent: 'http://localhost:3003' };\n\nconst results = await Promise.allSettled(\n  Object.entries(servers).map(async ([key, baseUrl]) => {\n    const controller = new AbortController();\n    const timer = setTimeout(() => controller.abort(), 3000);\n    try {\n      const res = await fetch(`${baseUrl}/.well-known/agent.json`, { signal: controller.signal });\n      clearTimeout(timer);\n      if (!res.ok) return null;\n      const card = await res.json();\n      return {\n        name: card.name || key,\n        url: baseUrl,\n        skills: card.skills || [],\n        description: card.description || ''\n      };\n    } catch {\n      clearTimeout(timer);\n      return null;\n    }\n  })\n);\n\nconst availableAgents = results\n  .filter(r => r.status === 'fulfilled' && r.value !== null)\n  .map(r => r.value);\n\nconst agentRegistry = availableAgents.reduce((acc, a) => {\n  acc[a.name] = a.url;\n  return acc;\n}, {});\n\nconsole.log(`[discovery] Found ${availableAgents.length} agents: ${availableAgents.map(a => a.name).join(', ')}`);\nreturn { availableAgents, agentRegistry };"
+      }
+    },
+    {
+      "id": "orchestrator",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "mainModel"
+          }
+        ],
+        "function": "try {\n  console.log('\ud83c\udfaf [orchestrator] Phase:', state.currentPhase, 'UserDecision:', state.userDecision);\n  \n  const currentPhase = state.currentPhase || 'task_creation';\n  \n  // Agent Card \u767a\u898b\u60c5\u5831\u304b\u3089\u30a8\u30fc\u30b8\u30a7\u30f3\u30c8\u30ea\u30b9\u30c8\u3092\u69cb\u7bc9\n  const agentsInfo = (state.availableAgents || []).length > 0\n    ? state.availableAgents.map(a =>\n        `- ${a.name} (${a.url})\\n  description: ${a.description}\\n  skills: ${JSON.stringify(a.skills)}`\n      ).join('\\n')\n    : '(no agents discovered - will use fallback routing)';\n  \n  console.log('[orchestrator] Available agents:\\n', agentsInfo);\n  \n  // Try to retrieve user message\n  let userMessage = null;\n  const userMsg1 = state.messages.find(msg => msg.role === 'user');\n  if (userMsg1) {\n    userMessage = userMsg1.content || userMsg1.text || null;\n  }\n  if (!userMessage && state.messages.length > 0) {\n    const firstMsg = state.messages[0];\n    userMessage = firstMsg.content || firstMsg.text || null;\n  }\n  \n  if (!userMessage) {\n    console.error('\u274c [orchestrator] Could not find user message');\n    throw new Error('User message not found. Please check state.messages.');\n  }\n  \n  // Skill matching: find best agent for the task\n  function findBestAgent(task, phase) {\n    const agents = state.availableAgents || [];\n    if (agents.length === 0) return null;\n    \n    // Score each agent by skill match with task and phase\n    const scored = agents.map(agent => {\n      let score = 0;\n      const taskLower = task.toLowerCase();\n      const phaseLower = phase.toLowerCase();\n      \n      // Check if agent skills match the task keywords\n      for (const skill of (agent.skills || [])) {\n        const skillStr = typeof skill === 'string' ? skill : JSON.stringify(skill).toLowerCase();\n        if (skillStr.includes(phaseLower) || skillStr.includes(taskLower)) {\n          score += 2;\n        }\n        // Check for keyword overlap\n        const words = taskLower.split(/\\s+/);\n        for (const word of words) {\n          if (word.length > 3 && skillStr.includes(word)) {\n            score += 1;\n          }\n        }\n      }\n      \n      // Bonus for description match\n      const descLower = (agent.description || '').toLowerCase();\n      for (const word of taskLower.split(/\\s+/)) {\n        if (word.length > 3 && descLower.includes(word)) {\n          score += 1;\n        }\n      }\n      \n      return { agent, score };\n    });\n    \n    scored.sort((a, b) => b.score - a.score);\n    return scored[0].score > 0 ? scored[0].agent : agents[0];\n  }\n  \n  if (currentPhase === 'task_creation') {\n    console.log('\ud83d\udccb [orchestrator] Invoking TaskCreationAgent');\n    \n    let prompt = userMessage;\n    if (state.userFeedback) {\n      prompt = `Feedback on previous task list: ${state.userFeedback}\\n\\nOriginal request: ${userMessage}`;\n      console.log('\ud83d\udd04 [orchestrator] Retry with feedback');\n    }\n    \n    // Skill matching for task creation\n    const bestAgent = findBestAgent(prompt, 'task');\n    const agentName = bestAgent ? bestAgent.name : 'TaskCreationAgent';\n    console.log('[orchestrator] Selected agent for task_creation:', agentName);\n    \n    const systemPrompt = bestAgent\n      ? `You are communicating with the ${bestAgent.name} agent (${bestAgent.url}).\\n${bestAgent.description ? 'Agent description: ' + bestAgent.description : ''}\\n${bestAgent.skills && bestAgent.skills.length > 0 ? 'Agent skills: ' + JSON.stringify(bestAgent.skills) : ''}\\n\\nYou MUST use ONLY the send_message_to_${bestAgent.name.replace(/\\s+/g, '_').toLowerCase()}_agent tool. Do not use any other tools.`\n      : 'You MUST use ONLY the send_message_to_task_agent tool. Do not use any other tools.';\n    \n    const response = await model.invoke([\n      { role: 'system', content: systemPrompt },\n      { role: 'user', content: prompt }\n    ]);\n    return { messages: [response], currentPhase: 'task_creation', userFeedback: null };\n  }\n  \n  if (currentPhase === 'research_execution') {\n    console.log('\ud83d\udd0d [orchestrator] Invoking ResearchExecutionAgent');\n    const taskListStr = JSON.stringify(state.taskServerResponse, null, 2);\n    \n    let prompt = `Please execute research based on the following task list:\\n${taskListStr}`;\n    if (state.userFeedback) {\n      prompt = `Feedback on previous research: ${state.userFeedback}\\n\\n${prompt}`;\n      console.log('\ud83d\udd04 [orchestrator] Retry research with feedback');\n    }\n    \n    // Skill matching for research\n    const bestAgent = findBestAgent(prompt, 'research');\n    const agentName = bestAgent ? bestAgent.name : 'ResearchExecutionAgent';\n    console.log('[orchestrator] Selected agent for research_execution:', agentName);\n    \n    const systemPrompt = bestAgent\n      ? `You are communicating with the ${bestAgent.name} agent (${bestAgent.url}).\\n${bestAgent.description ? 'Agent description: ' + bestAgent.description : ''}\\n${bestAgent.skills && bestAgent.skills.length > 0 ? 'Agent skills: ' + JSON.stringify(bestAgent.skills) : ''}\\n\\nYou MUST use ONLY the send_message_to_${bestAgent.name.replace(/\\s+/g, '_').toLowerCase()}_agent tool. Do not use any other tools.`\n      : 'You MUST use ONLY the send_message_to_research_agent tool. Do not use any other tools.';\n    \n    const response = await model.invoke([\n      { role: 'system', content: systemPrompt },\n      { role: 'user', content: prompt }\n    ]);\n    return { messages: [response], currentPhase: 'research_execution', userFeedback: null };\n  }\n  \n  if (currentPhase === 'quality_evaluation') {\n    console.log('\u2705 [orchestrator] Invoking QualityEvaluationAgent');\n\n    // Collect and aggregate all research results\n    const allResearchResults = state.messages\n      .filter(msg => (msg._getType && msg._getType() === 'tool') || msg.role === 'tool')\n      .filter(msg => msg.name === 'send_message_to_research_agent')\n      .map(msg => {\n        try {\n          const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;\n          return parsed;\n        } catch (e) {\n          console.error('\u274c [orchestrator] Failed to parse research result:', e);\n          return null;\n        }\n      })\n      .filter(Boolean);\n\n    console.log(`\ud83d\udcca [orchestrator] Collected ${allResearchResults.length} research results`);\n\n    // Get the original user request\n    const originalRequest = state.messages.find(msg => msg.role === 'user')?.content || '';\n\n    // Pre-extract research results (resolve nested JSON)\n    const extractedResults = [];\n\n    for (const item of allResearchResults) {\n      try {\n        if (item.response && item.response.content) {\n          const contentData = JSON.parse(item.response.content);\n          if (contentData.result && contentData.result.messages) {\n            const assistantMsg = contentData.result.messages.find(m => m.role === 'assistant');\n            if (assistantMsg && assistantMsg.content) {\n              const researchData = JSON.parse(assistantMsg.content);\n              if (researchData.result && researchData.result.researchResults) {\n                extractedResults.push(...researchData.result.researchResults);\n              }\n            }\n          }\n        }\n      } catch (e) {\n        console.error('\u274c [orchestrator] Failed to extract research result:', e);\n      }\n    }\n\n    console.log(`\ud83d\udcca [orchestrator] Extracted ${extractedResults.length} research findings`);\n\n    // Build data for quality evaluation\n    const evaluationData = {\n      originalRequest,\n      researchResults: extractedResults,\n      totalResults: extractedResults.length\n    };\n\n    const evaluationStr = JSON.stringify(evaluationData, null, 2);\n\n    let prompt = `Please evaluate the quality of the following research results and create an executive summary:\\n${evaluationStr}`;\n    if (state.userFeedback) {\n      prompt = `Feedback on previous evaluation: ${state.userFeedback}\\n\\n${prompt}`;\n      console.log('\ud83d\udd04 [orchestrator] Retry evaluation with feedback');\n    }\n    \n    // Skill matching for quality evaluation\n    const bestAgent = findBestAgent(prompt, 'quality');\n    const agentName = bestAgent ? bestAgent.name : 'QualityEvaluationAgent';\n    console.log('[orchestrator] Selected agent for quality_evaluation:', agentName);\n    \n    const systemPrompt = bestAgent\n      ? `You are communicating with the ${bestAgent.name} agent (${bestAgent.url}).\\n${bestAgent.description ? 'Agent description: ' + bestAgent.description : ''}\\n${bestAgent.skills && bestAgent.skills.length > 0 ? 'Agent skills: ' + JSON.stringify(bestAgent.skills) : ''}\\n\\nYou MUST use ONLY the send_message_to_${bestAgent.name.replace(/\\s+/g, '_').toLowerCase()}_agent tool. Do not use any other tools.`\n      : 'You MUST use ONLY the send_message_to_quality_agent tool. Do not use any other tools.';\n\n    const response = await model.invoke([\n      { role: 'system', content: systemPrompt },\n      { role: 'user', content: prompt }\n    ]);\n    return { messages: [response], currentPhase: 'quality_evaluation', userFeedback: null };\n  }\n  \n  console.log('\ud83c\udfaf [orchestrator] No action needed, phase:', currentPhase);\n  return { messages: [], currentPhase };\n}\ncatch (error) {\n  console.error('\u274c [orchestrator] Error:', error);\n  return { \n    messages: [{ role: 'assistant', content: `Error: ${error.message}` }],\n    currentPhase: 'error'\n  };\n}"
+      }
+    },
+    {
+      "id": "tools",
+      "type": "ToolNode",
+      "useDiscoveredAgents": true,
+      "a2aOptions": {
+        "propagateThreadId": false
+      }
+    },
+    {
+      "id": "approval_gate_task",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          }
+        ],
+        "function": "console.log('\ud83d\udeaa [approval_gate_task] Processing task approval');\n\nconst lastToolResult = state.messages\n  .filter(msg => (msg._getType && msg._getType() === 'tool') || msg.role === 'tool')\n  .filter(msg => msg.name === 'send_message_to_task_agent')\n  .pop();\n\nif (!lastToolResult) {\n  console.log('\u26a0\ufe0f  [approval_gate_task] No task agent response found');\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nconsole.log('\ud83d\udccb [approval_gate_task] Task agent response received');\n\nlet parsedContent;\ntry {\n  parsedContent = typeof lastToolResult.content === 'string' \n    ? JSON.parse(lastToolResult.content) \n    : lastToolResult.content;\n} catch (e) {\n  console.error('\u274c [approval_gate_task] Parse error:', e);\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nlet taskList = [];\nif (parsedContent.response && parsedContent.response.content) {\n  try {\n    const responseContent = typeof parsedContent.response.content === 'string'\n      ? JSON.parse(parsedContent.response.content)\n      : parsedContent.response.content;\n    \n    if (responseContent.result && responseContent.result.messages) {\n      const assistantMsg = responseContent.result.messages.find(m => m.role === 'assistant');\n      if (assistantMsg && assistantMsg.content) {\n        const innerContent = typeof assistantMsg.content === 'string'\n          ? JSON.parse(assistantMsg.content)\n          : assistantMsg.content;\n        taskList = innerContent.result?.taskList || innerContent.taskList || [];\n      }\n    }\n  } catch (e) {\n    console.error('\u274c [approval_gate_task] Could not parse content:', e);\n  }\n}\n\nif (taskList.length === 0) {\n  console.log('\u26a0\ufe0f  [approval_gate_task] Empty task list');\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nconst taskSummary = taskList.map((t, i) => \n  `${i + 1}. ${t.objective} (${t.estimated_effort || 'N/A'})`\n).join('\\n');\n\nconst totalHours = taskList.reduce((sum, t) => {\n  const hours = parseInt(t.estimated_effort) || 0;\n  return sum + hours;\n}, 0);\n\nconst message = `\ud83d\udccb Task List Creation Complete\\n\\n` +\n                `Total Tasks: ${taskList.length}\\n` +\n                `Estimated Time: ${totalHours} hours\\n\\n` +\n                `Tasks:\\n${taskSummary}\\n\\n` +\n                `Proceed with this task list for research?\\n` +\n                `- Enter \"approve\" to start research\\n` +\n                `- Any other input will regenerate the task list`;\n\nconsole.log('\u23f8\ufe0f  [approval_gate_task] Requesting approval');\nconst userResponse = interrupt(message);\nconsole.log('\u2705 [approval_gate_task] User response:', userResponse);\n\nif (!userResponse) {\n  return {\n    messages: [],\n    userDecision: 'pending',\n    currentPhase: state.currentPhase,\n    taskServerResponse: parsedContent\n  };\n}\n\nconst response = String(userResponse).toLowerCase().trim();\nif (response === 'approve') {\n  console.log('\u2705 [approval_gate_task] Approved - moving to research');\n  return {\n    messages: [],\n    userDecision: 'approve',\n    currentPhase: 'research_execution',\n    taskServerResponse: parsedContent,\n    userFeedback: null\n  };\n} else {\n  console.log('\u274c [approval_gate_task] Rejected - retrying task creation');\n  return {\n    messages: [],\n    userDecision: 'reject',\n    currentPhase: 'task_creation',\n    taskServerResponse: parsedContent,\n    userFeedback: userResponse\n  };\n}"
+      }
+    },
+    {
+      "id": "approval_gate_research",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          }
+        ],
+        "function": "console.log('\ud83d\udeaa [approval_gate_research] Processing research approval');\n\nconst lastToolResult = state.messages\n  .filter(msg => (msg._getType && msg._getType() === 'tool') || msg.role === 'tool')\n  .filter(msg => msg.name === 'send_message_to_research_agent')\n  .pop();\n\nif (!lastToolResult) {\n  console.log('\u26a0\ufe0f  [approval_gate_research] No research agent response found');\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nconsole.log('\ud83d\udd0d [approval_gate_research] Research agent response received');\n\nlet parsedContent;\ntry {\n  parsedContent = typeof lastToolResult.content === 'string'\n    ? JSON.parse(lastToolResult.content)\n    : lastToolResult.content;\n} catch (e) {\n  console.error('\u274c [approval_gate_research] Parse error:', e);\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nlet researchResults = [];\nlet summary = '';\nif (parsedContent.response && parsedContent.response.content) {\n  try {\n    const responseContent = typeof parsedContent.response.content === 'string'\n      ? JSON.parse(parsedContent.response.content)\n      : parsedContent.response.content;\n    \n    if (responseContent.result && responseContent.result.messages) {\n      const assistantMsg = responseContent.result.messages.find(m => m.role === 'assistant');\n      if (assistantMsg && assistantMsg.content) {\n        const innerContent = typeof assistantMsg.content === 'string'\n          ? JSON.parse(assistantMsg.content)\n          : assistantMsg.content;\n        researchResults = innerContent.result?.researchResults || innerContent.researchResults || [];\n        summary = innerContent.result?.summary || innerContent.summary || '';\n      }\n    }\n  } catch (e) {\n    console.error('\u274c [approval_gate_research] Could not parse content:', e);\n  }\n}\n\nif (researchResults.length === 0) {\n  console.log('\u26a0\ufe0f  [approval_gate_research] Empty research results');\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nconst resultSummary = researchResults.map((r, i) =>\n  `${i + 1}. ${r.objective}\\n   ${r.findings.substring(0, 100)}...`\n).join('\\n\\n');\n\nconst message = `\ud83d\udd0d Research Execution Complete\\n\\n` +\n                `Completed Tasks: ${researchResults.length}\\n\\n` +\n                `Research Results:\\n${resultSummary}\\n\\n` +\n                `Summary: ${summary}\\n\\n` +\n                `Proceed with quality evaluation for these research results?\\n` +\n                `- Enter \"approve\" to start quality evaluation\\n` +\n                `- Any other input will re-execute the research`;\n\nconsole.log('\u23f8\ufe0f  [approval_gate_research] Requesting approval');\nconst userResponse = interrupt(message);\nconsole.log('\u2705 [approval_gate_research] User response:', userResponse);\n\nif (!userResponse) {\n  return {\n    messages: [],\n    userDecision: 'pending',\n    currentPhase: state.currentPhase,\n    researchServerResponse: parsedContent\n  };\n}\n\nconst response = String(userResponse).toLowerCase().trim();\nif (response === 'approve') {\n  console.log('\u2705 [approval_gate_research] Approved - moving to evaluation');\n  return {\n    messages: [],\n    userDecision: 'approve',\n    currentPhase: 'quality_evaluation',\n    researchServerResponse: parsedContent,\n    userFeedback: null\n  };\n} else {\n  console.log('\u274c [approval_gate_research] Rejected - retrying research');\n  return {\n    messages: [],\n    userDecision: 'reject',\n    currentPhase: 'research_execution',\n    researchServerResponse: parsedContent,\n    userFeedback: userResponse\n  };\n}"
+      }
+    },
+    {
+      "id": "report_generator",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          }
+        ],
+        "function": "console.log('\ud83d\udcca [report_generator] Report generation started');\n\n// Collect all research results\nconst allResearchResults = state.messages\n  .filter(msg => (msg._getType && msg._getType() === 'tool') || msg.role === 'tool')\n  .filter(msg => msg.name === 'send_message_to_research_agent')\n  .map(msg => {\n    try {\n      const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;\n      return parsed;\n    } catch (e) {\n      console.error('\u274c [report_generator] Failed to parse research result:', e);\n      return null;\n    }\n  })\n  .filter(Boolean);\n\nconsole.log(`\ud83d\udcca [report_generator] Collected ${allResearchResults.length} research results`);\n\n// Get the original user request\nconst originalRequest = state.messages.find(msg => msg.role === 'user')?.content || '';\n\n// Extract research results (resolve nested JSON)\nconst extractedResults = [];\n\nfor (const item of allResearchResults) {\n  try {\n    if (item.response && item.response.content) {\n      const contentData = JSON.parse(item.response.content);\n      if (contentData.result && contentData.result.messages) {\n        const assistantMsg = contentData.result.messages.find(m => m.role === 'assistant');\n        if (assistantMsg && assistantMsg.content) {\n          const researchData = JSON.parse(assistantMsg.content);\n          if (researchData.result && researchData.result.researchResults) {\n            extractedResults.push(...researchData.result.researchResults);\n          }\n        }\n      }\n    }\n  } catch (e) {\n    console.error('\u274c [report_generator] Failed to extract research result:', e);\n  }\n}\n\nconsole.log(`\ud83d\udcca [report_generator] Extracted ${extractedResults.length} research findings`);\n\n// Calculate statistics\nconst totalResults = extractedResults.length;\nconst totalCharacters = extractedResults.reduce((sum, r) => sum + (r.findings?.length || 0), 0);\n\n// Generate integrated report\nlet reportText = '# Research Report\\n\\n';\nreportText += '## Overview\\n\\n';\nreportText += `**Original User Request**: ${originalRequest}\\n\\n`;\nreportText += `**Completed Tasks**: ${totalResults}\\n`;\nreportText += `**Total Characters**: ${totalCharacters.toLocaleString()}characters\\n\\n`;\n\nreportText += '## Research Results Summary\\n\\n';\nextractedResults.forEach((r, i) => {\n  reportText += `${i + 1}. **${r.objective}**\\n`;\n  const summary = r.findings.substring(0, 150);\n  reportText += `   ${summary}${r.findings.length > 150 ? '...' : ''}\\n\\n`;\n});\n\nreportText += '## Detailed Research Results\\n\\n';\nextractedResults.forEach((r, i) => {\n  reportText += `### Task${i + 1}: ${r.objective}\\n\\n`;\n  reportText += `${r.findings}\\n\\n`;\n  if (r.sources && r.sources.length > 0) {\n    reportText += `**Sources**:\\n`;\n    r.sources.forEach(src => {\n      reportText += `- ${src}\\n`;\n    });\n    reportText += '\\n';\n  }\n});\n\n// Create flattened data structure\nconst reportData = {\n  originalRequest,\n  researchResults: extractedResults,\n  totalResults,\n  totalCharacters\n};\n\nconsole.log('\u2705 [report_generator] Report generation complete');\nconsole.log(`  - Tasks: ${totalResults}`);\nconsole.log(`  - Total characters: ${totalCharacters}`);\nconsole.log(`  - Report Length: ${reportText.length} chars`);\n\nreturn {\n  messages: [],\n  reportData,\n  reportText,\n  currentPhase: state.currentPhase\n};"
+      }
+    },
+    {
+      "id": "approval_gate_report",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          }
+        ],
+        "function": "console.log('\ud83d\udeaa [approval_gate_report] Processing report approval');\n\nif (!state.reportText) {\n  console.log('\u26a0\ufe0f  [approval_gate_report] No report text found');\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nconsole.log('\ud83d\udcca [approval_gate_report] Report generated');\n\nconst message = `\ud83d\udcca Research Report Generation Complete\\n\\n` +\n                `Completed Tasks: ${state.reportData?.totalResults || 0}\\n` +\n                `Total characters: ${(state.reportData?.totalCharacters || 0).toLocaleString()}\\n\\n` +\n                `${state.reportText}\\n\\n` +\n                `Proceed with quality evaluation for this report?\\n` +\n                `- Enter \"approve\" to start quality evaluation\\n` +\n                `- Any other input will re-execute the research`;\n\nconsole.log('\u23f8\ufe0f  [approval_gate_report] Requesting approval');\nconst userResponse = interrupt(message);\nconsole.log('\u2705 [approval_gate_report] User response:', userResponse);\n\nif (!userResponse) {\n  return {\n    messages: [],\n    userDecision: 'pending',\n    currentPhase: state.currentPhase\n  };\n}\n\nconst response = String(userResponse).toLowerCase().trim();\nif (response === 'approve') {\n  console.log('\u2705 [approval_gate_report] Approved - moving to quality evaluation');\n  return {\n    messages: [],\n    userDecision: 'approve',\n    currentPhase: 'quality_evaluation',\n    userFeedback: null\n  };\n} else {\n  console.log('\u274c [approval_gate_report] Rejected - retrying research');\n  return {\n    messages: [],\n    userDecision: 'reject',\n    currentPhase: 'research_execution',\n    userFeedback: userResponse\n  };\n}"
+      }
+    },
+    {
+      "id": "approval_gate_evaluation",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          }
+        ],
+        "function": "console.log('\ud83d\udeaa [approval_gate_evaluation] Processing evaluation approval');\n\nconst lastToolResult = state.messages\n  .filter(msg => (msg._getType && msg._getType() === 'tool') || msg.role === 'tool')\n  .filter(msg => msg.name === 'send_message_to_quality_agent')\n  .pop();\n\nif (!lastToolResult) {\n  console.log('\u26a0\ufe0f  [approval_gate_evaluation] No quality agent response found');\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nconsole.log('\u2705 [approval_gate_evaluation] Quality agent response received');\n\nlet parsedContent;\ntry {\n  parsedContent = typeof lastToolResult.content === 'string'\n    ? JSON.parse(lastToolResult.content)\n    : lastToolResult.content;\n} catch (e) {\n  console.error('\u274c [approval_gate_evaluation] Parse error:', e);\n  return { messages: [], userDecision: null, currentPhase: state.currentPhase };\n}\n\nlet qualityScore = 0;\nlet executiveSummary = '';\nlet recommendations = [];\nlet missingTopics = [];\n\nif (parsedContent.response && parsedContent.response.content) {\n  try {\n    const responseContent = typeof parsedContent.response.content === 'string'\n      ? JSON.parse(parsedContent.response.content)\n      : parsedContent.response.content;\n    \n    if (responseContent.result && responseContent.result.messages) {\n      const assistantMsg = responseContent.result.messages.find(m => m.role === 'assistant');\n      if (assistantMsg && assistantMsg.content) {\n        const innerContent = typeof assistantMsg.content === 'string'\n          ? JSON.parse(assistantMsg.content)\n          : assistantMsg.content;\n        const result = innerContent.result || innerContent;\n        qualityScore = result.qualityScore || 0;\n        executiveSummary = result.executiveSummary || '';\n        recommendations = result.recommendations || [];\n        missingTopics = result.missingTopics || [];\n      }\n    }\n  } catch (e) {\n    console.error('\u274c [approval_gate_evaluation] Could not parse content:', e);\n  }\n}\n\nconst recList = recommendations.length > 0\n  ? recommendations.map((r, i) => `  ${i + 1}. ${r}`).join('\\n')\n  : '  None';\n\nconst missingList = missingTopics.length > 0\n  ? missingTopics.join(', ')\n  : 'None';\n\nconst message = `\u2705 Quality Evaluation Complete\\n\\n` +\n                `Quality Score: ${qualityScore}/100\\n\\n` +\n                `Executive Summary:\\n${executiveSummary}\\n\\n` +\n                `Recommendations:\\n${recList}\\n\\n` +\n                `Missing Topics: ${missingList}\\n\\n` +\n                `Complete with these evaluation results?\\n` +\n                `- Enter \"approve\" to complete the workflow\\n` +\n                `- Any other input will re-execute the evaluation`;\n\nconsole.log('\u23f8\ufe0f  [approval_gate_evaluation] Requesting approval');\nconst userResponse = interrupt(message);\nconsole.log('\u2705 [approval_gate_evaluation] User response:', userResponse);\n\nif (!userResponse) {\n  return {\n    messages: [],\n    userDecision: 'pending',\n    currentPhase: state.currentPhase,\n    evaluationServerResponse: parsedContent\n  };\n}\n\nconst response = String(userResponse).toLowerCase().trim();\nif (response === 'approve') {\n  console.log('\u2705 [approval_gate_evaluation] Approved - workflow completed');\n  return {\n    messages: [{ role: 'assistant', content: '\u2705 Workflow completed successfully.' }],\n    userDecision: 'approve',\n    currentPhase: 'completed',\n    evaluationServerResponse: parsedContent,\n    userFeedback: null\n  };\n} else {\n  console.log('\u274c [approval_gate_evaluation] Rejected - retrying evaluation');\n  return {\n    messages: [],\n    userDecision: 'reject',\n    currentPhase: 'quality_evaluation',\n    evaluationServerResponse: parsedContent,\n    userFeedback: userResponse\n  };\n}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "discovery_node"
+    },
+    {
+      "from": "discovery_node",
+      "to": "orchestrator"
+    },
+    {
+      "from": "orchestrator",
+      "type": "conditional",
+      "condition": {
+        "name": "routeAfterOrchestrator",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof AgentState.State"
+            }
+          ],
+          "function": "const lastMessage = state.messages[state.messages.length - 1];\nif (lastMessage && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {\n  return 'tools';\n}\nif (state.currentPhase === 'error' || state.currentPhase === 'completed') {\n  return '__end__';\n}\nreturn '__end__';"
+        }
+      }
+    },
+    {
+      "from": "tools",
+      "type": "conditional",
+      "condition": {
+        "name": "routeAfterTools",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof AgentState.State"
+            }
+          ],
+          "function": "const lastToolResult = state.messages\n  .filter(msg => (msg._getType && msg._getType() === 'tool') || msg.role === 'tool')\n  .pop();\n\nif (!lastToolResult) {\n  return '__end__';\n}\n\nif (lastToolResult.name === 'send_message_to_task_agent') {\n  return 'approval_gate_task';\n}\nif (lastToolResult.name === 'send_message_to_research_agent') {\n  return 'approval_gate_research';\n}\nif (lastToolResult.name === 'send_message_to_quality_agent') {\n  return 'approval_gate_evaluation';\n}\n\nreturn '__end__';"
+        }
+      }
+    },
+    {
+      "from": "approval_gate_task",
+      "to": "orchestrator"
+    },
+    {
+      "from": "approval_gate_research",
+      "type": "conditional",
+      "condition": {
+        "name": "routeAfterResearchApproval",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof AgentState.State"
+            }
+          ],
+          "function": "if (state.userDecision === 'approve') { return 'report_generator'; } return 'orchestrator';"
+        }
+      }
+    },
+    {
+      "from": "report_generator",
+      "to": "approval_gate_report"
+    },
+    {
+      "from": "approval_gate_report",
+      "to": "orchestrator"
+    },
+    {
+      "from": "approval_gate_evaluation",
+      "type": "conditional",
+      "condition": {
+        "name": "routeAfterEvaluationApproval",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof AgentState.State"
+            }
+          ],
+          "function": "if (state.currentPhase === 'completed') {\n  return '__end__';\n}\nreturn 'orchestrator';"
+        }
+      }
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "AgentState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  },
+  "a2aServers": {
+    "task_agent": {
+      "cardUrl": "http://localhost:3001/.well-known/agent.json",
+      "timeout": 30000
+    },
+    "research_agent": {
+      "cardUrl": "http://localhost:3002/.well-known/agent.json",
+      "timeout": 30000
+    },
+    "quality_agent": {
+      "cardUrl": "http://localhost:3003/.well-known/agent.json",
+      "timeout": 30000
+    }
+  }
+}

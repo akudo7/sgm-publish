@@ -1,0 +1,169 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "Buffer Overflow",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check on `s->sh.nb_refs[L0]` before array access in `pred_weight_table`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 148
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "null_pointer_dereference",
+          "level": "note",
+          "message": {
+            "text": "Unchecked pointer dereference of h->DPB[i].f in release_unused_pictures"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 105
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "note",
+          "message": {
+            "text": "The size calculation for the extradata pool in vp9_frame_alloc uses signed 32-bit integer arithmetic (sz = 64 * s->sb_cols * s->sb_rows). For sufficiently large frame dimensions, this multiplication can overflow, resulting in a negative or wrapped size passed to av_buffer_pool_init."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 118
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "use_after_free",
+          "level": "note",
+          "message": {
+            "text": "In vp9_frame_ref, if av_buffer_ref fails and execution jumps to the fail label, dst->segmentation_map and dst->mv are not cleared. These pointers retain references to src's buffers, which may be freed or modified independently."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 138
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "error",
+          "message": {
+            "text": "Signed integer overflow in allocation size calculations for buffer pools in init_table_pools"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 145
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "error",
+          "message": {
+            "text": "Signed integer overflow in allocation size calculation for top_borders in alloc_scratch_buffers"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 126
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "buffer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "The function computes a bounds pointer `end` using the caller-supplied `dstlen` without verifying it against the actual allocated size of `dst`. In the MOV demuxer, `dstlen` is typically passed as the untrusted atom length. If an attacker crafts a file with a large atom length, `dstlen` becomes excessively large, causing `end` to point far beyond the actual buffer. The subsequent loop writes to `dst` via `*p++` and `PUT_UTF8` until `p` reaches `end`, overflowing the buffer. The `PUT_UTF8` macro's internal checks rely on the already-miscalculated `end`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 192
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow_heap_buffer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Size calculations for buffer pools in init_table_pools use 32-bit signed int arithmetic on macroblock dimensions (h->mb_width, h->mb_height, h->mb_stride). Malformed streams or dynamic resolution changes can trigger signed integer overflow. The overflowed int is implicitly cast to size_t for av_buffer_pool_init. If the overflow wraps to a small positive value, an undersized pool is allocated. Subsequent motion vector and reference index writes during slice decoding overflow the heap."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 143
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

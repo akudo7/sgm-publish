@@ -1,0 +1,327 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Loop Engineering — Plan → Execute → Verify → Gap ループ",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 1000,
+    "store": {
+      "type": "InMemoryStore"
+    },
+    "contextCompression": {
+      "enabled": true,
+      "mode": "threshold",
+      "trigger": {
+        "messages": 30
+      },
+      "keep": {
+        "messages": 20
+      }
+    },
+    "bashCommandAllowedCommands": [
+      "git",
+      "yarn",
+      "npm",
+      "npx",
+      "node",
+      "tsx",
+      "docker",
+      "ls",
+      "cat",
+      "echo",
+      "pwd",
+      "mkdir",
+      "rm",
+      "mv",
+      "cp",
+      "chmod",
+      "find",
+      "head",
+      "tail",
+      "wc",
+      "grep",
+      "sed",
+      "awk",
+      "sort",
+      "uniq",
+      "tee"
+    ]
+  },
+  "stateAnnotation": {
+    "name": "LoopState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "plan": {
+      "type": "{ tasks: { id: number; description: string; files: string[]; bash_command?: string }[] }",
+      "reducer": "(x, y) => y ?? x",
+      "default": null
+    },
+    "gaps": {
+      "type": "{ task_id: number; description: string; status: string }[]",
+      "reducer": "(x, y) => y ?? x",
+      "default": null
+    },
+    "loop_count": {
+      "type": "number",
+      "reducer": "(x, y) => y",
+      "default": 0
+    },
+    "summary": {
+      "type": "string",
+      "reducer": "(_, y) => y",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "plan_model",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001",
+        "maxTokens": 16384,
+        "stream": false,
+        "thinking": false
+      },
+      "bindSystemSkills": false,
+      "systemPrompt": "あなたは実行計画を生成するエージェントです。\n\n【絶対守るルール】\n- 出力はJSONのみ。マークダウンコードブロック（```json, ```bash等）は一切不要\n- 前後のテキスト、挨拶、説明を付けない\n- 純粋なJSON文字列だけで開始と終了をする\n- 最初の文字は{、最後の文字は}\n\n【出力フォーマット例】\n{\"tasks\":[{\"id\":1,\"description\":\"README.mdを作成\",\"files\":[\"README.md\"]}]}\n\n【重要】\n- files=[] のタスクは bash_command を実行\n- 必ず { で始めて } で終わる"
+    },
+    {
+      "id": "execute_model",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001",
+        "maxTokens": 4096,
+        "thinking": false
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "/home/akudo/Desktop/Work/SceneGraphManager/works/loop-engineering/skills",
+        "backend": {
+          "virtualMode": false
+        }
+      },
+      "systemPrompt": "あなたは実行情報エージェントです。\n計画に従ってツール(write_file, bash_command等)を実行してください。\n全てのタスクが完了したら、ツール呼び出しを含まない応答を返してください。\nタスクが完了していない場合のみ、ツールを呼び出してください。\n完了したら絶対にツールを呼ばないでください。\n\n【実行ルール】\n- 計画の各タスクについて、files 配列に列挙されたファイルを write_file で作成する\n- files 配列が空のタスクは bash_command でコマンドを実行する\n- 計画のタスクを番号順に完了させる。タスクをスキップしない\n- 各タスクの files に記載されたパスと完全に一致するファイルを作成すること\n- 説明だけで終わらせないこと。必ずツールを呼び出して実行\n- node_modules/, .git/, coverage/, build/ にはアクセス・作成しない\n- glob_files の search_path はプロジェクトルートに限定（全体をスキャンしない）\n- 同じコマンド（ls, mkdir 等）を3回以上繰り返さない\n- 同一ファイルの read_file を同じセッション内で2回以上繰り返さない\n- bash_command でダミーコマンド（echo 'Build complete' 等）を使わない\n- パッケージのインストールには適切なパッケージマネージャを使用"
+    },
+    {
+      "id": "verify_model",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001",
+        "maxTokens": 4096,
+        "thinking": false
+      },
+      "bindSystemSkills": false,
+      "systemPrompt": "あなたは検証エージェントです。\n\n【役割】\n計画と実行結果のギャップを検出する。messagesのツール呼び出し履歴と自動判定結果を基に、計画タスクの完了状況を最終判定する。\n\n【絶対守るルール】\n- ツールを呼び出してはならない。ツール呼び出しを出力してはならない\n- 応答はJSONのみ。{ で始めて } で終わる\n- markdownコードブロック（```json等）は一切不要\n- 説明文、挨拶、推論プロセスを出力しない\n\n【指示】\n1. messagesのツール呼び出し履歴から、実際にファイルが作成されたか、コマンドが成功したかを確認する\n2. stateに注入された自動判定結果（ギャップ）を確認し、確定として扱う\n3. 自動ギャップがない場合でも、messagesのツール結果から未完成のタスクがないか独立に確認する\n4. テストコマンドが実行された場合、結果に \"passed\" または \"PASS\" が含まれているか確認する\n\n【出力形式】\nギャップがあれば JSON で返す:\n{\"gaps\":[{\"task_id\":1,\"description\":\"未完成のタスク説明\",\"status\":\"未完成\"}]}\n\n計画が完全に完了していれば gaps は空配列:\n{\"gaps\":[]}"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "plan_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof LoopState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "plan_model"
+          }
+        ],
+        "functionFile": "works/loop-engineering/json/handlers/plan.js"
+      },
+      "structuredOutput": {
+        "schema": {
+          "type": "object",
+          "properties": {
+            "tasks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "bash_command": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "description",
+                  "files"
+                ]
+              }
+            }
+          },
+          "required": [
+            "tasks"
+          ]
+        }
+      }
+    },
+    {
+      "id": "execute",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof LoopState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "execute_model"
+          }
+        ],
+        "functionFile": "works/loop-engineering/json/handlers/execute.js"
+      }
+    },
+    {
+      "id": "tools",
+      "type": "ToolNode",
+      "useSystemSkills": true
+    },
+    {
+      "id": "verify",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof LoopState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "verify_model"
+          }
+        ],
+        "functionFile": "works/loop-engineering/json/handlers/verify.js"
+      },
+      "structuredOutput": {
+        "schema": {
+          "type": "object",
+          "properties": {
+            "gaps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "task_id": {
+                    "type": "integer"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "task_id",
+                  "description",
+                  "status"
+                ]
+              }
+            }
+          },
+          "required": [
+            "gaps"
+          ]
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "plan_node"
+    },
+    {
+      "from": "plan_node",
+      "to": "execute"
+    },
+    {
+      "from": "execute",
+      "type": "conditional",
+      "condition": {
+        "name": "routeExecute",
+        "possibleTargets": [
+          "tools",
+          "verify"
+        ],
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof LoopState.State"
+            }
+          ],
+          "functionFile": "works/loop-engineering/json/handlers/routeExecute.js"
+        }
+      }
+    },
+    {
+      "from": "tools",
+      "to": "execute"
+    },
+    {
+      "from": "verify",
+      "type": "conditional",
+      "condition": {
+        "name": "routeDecide",
+        "possibleTargets": [
+          "plan_node",
+          "__end__"
+        ],
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof LoopState.State"
+            }
+          ],
+          "functionFile": "works/loop-engineering/json/handlers/routeDecide.js"
+        }
+      }
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "LoopState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

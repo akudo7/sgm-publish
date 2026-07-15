@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130261431",
+  "threadId": "slack-test-1780130261431",
+  "initialQuestion": [
+    "protectedPathsの設定方法を教えてください"
+  ],
+  "durationMs": 20566,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`protectedPaths` は、AI エージェントが特定のファイルやディレクトリに対して**書き込み（`write_file` や `edit_file`）を行うことを禁止するためのセキュリティ設定**です。\n\nこの設定により、重要な構成ファイルやソースコードが誤って上書き・削除されるのを防ぎます。\n\n### 設定方法\n\n`protectedPaths` は、ワークフロー JSON の `config.skills.backend` 内に指定します。配列形式で、保護したいファイルパスまたはディレクトリをリストアップします。\n\n```json\n{\n  \"config\": {\n    \"skills\": {\n      \"enabled\": true,\n      \"skillsPath\": \"skills/my-skill\",\n      \"backend\": {\n        \"virtualMode\": true,\n        \"rootDir\": \".\",\n        \"protectedPaths\": [\n          \"src/\",\n          \".env\",\n          \"package.json\",\n          \"CHANGELOG.md\"\n        ]\n      }\n    }\n  }\n}\n```\n\n### 動作の仕組み\n\n- **即時ブロック**: エージェントが `write_file` や `edit_file` を呼び出した際、対象パスが `protectedPaths` に含まれている場合、**モデルへの呼び出しが発生する前に**即座にエラー（`Write access denied`）を返します。\n- **適用範囲**: 主にファイルへの書き込み・編集操作に対して適用されます。読み取り（`read_file`）は通常許可されます。\n- **パスの解釈**: 指定されたパスは `rootDir`（デフォルトはプロジェクトルート）を基準に解釈されます。\n\n### 使用上の注意点\n\n- `protectedPaths` は `skills` セクション内の `backend` オブジェクトに配置する必要があります。\n- ディレクトリを指定する場合（例: `\"src/\"`）、その配下のすべてのファイルが保護対象となります。\n- 特定のファイルのみを保護したい場合は、ファイル名を指定します（例: `\".env\"`）。"
+  ],
+  "timestamp": "2026-05-30T08:38:02.015Z"
+}

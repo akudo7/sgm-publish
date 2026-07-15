@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130485015",
+  "threadId": "slack-test-1780130485015",
+  "initialQuestion": [
+    "Dispatchシステムのアーキテクチャを教えてください"
+  ],
+  "durationMs": 25814,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "Dispatchシステムは、Slack、Telegram、またはHTTPクライアントなど外部のチャネルからタスクを受け付け、内部の`WorkflowEngine`を用いて非同期に処理を実行し、結果をWebhook経由で配信するアーキテクチャを持っています。\n\n主要な構成要素とデータフローは以下の通りです。\n\n### 1. システムの主要コンポーネント\n\nDispatchシステムは、以下の4つの主要な層で構成されています。\n\n*   **チャネル層 (Slack / Telegram / HTTP)**\n    *   ユーザーがタスクを提出するインターフェースです。\n    *   SlackやTelegramの場合は専用ボット（Socket Mode / Long-polling）を介してリクエストを送信します。\n    *   外部のA2Aエージェントからは、`/.well-known/agent.json`経由でAgent Cardを取得し、A2Aプロトコルで連携することも可能です。\n\n*   **サーバー層 (`dispatch-server`)**\n    *   HTTP APIサーバーとして機能し、タスクの受付と管理を行います。\n    *   受信したタスクを内部キューに渡し、`WorkflowEngine`への実行を委譲します。\n    *   タスクの状態管理（一覧取得、キャンセル等）のためのREST APIを提供します。\n\n*   **実行制御層 (Queue & Store)**\n    *   **タスクキュー**: 並列実行を制御し、複数のタスクを効率的に`WorkflowEngine`に割り当てます。\n    *   **永続化ストア**: SQLiteデータベースを使用して、タスクの状態（ステータス、結果、エラー情報など）を保存します。これにより、サーバー再起動後もタスクの追跡が可能です。\n\n*   **処理エンジン層 (`WorkflowEngine`)**\n    *   実際のワークフロー（LLM呼び出し、ツール実行など）を実行するコアエンジンです。\n    *   処理が完了すると、`WebhookNotifier`を介して指定されたWebhook URLへ結果を送信します。\n\n### 2. データフロー\n\n典型的なリクエストの処理フローは以下のようになります。\n\n1.  **タスク提出**: ユーザーがSlackやTelegram、またはHTTP API（`/message/send`）を通じてタスクを送信。\n2.  **タスク登録**: `dispatch-server`がタスクをSQLiteストアに保存し、キューに追加。\n3.  **実行**: `WorkflowEngine`がタスクを取得し、ワークフローを実行。\n4.  **結果配信**: 処理完了後、`WebhookNotifier`が`webhookUrl`へ結果を送信。\n5.  **返信**: Slack/TelegramボットがWebhookを受信し、チャネルへ結果を返信。\n\n### 3. APIエンドポイント\n\n`dispatch-server`は以下のエンドポイントを提供します。\n\n| エンドポイント | メソッド | 説明 |\n| :--- | :--- | :--- |\n| `/.well-known/agent.json` | GET | A2Aクライアント用のAgent Cardを返す |\n| `/message/send` | POST | タスクを提出（任意で`webhookUrl`を指定可能） |\n| `/tasks` | GET | タスクの一覧を取得（ステータスやページネーション指定可） |\n| `/tasks/:taskId` | GET | 特定のタスクの詳細を取得 |\n| `/tasks/:taskId/cancel` | POST | 実行中のタスクをキャンセル |\n| `/health` | GET | サーバーのヘルスチェック |\n\n### 4. A2A連携\n\nDispatchサーバーは、A2A（Agent-to-Agent）プロトコルに対応しています。\n外部のA2AワークフローからDispatchサーバーを呼び出す場合、`a2aClients`設定でDispatchサーバーのURLを指定し、`/.well-known/agent.json`からAgent Cardを取得することで連携可能です。"
+  ],
+  "timestamp": "2026-05-30T08:41:50.847Z"
+}

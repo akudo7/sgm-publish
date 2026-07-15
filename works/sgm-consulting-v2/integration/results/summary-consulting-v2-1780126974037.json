@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780126974037",
+  "threadId": "slack-test-1780126974037",
+  "initialQuestion": [
+    "Context Compressionの設定方法を教えてください"
+  ],
+  "durationMs": 34391,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "Context Compressionは、長文の会話におけるトークン消費を削減するための機能です。ワークフローJSONの `config.config.contextCompression` に設定します。\n\n### 必須のState定義\n設定を有効にするには、`annotation` フィールドに `summary` を定義する必要があります。要約結果は最終出力の `summary` フィールドに格納されます。\n```json\n\"annotation\": {\n  \"messages\": { \"type\": \"string[]\", \"reducer\": \"(x, y) => x.concat(y)\", \"default\": [] },\n  \"summary\": { \"type\": \"string\", \"reducer\": \"(_, y) => y\", \"default\": \"\" }\n}\n```\n\n### 設定フィールド一覧\n| フィールド | 型 | 説明 |\n|---|---|---|\n| `contextCompression.enabled` | `boolean` | 圧縮機能を有効化するか |\n| `contextCompression.mode` | `\"threshold\"` \\| `\"autonomous\"` | 動作モード |\n| `contextCompression.trigger.messages` | `number` | （thresholdモード）メッセージ数しきい値 |\n| `contextCompression.trigger.tokens` | `number` | （thresholdモード）トークン数しきい値。`messages` と AND 条件 |\n| `contextCompression.keep.messages` | `number` | 圧縮後に保持する末尾のメッセージ数 |\n\n### モード別設定例\n\n**1. Threshold Mode（しきい値トリガー）**\nメッセージ数とトークン数が指定値を同時に超えた場合に、自動的に古いメッセージを要約して削除します。ノード実行前に圧縮が適用されます。\n```json\n{\n  \"config\": {\n    \"contextCompression\": {\n      \"enabled\": true,\n      \"mode\": \"threshold\",\n      \"trigger\": { \"messages\": 10, \"tokens\": 102400 },\n      \"keep\": { \"messages\": 4 }\n    }\n  }\n}\n```\n\n**2. Autonomous Mode（自律型）**\nモデルに `compress_context` ツールを注入し、モデル自身が会話の状況に応じて圧縮のタイミングを判断させます。\n```json\n{\n  \"config\": {\n    \"contextCompression\": {\n      \"enabled\": true,\n      \"mode\": \"autonomous\",\n      \"keep\": { \"messages\": 4 }\n    }\n  }\n}\n```\n\n### 補足\n- `trigger` フィールドは `threshold` モードでのみ有効です。`autonomous` モードではモデルが自律的に判断するため不要です。\n- 圧縮された要約テキストは、ワークフロー実行結果の `summary` フィールドとして取得可能です。\n- 詳細な実装例や他の機能との組み合わせについては、公式ドキュメントの `docs/FEATURES.md` をご参照ください。"
+  ],
+  "timestamp": "2026-05-30T07:43:28.446Z"
+}

@@ -1,0 +1,93 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "PII filtering demonstration workflow — configures PiiFilter via Ollama model",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 10
+  },
+  "stateAnnotation": {
+    "name": "PiiDemoState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "any[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "filtered": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "ollamaModel",
+      "type": "Ollama",
+      "config": {
+        "model": "qwen3.6:35b-a3b",
+        "baseUrl": "http://localhost:11434",
+        "temperature": 0,
+        "piiFilter": {
+          "enabled": true,
+          "rules": [
+            {
+              "type": "email",
+              "strategy": "redact"
+            },
+            {
+              "type": "ip",
+              "strategy": "mask"
+            },
+            {
+              "type": "credit_card",
+              "strategy": "block"
+            },
+            {
+              "type": "employee_id",
+              "strategy": "redact",
+              "pattern": "EMP-\\d{6}"
+            },
+            {
+              "type": "phone_number",
+              "strategy": "redact"
+            }
+          ]
+        }
+      },
+      "systemPrompt": "You are a helpful assistant. Respond in Japanese."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "echo",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof PiiDemoState.State"
+          }
+        ],
+        "functionFile": "json/functions/echo.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "echo"
+    },
+    {
+      "from": "echo",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "PiiDemoState"
+  }
+}

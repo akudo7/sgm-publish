@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780129618980",
+  "threadId": "slack-test-1780129618980",
+  "initialQuestion": [
+    "条件分岐ノードの設定方法を教えてください"
+  ],
+  "durationMs": 51809,
+  "turnCount": 1,
+  "rewriteCount": 1,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "条件分岐（ルーティング）は、ワークフローの `edges` 設定において `type: \"conditional\"` を指定することで実現します。公開ドキュメント（EXAMPLES.md, WORKFLOW.md）に記載されている設定方法と動作原理を以下にまとめます。\n\n### 設定方法\n`edges` の配列要素に、以下のフィールドを追加します。\n- `type`: `\"conditional\"` を指定\n- `condition`: 現在のワークフロー状態を受け取り、遷移先のノードID（文字列）を返す関数を記述\n\n### 設定例\n```typescript\nedges: [\n  { from: \"__start__\", to: \"classifier\" },\n  {\n    from: \"classifier\",\n    type: \"conditional\",\n    condition: \"(state) => state.category === 'A' ? 'handler_a' : 'handler_b'\"\n  },\n  { from: \"handler_a\", to: \"__end__\" },\n  { from: \"handler_b\", to: \"__end__\" }\n]\n```\n\n### 動作の仕組み\n- `condition` で指定した関数は、直前のノードが完了した時点のワークフロー状態（`state`）を受け取ります。\n- 関数の戻り値として、遷移させたいノードの `id`（文字列）を返すことで、そのノードへ実行がルーティングされます。\n- 分岐先のノードは、事前に `nodes` 配列に定義されている必要があります。\n- 複数の条件がある場合は、`condition` 内で ternary 演算子や switch 文、または条件配列を用いて分岐ロジックを記述します。\n\n### 注意点\n- 条件関数は純粋な状態判定に留め、副作用（状態変更や外部API呼び出し等）を含めないように設計してください。\n- 戻り値が定義済みのノードIDと一致しない場合、実行時にルーティングエラーが発生します。\n- 条件分岐後の並列実行や再帰ループを防ぐため、DAG（有向非循環グラフ）の構造を維持してください。\n\n公開ドキュメントに記載されている標準的な設定パターンです。具体的な実装や詳細な制約については、該当するワークフローJSONファイルの実装例をご参照ください。"
+  ],
+  "timestamp": "2026-05-30T08:27:50.804Z"
+}

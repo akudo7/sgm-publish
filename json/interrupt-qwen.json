@@ -1,0 +1,108 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Interactive workflow with user interrupts (Qwen-compatible)",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 25,
+    "eventEmitter": {
+      "defaultMaxListeners": 10
+    }
+  },
+  "stateAnnotation": {
+    "name": "InterruptWorkflowState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "string[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "userApproval": {
+      "type": "boolean | null",
+      "reducer": "(x, y) => y !== undefined ? y : x",
+      "default": null
+    },
+    "draftStep": {
+      "type": "number",
+      "reducer": "(x, y) => y !== undefined ? y : x",
+      "default": 1
+    },
+    "lastUserInput": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  },
+  "models": [],
+  "nodes": [
+    {
+      "id": "askName",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof InterruptWorkflowState.State"
+          }
+        ],
+        "functionFile": "json/functions/askName_2.js"
+      }
+    },
+    {
+      "id": "askJob",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof InterruptWorkflowState.State"
+          }
+        ],
+        "functionFile": "json/functions/askJob_2.js"
+      }
+    },
+    {
+      "id": "showResult",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof InterruptWorkflowState.State"
+          }
+        ],
+        "functionFile": "json/functions/showResult_2.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "askName"
+    },
+    {
+      "from": "askName",
+      "to": "askJob"
+    },
+    {
+      "from": "askJob",
+      "to": "showResult"
+    },
+    {
+      "from": "showResult",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "InterruptWorkflowState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

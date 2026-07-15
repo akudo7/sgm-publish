@@ -1,0 +1,150 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "integer_overflow",
+          "level": "error",
+          "message": {
+            "text": "Integer overflow in frame extradata pool size calculation. The variable `sz` is computed using 32-bit `int` arithmetic, which can overflow for large frame dimensions. This results in a drastically smaller allocation than intended. Subsequent pointer arithmetic using the overflowed `sz` value leads to out-of-bounds heap access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 116
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow_in_allocation_size",
+          "level": "error",
+          "message": {
+            "text": "The variables big_mb_num, mb_array_size, b4_stride, and b4_array_size are computed by multiplying untrusted bitstream-derived values (h->mb_width, h->mb_height, h->mb_stride). These multiplications can overflow a signed 32-bit integer, resulting in a negative or unexpectedly small size passed to av_buffer_pool_init. This leads to undersized heap allocations that are subsequently accessed out-of-bounds during slice decoding, causing heap corruption."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 140
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing_null_check",
+          "level": "note",
+          "message": {
+            "text": "Inside alloc_picture, pic->f_grain is dereferenced to assign format, width, and height without verifying it is non-NULL. If pic->needs_fg is true but pic->f_grain was not previously allocated, this results in a NULL pointer dereference."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 168
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "unvalidated_size_parameter",
+          "level": "note",
+          "message": {
+            "text": "In alloc_scratch_buffers, alloc_size is derived from linesize, and subsequent calculations (16 * 6 * alloc_size, alloc_size * 2 * 21, h->mb_width * 16 * 3 * sizeof(uint8_t) * 2) can overflow if linesize or h->mb_width are maliciously large. Although av_fast_malloc checks for NULL, the overflow itself indicates a lack of input validation on size parameters."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 124
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "stack_buffer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "The loop iterates up to s->sh.nb_refs[L0] to write to the fixed-size stack array luma_weight_l0_flag[16] without validating that nb_refs[L0] is strictly less than 16. If nb_refs[L0] is 16 or greater, an out-of-bounds write occurs on the stack."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 152
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "NULL pointer dereference",
+          "level": "warning",
+          "message": {
+            "text": "Missing NULL check before dereferencing st->codecpar. The codecpar field is not initialized by avformat_new_stream (called internally by ff_add_attached_pic) and is not allocated before assignment."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 234
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_access",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check on nb_streams before array access in mov_read_covr"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 213
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

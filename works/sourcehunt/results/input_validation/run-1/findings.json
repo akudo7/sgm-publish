@@ -1,0 +1,164 @@
+[
+  {
+    "type": "stack_buffer_overflow",
+    "severity": "high",
+    "description": "Missing bounds check on stack pointer `sp` before writing to fixed-size array `stack[30]` in `tag_tree_decode`",
+    "line": 130,
+    "column": null,
+    "hypothesis": "Crafted JPEG2000 files can contain tag trees deeper than 30 levels. The decoder traverses the tree without verifying `sp < 30`, leading to a stack buffer overflow that can corrupt the return address or local variables, potentially enabling arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/jpeg2000dec.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:03:38.073Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n\ntypedef struct { int depth; int child_count; } TagNode;\n\nvoid tag_tree_decode(TagNode* tree, int node_count) {\n    int stack[30]; // Fixed-size stack buffer for tree traversal\n    int sp = 0;    // Stack pointer\n\n    for (int i = 0; i < node_count; i++) {\n        // VULNERABILITY: Missing bounds check on sp\n        // A crafted JPEG2000 file can contain tag trees deeper than 30 levels.\n        // The decoder pushes tree nodes onto the stack without verifying sp < 30.\n        // This causes a stack buffer overflow, corrupting adjacent stack memory.\n        stack[sp++] = tree[i].depth;\n\n        // Conceptual child processing\n        for (int j = 0; j < tree[i].child_count; j++) {\n            // Without the check, sp continues to increment past 29.\n            stack[sp++] = j;\n        }\n    }\n}\n\nint main() {\n    // Educational simulation: feeding a tree with >30 nodes/levels\n    TagNode tree[35];\n    for (int i = 0; i < 35; i++) {\n        tree[i].depth = i;\n        tree[i].child_count = 0;\n    }\n    tag_tree_decode(tree, 35);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "A crafted JPEG2000 file specifies a tag tree exceeding 30 levels. The decoder traverses the tree and pushes node indices onto a fixed-size stack[30] without checking if sp < 30. This unbounded increment causes sp to exceed the array bounds, overwriting adjacent stack memory (e.g., saved frame pointer, return address) and potentially enabling arbitrary code execution via stack corruption."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_access",
+    "severity": "critical",
+    "description": "Unsigned integer underflow on nb_streams leads to out-of-bounds array access",
+    "line": 179,
+    "column": null,
+    "hypothesis": "If nb_streams is 0, subtracting 1 wraps to UINT_MAX. Accessing c->fc->streams[UINT_MAX] causes an out-of-bounds read/write, potentially leading to crash or arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:03:57.662Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n#include <limits.h>\n\ntypedef struct { int id; } Stream;\ntypedef struct {\n    Stream* streams[4];\n    unsigned int nb_streams;\n} Context;\n\nvoid process_stream(Context* c) {\n    // Exploit Mechanism:\n    // When c->nb_streams is 0, the subtraction (0 - 1) causes an unsigned integer underflow.\n    // The result wraps to UINT_MAX (4294967295).\n    // Using this wrapped value as an array index accesses memory far beyond the array bounds.\n    unsigned int idx = c->nb_streams - 1;\n    Stream* target = c->streams[idx]; // Out-of-bounds access\n    if (target) printf(\"Accessed stream at invalid index %u\", idx);\n}\n\nint main() {\n    Context ctx = {0};\n    ctx.nb_streams = 0; // Trigger condition\n    process_stream(&ctx);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Unsigned integer underflow occurs when nb_streams is 0 and decremented, wrapping to UINT_MAX. This wrapped value is used as an array index, causing an out-of-bounds memory access."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Unvalidated size parameters passed to allocators cause integer overflow leading to undersized allocations.",
+    "line": 153,
+    "column": null,
+    "hypothesis": "The calculation `const int b4_array_size = b4_stride * h->mb_height * 4;` uses `int` arithmetic on values derived from the bitstream (`h->mb_width`, `h->mb_height`). If an attacker crafts malicious SPS parameters causing these values to be large, the multiplication overflows `int` and wraps to a small positive value. This undersized size is passed to `av_buffer_pool_init`, allocating a pool too small for actual slice data. Subsequent decoding operations write beyond the pool boundary, causing a heap buffer overflow.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:04:42.337Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\n/*\n * Conceptual POC demonstrating integer overflow in size calculation\n * leading to an undersized heap allocation.\n */\nvoid* create_pool(int mb_width, int mb_height) {\n    // Vulnerable line: uses 32-bit signed int arithmetic\n    // Malicious inputs can cause this multiplication to overflow INT_MAX\n    int b4_stride = mb_width;\n    int b4_array_size = b4_stride * mb_height * 4; // Integer overflow occurs here\n\n    printf(\"[*] Calculated allocation size: %d bytes\\n\", b4_array_size);\n\n    // Allocates memory based on the overflowed (wrapped) size\n    void* pool = malloc(b4_array_size);\n    if (!pool) {\n        printf(\"[!] Allocation failed\\n\");\n        return NULL;\n    }\n    return pool;\n}\n\nint main(void) {\n    // Crafted parameters simulating malicious SPS values\n    // These values cause b4_stride * mb_height * 4 to exceed 32-bit signed int range\n    int malicious_width = 65536;\n    int malicious_height = 65536;\n\n    printf(\"[*] Simulating decoder with crafted dimensions: %dx%d\\n\", malicious_width, malicious_height);\n\n    void* buffer = create_pool(malicious_width, malicious_height);\n\n    if (buffer) {\n        // In a real scenario, the decoder would write data assuming the\n        // non-overflowed logical size, causing a heap buffer overflow.\n        // This step is omitted for safety and educational purposes.\n        printf(\"[!] Note: Subsequent decoding writes would exceed the allocated buffer.\\n\");\n        free(buffer);\n    }\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted input values cause the multiplication (width * height * 4) to exceed the 32-bit signed integer maximum. The result wraps around to a small positive value, which is passed to malloc. The allocator reserves a significantly smaller buffer than expected. When the decoder subsequently writes data using the original logical dimensions, it writes beyond the allocated heap boundary, triggering a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Unvalidated size parameters passed to allocators cause integer overflow leading to undersized allocations.",
+    "line": 123,
+    "column": null,
+    "hypothesis": "The calculation `av_fast_malloc(&sl->bipred_scratchpad, &sl->bipred_scratchpad_allocated, 16 * 6 * alloc_size);` multiplies `int` values. If `linesize` is crafted to be large, `16 * 6 * alloc_size` overflows `int` and wraps to a small value. `av_fast_malloc` allocates an undersized buffer. Later slice processing writes past the buffer, causing heap corruption.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:05:24.526Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n\nvoid simulate_overflow_allocation(int alloc_size) {\n    // The original code performs: 16 * 6 * alloc_size\n    // All operands are 32-bit signed integers.\n    // If alloc_size is sufficiently large, the multiplication overflows.\n    int calculated_size = 16 * 6 * alloc_size;\n\n    printf(\"Input alloc_size: %d\\n\", alloc_size);\n    printf(\"Calculated size (overflowed): %d\\n\", calculated_size);\n\n    // Allocator receives the wrapped, undersized value\n    void *buffer = malloc(calculated_size > 0 ? calculated_size : 1);\n    if (!buffer) {\n        printf(\"Allocation failed\\n\");\n        return;\n    }\n\n    // Educational note: In the real vulnerability, subsequent slice processing\n    // writes 16 * 6 * alloc_size bytes into this buffer, exceeding its actual\n    // allocated size and corrupting adjacent heap memory.\n    printf(\"Buffer allocated with size %d. Subsequent writes would overflow.\\n\", calculated_size);\n    free(buffer);\n}\n\nint main() {\n    // Crafted value that causes 96 * alloc_size to wrap to a small positive integer\n    int crafted_size = 0x10000001;\n    simulate_overflow_allocation(crafted_size);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "A large unvalidated alloc_size causes the 32-bit signed multiplication 16 * 6 * alloc_size to overflow and wrap to a small positive value. The allocator reserves an undersized buffer, but subsequent code writes the full expected size, causing heap buffer overflow and memory corruption."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_write",
+    "severity": "high",
+    "description": "The loop bound s->sh.nb_refs[L0] is used directly to index fixed-size arrays (luma_weight_l0_flag, s->sh.luma_weight_l0, etc.) without validating that it does not exceed the array size (16). HEVC specification limits active reference indices to 15, but untrusted bitstreams may supply larger values.",
+    "line": 203,
+    "column": null,
+    "hypothesis": "A crafted HEVC bitstream sets num_ref_idx_l0_active_minus1 to a value >= 15, causing nb_refs[L0] to be >= 16. The decoder iterates beyond array bounds, writing weight/offset values to adjacent memory, potentially corrupting control structures or triggering arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:05:40.687Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n\ntypedef struct {\n    int nb_refs[2];\n    int luma_weight_l0[16];\n    int luma_offset_l0[16];\n    int chroma_weight_l0[16][2];\n} SliceHeader;\n\nvoid process_weights(SliceHeader *s, int input_ref_count) {\n    s->nb_refs[0] = input_ref_count;\n    // VULNERABILITY: Loop bound 's->nb_refs[0]' is used directly as array index\n    // without validating it against the fixed size (16). Untrusted input can\n    // cause 'i' to exceed 15, writing to adjacent memory.\n    for (int i = 0; i < s->nb_refs[0]; i++) {\n        s->luma_weight_l0[i] = 1 << 6;\n        s->luma_offset_l0[i] = 0;\n        s->chroma_weight_l0[i][0] = 1 << 6;\n        s->chroma_weight_l0[i][1] = 1 << 6;\n    }\n}\n\nint main() {\n    SliceHeader sh = {0};\n    // Simulates crafted bitstream setting num_ref_idx_l0_active_minus1 >= 15\n    // Resulting in nb_refs[L0] >= 16, triggering out-of-bounds writes\n    process_weights(&sh, 18);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Untrusted bitstream sets reference count >= 16. The decoder uses this unchecked value as a loop bound to index fixed-size arrays of length 16. Iterations where index >= 16 write weight/offset values beyond array bounds, corrupting adjacent memory."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "missing_bounds_check",
+    "severity": "high",
+    "description": "Function reads 4 bytes unconditionally without verifying len parameter",
+    "line": 102,
+    "column": null,
+    "hypothesis": "A crafted MOV atom with len < 4 causes avio_r8 to read past the atom boundary, resulting in out-of-bounds memory read and potential information leak or crash.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:08:43.728Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n\n// Simulated byte reader mimicking avio_r8\nuint8_t mock_avio_r8(const uint8_t *buf, int *pos) {\n    return buf[(*pos)++];\n}\n\n// Vulnerable MOV atom parsing logic\nvoid parse_mov_atom(const uint8_t *atom_data, uint32_t len) {\n    int pos = 0;\n    uint32_t type = 0;\n\n    // VULNERABILITY: No check if len >= 4 before reading 4 bytes\n    // A crafted atom with len < 4 will cause reads past the declared boundary\n    for (int i = 0; i < 4; i++) {\n        type |= ((uint32_t)mock_avio_r8(atom_data, &pos)) << (24 - i * 8);\n    }\n\n    printf(\"Extracted type: %08x\\n\", type);\n}\n\nint main() {\n    // Minimal test data: 2-byte atom header followed by padding\n    uint8_t test_data[] = {0x00, 0x02, 0x66, 0x74, 0x79, 0x70};\n    // len = 2 is intentionally smaller than the 4 bytes we attempt to read\n    parse_mov_atom(test_data, 2);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The function unconditionally reads 4 bytes to extract the atom type without verifying that the 'len' parameter is >= 4. When len < 4, the read loop continues past the atom's declared boundary, causing an out-of-bounds memory access that can leak adjacent data or trigger a crash."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "high",
+    "description": "Missing validation of SPS dimensions before arithmetic operations to compute allocation sizes. Unchecked multiplications in pic_size_in_ctb, ctb_count, and min_pu_size can overflow the int type, leading to undersized heap buffers when passed to av_malloc_array and av_buffer_pool_init.",
+    "line": 93,
+    "column": null,
+    "hypothesis": "An attacker crafts a malicious HEVC bitstream with oversized SPS parameters. During pic_arrays_init, the multiplication operations overflow, yielding a small allocation size. The decoder allocates a small buffer but later writes frame data based on the actual dimensions, corrupting adjacent heap memory. Specifically, the line `int pic_size_in_ctb  = ((width  >> log2_min_cb_size) + 1) * ((height >> log2_min_cb_size) + 1);` and subsequent `av_buffer_pool_init(min_pu_size * sizeof(MvField), av_buffer_allocz);` calls lack range validation, enabling heap buffer overflow exploitation.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:15:09.023Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\n// Conceptual POC demonstrating the integer overflow vulnerability in HEVC SPS dimension handling\nvoid pic_arrays_init(int width, int height, int log2_min_cb_size) {\n    // Step 1: Compute CTB (Coding Tree Block) dimensions\n    int ctb_width = (width >> log2_min_cb_size) + 1;\n    int ctb_height = (height >> log2_min_cb_size) + 1;\n\n    // Step 2: Multiply to get total CTB count\n    // VULNERABILITY: No range check. If ctb_width * ctb_height exceeds INT_MAX,\n    // the result wraps around (undefined behavior in C, but typically wraps to a small positive int).\n    int pic_size_in_ctb = ctb_width * ctb_height;\n\n    printf(\"CTB dimensions: %dx%d\\n\", ctb_width, ctb_height);\n    printf(\"Computed pic_size_in_ctb (overflowed): %d\\n\", pic_size_in_ctb);\n\n    // Step 3: Allocate buffer based on the overflowed size\n    // In FFmpeg: av_malloc_array(pic_size_in_ctb, sizeof(MvField))\n    size_t alloc_size = (size_t)pic_size_in_ctb * sizeof(int);\n    printf(\"Allocating %zu bytes\\n\", alloc_size);\n\n    int *buffer = malloc(alloc_size);\n    if (!buffer) {\n        printf(\"Allocation failed or size too small\\n\");\n        return;\n    }\n\n    // Step 4: Simulate later frame processing\n    // The decoder will later iterate over the ACTUAL dimensions to write motion vector data\n    // This write loop exceeds the allocated buffer size, causing heap corruption\n    printf(\"Later processing will write to %llu elements (actual size: %zu bytes)\\n\",\n           (unsigned long long)(uint64_t)ctb_width * ctb_height, (size_t)ctb_width * ctb_height * sizeof(int));\n    printf(\"RESULT: Heap buffer overflow due to undersized allocation.\\n\");\n\n    free(buffer);\n}\n\nint main() {\n    // Crafted SPS parameters designed to trigger 32-bit signed integer overflow\n    // ctb_width = 65538, ctb_height = 65538 -> product = 4,295,229,444\n    // 4,295,229,444 in hex is 0x100006404. Truncated to 32-bit signed int: 0x00006404 = 25604\n    int malicious_width = 262148; // Simulates large resolution\n    int malicious_height = 262148;\n    int log2_min_cb_size = 2;\n\n    printf(\"=== Integer Overflow POC (Educational) ===\\n\");\n    pic_arrays_init(malicious_width, malicious_height, log2_min_cb_size);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted SPS dimensions cause the multiplication of CTB width and height to exceed 32-bit signed integer limits. The overflow wraps the result to a small positive value, leading to an undersized heap allocation. Subsequent frame processing writes data based on the actual (large) dimensions, overflowing the allocated buffer and corrupting adjacent heap memory."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "missing_bounds_check",
+    "severity": "medium",
+    "description": "The function unconditionally reads 4 bytes from the stream without validating the atom payload length (len) against the required minimum size.",
+    "line": 122,
+    "column": null,
+    "hypothesis": "A crafted MOV/MP4 file with a metadata atom sized less than 4 bytes will cause the parser to execute 'avio_r8(pb);' beyond the atom's declared boundaries. This results in out-of-bounds reads, parser state desynchronization, and potential denial-of-service or incorrect metadata extraction in subsequent parsing stages due to unvalidated size parameters.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:15:24.945Z",
+    "poc": {
+      "pocCode": "// Conceptual PoC demonstrating missing bounds check in MOV atom parsing\nvoid parse_metadata_atom(uint8_t *stream, int len) {\n    // len is extracted from the atom header size field\n    // VULNERABILITY: No validation that len >= 4 before reading\n    uint8_t b0 = stream[0]; // Simulates avio_r8(pb)\n    uint8_t b1 = stream[1];\n    uint8_t b2 = stream[2];\n    uint8_t b3 = stream[3];\n    // Subsequent parsing logic consumes these values\n    // If len < 4, this reads past the atom's declared boundary,\n    // causing out-of-bounds access and parser state desynchronization\n}",
+      "language": "C",
+      "exploitMechanism": "The parser reads 4 bytes from the stream without verifying that the atom's declared payload length (len) is at least 4. A crafted atom with len < 4 causes the read operations to access memory beyond the atom's boundaries, leading to out-of-bounds reads and subsequent parser desynchronization."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_write",
+    "severity": "high",
+    "description": "The loop bound `s->sh.nb_refs[L0]` is derived directly from the bitstream without validation against the maximum allowed number of references (16). It is used to index into fixed-size arrays `luma_weight_l0_flag`, `s->sh.luma_weight_l0`, and `s->sh.luma_offset_l0`, which have a capacity of 16 elements. If `nb_refs[L0]` exceeds 15, this results in a stack-based buffer overflow.",
+    "line": 163,
+    "column": null,
+    "hypothesis": "An attacker crafts a malicious HEVC bitstream setting `nb_refs[L0]` to a value greater than 15. The decoder iterates using this untrusted value, writing beyond the bounds of the 16-element arrays on the stack. This can corrupt adjacent stack memory, potentially overwriting return addresses or function pointers, leading to arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T01:15:47.302Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n\n#define MAX_REFS 16\n\ntypedef struct {\n    int nb_refs[2];\n    int luma_weight_l0[MAX_REFS];\n    int luma_offset_l0[MAX_REFS];\n    int luma_weight_l0_flag[MAX_REFS];\n} DecoderState;\n\nvoid process_weighting_factors(DecoderState *s) {\n    int L0 = 0;\n    // VULNERABILITY: nb_refs[L0] is taken directly from untrusted bitstream data\n    // without validation against the maximum allowed value (MAX_REFS).\n    int count = s->nb_refs[L0];\n\n    // The loop bound uses the untrusted value directly.\n    // If count > 15, the loop iterates beyond the fixed-size arrays.\n    for (int i = 0; i < count; i++) {\n        // Each iteration writes to index i. When i >= 16, this causes\n        // a stack-based buffer overflow, corrupting adjacent stack memory.\n        s->luma_weight_l0_flag[i] = 1;\n        s->luma_weight_l0[i] = 0;\n        s->luma_offset_l0[i] = 0;\n    }\n}\n\nint main() {\n    DecoderState state = {0};\n\n    // Simulate malicious bitstream input exceeding the maximum allowed references\n    state.nb_refs[0] = 20;\n\n    printf(\"Triggering OOB write with nb_refs[L0] = %d\\n\", state.nb_refs[0]);\n    process_weighting_factors(&state);\n\n    // Educational verification: demonstrates writes occurred past index 15\n    printf(\"OOB write verified at index 16: %d\\n\", state.luma_weight_l0_flag[16]);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "An attacker crafts a bitstream setting nb_refs[L0] to a value greater than 15. The decoder uses this untrusted value as a loop bound to write into fixed-size 16-element arrays. Since no bounds checking is performed, indices 16 and above write past the array boundaries, causing a stack-based buffer overflow that can corrupt adjacent stack memory."
+    },
+    "exploitStatus": "generated"
+  }
+]

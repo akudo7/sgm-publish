@@ -1,0 +1,283 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "Integer Overflow",
+          "level": "warning",
+          "message": {
+            "text": "The expression `64 * s->sb_cols * s->sb_rows` is evaluated using 32-bit signed integer arithmetic. When `s->sb_cols` and `s->sb_rows` are large (derived from crafted width/height values in the VP9 bitstream), the multiplication wraps around, producing a truncated or negative `sz`. This incorrect size is passed to `av_buffer_pool_init` and later used for pointer arithmetic (`f->extradata->data + sz`), leading to an undersized heap allocation followed by out-of-bounds writes."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 115
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Unchecked signed 32-bit integer multiplication for allocation size calculations. pic_size_in_ctb is computed by multiplying frame dimensions (width, height) without overflow checks. If crafted SPS values cause the intermediate product to exceed INT_MAX, it wraps to a negative value. This negative value is then implicitly cast to size_t when passed to av_malloc_array, potentially resulting in massive allocation requests or incorrect buffer sizing."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 104
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in allocation size calculation passed to av_buffer_pool_init"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 145
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in allocation size calculation passed to av_buffer_pool_init"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 147
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in allocation size calculation passed to av_fast_malloc"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 120
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "32-bit signed integer overflow in edge emulation buffer allocation size calculation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 146
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "32-bit signed integer overflow in motion value array size calculation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 182
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Similar signed integer overflow risk in ctb_count and min_pu_size calculations. sps->ctb_width * sps->ctb_height and sps->min_pu_width * sps->min_pu_height are performed in int before being used in av_calloc and av_mallocz. Negative overflow values cast to size_t can trigger oversized allocations."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 106
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "signed/unsigned conversion bug leading to integer wraparound",
+          "level": "warning",
+          "message": {
+            "text": "The `len` parameter is declared as `unsigned`, but `avio_get_str()` returns a signed `int`. If `avio_get_str()` returns a negative error code, the subtraction `len -= avio_get_str(...)` causes an unsigned integer wraparound, inflating `len` to near `UINT_MAX`. Subsequent bounds checks are bypassed."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 312
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Unchecked multiplication of SPS-derived dimensions (min_pu_width * min_pu_height) on line 97 can overflow a 32-bit signed integer. The resulting wrapped value is passed directly to av_mallocz (line 113) and av_buffer_pool_init (line 131) without validation. If the overflow wraps to a small positive value, the allocator succeeds with an undersized buffer, but subsequent decoder logic uses the wrapped int value as a loop bound or index multiplier, causing out-of-bounds heap writes."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 97
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "32-bit signed integer overflow in bipred scratchpad allocation size calculation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 143
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "32-bit signed integer overflow in macroblock grid dimension calculations"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 173
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "signed_to_unsigned_conversion",
+          "level": "note",
+          "message": {
+            "text": "The `len` parameter is declared as `unsigned`, but `avio_get_str()` returns a signed `int` that can be negative on error. Subtracting a negative return value from `len` causes an unsigned integer wraparound to a large positive value, bypassing subsequent length validation checks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 229
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in macroblock dimension multiplication leads to undersized buffer allocation in table pools."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 165
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

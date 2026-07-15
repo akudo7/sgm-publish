@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779900467484",
+  "threadId": "slack-test-1779900467484",
+  "initialQuestion": [
+    "AWS Bedrockとllama.cppの違いを教えてください"
+  ],
+  "durationMs": 87221,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "AWS Bedrock と llama.cpp の主な違いは、**サービス形態（クラウド vs ローカル）**と**モデルの管理方法**にあります。SceneGraphManager におけるそれぞれの位置付けは以下の通りです。\n\n### 1. AWS Bedrock\n*   **概要:** AWS が提供するフルマネージドのクラウドサービス。\n*   **特徴:**\n    *   インフラストラクチャの管理は不要で、API 経由でモデルを利用します。\n    *   Anthropic、Meta、Stability AI など、複数のプロバイダーのモデルを 1 つの API で統一して利用可能です。\n    *   従量課金制が基本です。\n*   **SceneGraphManager での扱い:**\n    *   提供された公開ドキュメントでは、Bedrock 専用のモデルタイプとしての明示的なサポートは確認できません。\n    *   ただし、OpenAI 互換のエンドポイントを介して利用可能な場合があります。\n\n### "
+  ],
+  "timestamp": "2026-05-27T16:49:14.722Z"
+}

@@ -1,0 +1,245 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "Integer Overflow",
+          "level": "warning",
+          "message": {
+            "text": "The multiplication `sps->min_pu_width * sps->min_pu_height` on line 61 can overflow a 32-bit signed integer if the SPS contains maliciously large dimensions. The truncated result is passed to `av_mallocz` on line 77, which lacks overflow protection. This results in an undersized heap allocation, leading to a heap buffer overflow when `s->tab_ipm` is subsequently accessed during decoding."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 61
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "error",
+          "message": {
+            "text": "Integer overflow in buffer size calculations for motion vector pool allocation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 142
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in scratch buffer allocation size calculation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 118
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "buffer_overflow",
+          "level": "error",
+          "message": {
+            "text": "The size argument for memset is an int, which can be negative. Casting a negative int to size_t results in a massive unsigned value."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vc1.c"
+                },
+                "region": {
+                  "startLine": 55
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_write",
+          "level": "warning",
+          "message": {
+            "text": "Pointer arithmetic planep += stride - width can move the pointer backwards if stride is less than width."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vc1.c"
+                },
+                "region": {
+                  "startLine": 112
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer-overflow",
+          "level": "note",
+          "message": {
+            "text": "Unsigned integer underflow due to type mismatch with avio_get_str return value"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 268
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Signed integer overflow on the height * width calculation used for loop bounds and indexing logic."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vc1.c"
+                },
+                "region": {
+                  "startLine": 100
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds-read-write",
+          "level": "warning",
+          "message": {
+            "text": "Unvalidated stride multiplier in column-wise bitplane decoding causes out-of-bounds memory access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vc1.c"
+                },
+                "region": {
+                  "startLine": 80
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing bounds check",
+          "level": "note",
+          "message": {
+            "text": "Disabling bitstream reader bounds checks via macro"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_cabac.c"
+                },
+                "region": {
+                  "startLine": 28
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "heap_buffer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Bounds-checking relies on dstlen parameter which may not match the actual heap allocation size derived from untrusted metadata."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 163
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_truncation_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Signed int parameter truncates large MOV atom sizes, causing massive downstream allocation/read."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 198
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Out-of-bounds Write",
+          "level": "warning",
+          "message": {
+            "text": "Incorrect pointer arithmetic in IMODE_DIFF2/NORM2 bitplane decoding assumes stride >= width, risking backward pointer movement and out-of-bounds access if stride is smaller."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vc1.c"
+                },
+                "region": {
+                  "startLine": 108
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

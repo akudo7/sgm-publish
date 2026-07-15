@@ -1,0 +1,176 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "LangGraph workflow with Claude Code-style tools and FilesystemBackend skills integration",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 25,
+    "eventEmitter": {
+      "defaultMaxListeners": 10
+    },
+    "store": {
+      "type": "InMemoryStore"
+    },
+    "bashCommandAllowedCommands": [
+      "git",
+      "yarn",
+      "npm",
+      "npx",
+      "node",
+      "tsx",
+      "docker",
+      "ls",
+      "cat",
+      "echo",
+      "pwd",
+      "mkdir",
+      "rm",
+      "mv",
+      "cp",
+      "chmod",
+      "find",
+      "head",
+      "tail",
+      "wc",
+      "grep",
+      "sed",
+      "awk",
+      "sort",
+      "uniq",
+      "tee"
+    ]
+  },
+  "stateAnnotation": {
+    "name": "StateAnnotation",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    }
+  },
+  "models": [
+    {
+      "id": "opanai",
+      "type": "openai",
+      "config": {
+        "model": "gpt-5.2",
+        "temperature": 0.7
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "backend": {
+          "virtualMode": true,
+          "rootDir": "."
+        }
+      },
+      "systemPrompt": "You are a helpful AI assistant with access to various tools and skills. When asked to perform a task, you MUST use the available tools to complete it. DO NOT just describe how to use tools - actually invoke them and return real results. When a skill is mentioned, use read_file to load the SKILL.md file and follow its instructions exactly."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "agent",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof StateAnnotation.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "opanai"
+          }
+        ],
+        "function": "const messages = state.messages;\nconst response = await model.invoke(messages);\nreturn { messages: [response] };"
+      }
+    },
+    {
+      "id": "tools",
+      "type": "ToolNode",
+      "useSystemSkills": true
+    },
+    {
+      "id": "reflect_node",
+      "useSystemSkills": true,
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof StateAnnotation.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "opanai"
+          }
+        ],
+        "function": "console.log('[reflect] Starting reflection');\n\nconst messages = state.messages;\nconst lastMsg = messages[messages.length - 1];\nconst lastContent = lastMsg ? (typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content)) : '';\n\nif (!lastContent || !lastContent.trim()) {\n  console.log('[reflect] No content to reflect on — skipping');\n  return { messages: [{ role: 'assistant', content: '' }] };\n}\n\nconst reflectionPrompt = `You are a workflow reflection analyst. Your job is to learn from completed executions to improve future SKILL.md files.\n\n【Execution Result】\n${lastContent.slice(0, 4000)}\n\n【Analysis】\n1. What patterns or techniques were effective?\n2. Were there any failures or suboptimal decisions?\n3. Is there a reusable lesson worth recording?\n\n【Rules】\n- Only update if you found a concrete, actionable lesson\n- Never modify existing content — append only\n- If no actionable lesson, respond with an empty string and do NOT call any tools\n\nIf there is something to learn:\n1. Call edit_file on the appropriate SKILL.md in skills/\n2. Append a new bullet under \"## Learned Patterns\" (create the section if it does not exist)\n3. Format: \"### <date> — <pattern name>\\n<description>\"\n4. Return the updated file content\n\nIf nothing worth learning, return an empty string with no tool calls.`;\n\nconst response = await model.invoke([{ role: 'user', content: reflectionPrompt }]);\nconst content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\nif (response.tool_calls && response.tool_calls.length > 0) {\n  console.log(`[reflect] Model made ${response.tool_calls.length} tool call(s)`);\n  const msgs = [{ role: 'user', content: reflectionPrompt }];\n  msgs.push(response);\n\n  for (let i = 0; i < 3; i++) {\n    const toolCalls = msgs[msgs.length - 1].tool_calls || [];\n    if (toolCalls.length === 0) break;\n\n    for (const toolCall of toolCalls) {\n      console.log(`[reflect] Executing tool: ${toolCall.name}`);\n      const tool = tools.find(t => t.name === toolCall.name);\n      if (!tool) {\n        console.error(`[reflect] Tool not found: ${toolCall.name}`);\n        msgs.push({ role: 'tool', tool_call_id: toolCall.id, content: `Error: tool ${toolCall.name} not found` });\n        continue;\n      }\n      const toolResult = await tool.invoke(toolCall.args);\n      const toolContent = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult);\n      msgs.push(new ToolMessage({ tool_call_id: toolCall.id, content: toolContent }));\n    }\n\n    const nextResponse = await model.invoke(msgs);\n    msgs.push(nextResponse);\n  }\n\n  const lastMsg = msgs[msgs.length - 1];\n  const finalContent = typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);\n  console.log(`[reflect] Reflection complete. Output: ${String(finalContent).slice(0, 200)}`);\n  return { messages: [lastMsg] };\n}\n\nconsole.log('[reflect] No actionable patterns found — skipping update');\nreturn { messages: [{ role: 'assistant', content: '' }] };"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "type": "conditional",
+      "condition": {
+        "name": "shouldContinue",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof StateAnnotation.State"
+            }
+          ],
+          "function": "const messages = state.messages;\nconst lastMessage = messages[messages.length - 1];\nif (lastMessage && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {\n  return 'tools';\n}\nreturn '__end__';"
+        }
+      }
+    },
+    {
+      "from": "tools",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "type": "conditional",
+      "condition": {
+        "name": "shouldReflect",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof StateAnnotation.State"
+            }
+          ],
+          "function": "const messages = state.messages;\nconst lastMessage = messages[messages.length - 1];\nif (lastMessage && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {\n  return 'tools';\n}\nreturn 'reflect_node';"
+        }
+      }
+    },
+    {
+      "from": "reflect_node",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "StateAnnotation",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Career counselor workflow with Qwen model integration via LlamaCpp",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 25,
+    "eventEmitter": {
+      "defaultMaxListeners": 10
+    }
+  },
+  "stateAnnotation": {
+    "name": "TestWorkflowState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "string[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "userName": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    },
+    "userJob": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    },
+    "advice": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "adviceModel",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.7,
+        "maxTokens": 256,
+        "serverUrl": "http://localhost:8001"
+      },
+      "systemPrompt": "You are a career counselor. Based on the user's occupation, provide appropriate advice within 100 characters. Keep it concise and practical."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "askName",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof TestWorkflowState.State"
+          }
+        ],
+        "functionFile": "json/functions/askName.js"
+      }
+    },
+    {
+      "id": "askJob",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof TestWorkflowState.State"
+          }
+        ],
+        "functionFile": "json/functions/askJob.js"
+      }
+    },
+    {
+      "id": "generateAdvice",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof TestWorkflowState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "adviceModel"
+          }
+        ],
+        "functionFile": "json/functions/generateAdvice.js"
+      }
+    },
+    {
+      "id": "showResult",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof TestWorkflowState.State"
+          }
+        ],
+        "functionFile": "json/functions/showResult.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "askName"
+    },
+    {
+      "from": "askName",
+      "to": "askJob"
+    },
+    {
+      "from": "askJob",
+      "to": "generateAdvice"
+    },
+    {
+      "from": "generateAdvice",
+      "to": "showResult"
+    },
+    {
+      "from": "showResult",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "TestWorkflowState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

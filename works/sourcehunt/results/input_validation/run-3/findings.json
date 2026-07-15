@@ -1,0 +1,174 @@
+[
+  {
+    "type": "missing_bounds_check",
+    "severity": "high",
+    "description": "The loop iterating over reference pictures uses `s->sh.nb_refs[L0]` as the bound without validating it against the HEVC specification maximum of 16. This value is derived directly from the bitstream. If `nb_refs[L0]` exceeds 16, the loop writes out-of-bounds into the fixed-size stack arrays `luma_weight_l0_flag[16]` and `chroma_weight_l0_flag[16]`, as well as the HEVC context arrays.",
+    "line": 152,
+    "column": null,
+    "hypothesis": "An attacker crafts a HEVC bitstream with `num_ref_idx_l0_active_minus1` >= 16. The decoder executes `    for (i = 0; i < s->sh.nb_refs[L0]; i++) {` without range validation, causing a stack buffer overflow that overwrites adjacent memory, potentially leading to arbitrary code execution or denial of service.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:04:47.214Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n\ntypedef struct {\n    int nb_refs[2];\n} HEVCContext;\n\nvoid process_reference_weights(HEVCContext *s) {\n    // Fixed-size stack arrays as per HEVC spec (max 16 references)\n    int luma_weight_l0_flag[16];\n    int chroma_weight_l0_flag[16];\n\n    // VULNERABILITY: nb_refs[L0] is taken directly from the bitstream\n    // without validating it against the maximum allowed value (16).\n    int count = s->nb_refs[0];\n\n    // Loop iterates 'count' times, writing to arrays of size 16.\n    // If count > 16, this causes a stack buffer overflow.\n    for (int i = 0; i < count; i++) {\n        luma_weight_l0_flag[i] = 1;\n        chroma_weight_l0_flag[i] = 0;\n    }\n}\n\nint main() {\n    HEVCContext ctx = {0};\n    // Simulate crafted bitstream input where nb_refs[L0] exceeds spec limit\n    ctx.nb_refs[0] = 20; // Exploit: value >= 16 triggers OOB write\n\n    printf(\"Simulating loop with count=%d (max safe: 16)\\n\", ctx.nb_refs[0]);\n    process_reference_weights(&ctx);\n    printf(\"Loop completed. In a real decoder, this would corrupt adjacent stack memory.\\n\");\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The decoder reads num_ref_idx_l0_active_minus1 directly from the bitstream into nb_refs[L0] without clamping it to the HEVC specification maximum of 16. When the crafted value exceeds 16, the subsequent loop writes beyond the bounds of the fixed-size stack arrays, overwriting adjacent memory and potentially enabling arbitrary code execution or crash."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "NULL Pointer Dereference",
+    "severity": "high",
+    "description": "Missing NULL check before dereferencing h->DPB[i].f in the Picture Decoding Buffer cleanup loop.",
+    "line": 114,
+    "column": null,
+    "hypothesis": "An attacker could craft a bitstream that leaves a DPB entry with a NULL f pointer. When release_unused_pictures is invoked, dereferencing h->DPB[i].f->buf[0] without validation causes a crash or potential arbitrary code execution. Vulnerable line: if (h->DPB[i].f->buf[0] && !h->DPB[i].reference &&",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:05:07.429Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct {\n    unsigned char *buf[3];\n    int reference;\n} Picture;\n\ntypedef struct {\n    Picture *f;\n} DPBEntry;\n\ntypedef struct {\n    DPBEntry DPB[16];\n    int size;\n} H264Context;\n\n// Vulnerable cleanup loop\nvoid release_unused_pictures(H264Context *h) {\n    for (int i = 0; i < h->size; i++) {\n        // EXPLOIT MECHANISM: The code dereferences h->DPB[i].f->buf[0] without checking if h->DPB[i].f is NULL.\n        // A malformed bitstream can manipulate codec state to leave a DPB entry's 'f' pointer as NULL.\n        // When this loop executes, the missing validation causes a NULL pointer dereference (crash/DoS).\n        if (h->DPB[i].f->buf[0] && !h->DPB[i].reference) {\n            h->DPB[i].f->buf[0] = NULL;\n        }\n    }\n}\n\nint main() {\n    H264Context h = {0};\n    h.size = 2;\n    h.DPB[0].f = malloc(sizeof(Picture));\n    h.DPB[0].f->buf[0] = malloc(100);\n    h.DPB[0].f->reference = 0;\n\n    // Simulate crafted input leaving DPB[1].f as NULL\n    h.DPB[1].f = NULL;\n    h.DPB[1].reference = 0;\n\n    // Trigger vulnerability\n    release_unused_pictures(&h);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "A malformed bitstream manipulates internal codec state to leave a Decoding Picture Buffer (DPB) entry's frame pointer (f) as NULL. The cleanup loop dereferences f->buf[0] without a NULL check, causing a segmentation fault or potential control-flow hijack when the attacker-controlled NULL is accessed."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow leading to Heap Buffer Overflow",
+    "severity": "critical",
+    "description": "Unvalidated h->mb_width and h->mb_height from the bitstream are used in arithmetic to calculate allocation sizes without overflow checks. The multiplication b4_stride * h->mb_height * 4 can wrap around to a small value.",
+    "line": 157,
+    "column": null,
+    "hypothesis": "A malicious SPS can set extremely large mb_width and mb_height. The integer overflow causes av_buffer_pool_init to allocate a small buffer. Subsequent decoding operations assume the full logical size, leading to out-of-bounds heap writes. Vulnerable line: const int b4_array_size = b4_stride * h->mb_height * 4;",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:05:23.611Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main() {\n    // Simulate unvalidated macroblock dimensions from a malicious SPS\n    int b4_stride = 1000000;\n    int mb_height = 1000000;\n\n    // VULNERABLE LINE: Integer overflow occurs here\n    // The multiplication b4_stride * mb_height * 4 exceeds INT32_MAX (2,147,483,647)\n    // and wraps around to a small positive value due to 32-bit signed integer overflow.\n    // No overflow check is performed before allocation.\n    int allocated_size = b4_stride * mb_height * 4;\n\n    printf(\"Expected logical size: %lld bytes\\n\", (long long)b4_stride * mb_height * 4);\n    printf(\"Overflowed allocation size: %d bytes\\n\", allocated_size);\n\n    // Allocate buffer based on the wrapped (small) size\n    uint8_t *heap_buf = malloc(allocated_size);\n    if (!heap_buf) return 1;\n\n    // EXPLOIT MECHANISM:\n    // The decoder later assumes the buffer is large enough for the logical dimensions.\n    // Any write operation using the original large size (e.g., memset, memcpy, or direct indexing)\n    // will write beyond the allocated heap region, causing a heap buffer overflow.\n    // In a real scenario: memcpy(heap_buf, decoded_data, b4_stride * mb_height * 4);\n    printf(\"Vulnerability demonstrated: %lld-byte logical write would overflow %d-byte heap allocation.\\n\",\n           (long long)b4_stride * mb_height * 4, allocated_size);\n\n    free(heap_buf);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Unvalidated large macroblock dimensions cause 32-bit integer overflow during size calculation, wrapping to a small value. A correspondingly small heap buffer is allocated, but subsequent decoding operations write using the original large logical size, triggering a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "Integer Overflow leading to Heap Buffer Overflow",
+    "severity": "critical",
+    "description": "Allocation size calculation for top_borders uses h->mb_width without validation or overflow protection. The expression h->mb_width * 16 * 3 * sizeof(uint8_t) * 2 can overflow.",
+    "line": 132,
+    "column": null,
+    "hypothesis": "Unvalidated macroblock width from the bitstream causes integer overflow during size calculation, resulting in an undersized heap allocation. Later writes to top_borders exceed the allocated bounds. Vulnerable line: h->mb_width * 16 * 3 * sizeof(uint8_t) * 2);",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:05:48.436Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nint main() {\n    // Simulates an unvalidated macroblock width extracted from a bitstream\n    uint32_t mb_width = 44947576;\n\n    // Vulnerable allocation size calculation\n    // Uses 32-bit unsigned arithmetic, causing wrap-around when mb_width is large\n    // Expected: 44947576 * 16 * 3 * 1 * 2 = 4,314,967,296 bytes\n    // Actual:   (44947576 * 96) % 2^32 = 96 bytes\n    uint32_t alloc_size = mb_width * 16 * 3 * sizeof(uint8_t) * 2;\n\n    printf(\"Intended allocation: %u bytes\\n\", mb_width * 16 * 3 * sizeof(uint8_t) * 2);\n    printf(\"Actual allocation:   %u bytes\\n\", alloc_size);\n\n    // Allocates a severely undersized heap buffer due to integer overflow\n    uint8_t *top_borders = malloc(alloc_size);\n    if (!top_borders) {\n        fprintf(stderr, \"Allocation failed\\n\");\n        return 1;\n    }\n\n    // Conceptual write operation that exceeds allocated bounds\n    // In a real scenario, this writes ~4.3GB of data into a 96-byte heap buffer\n    // for (uint32_t i = 0; i < mb_width * 16 * 3 * sizeof(uint8_t) * 2; i++) {\n    //     top_borders[i] = 0x41;\n    // }\n\n    free(top_borders);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Unvalidated mb_width causes 32-bit integer overflow during size calculation, resulting in a drastically undersized heap allocation. Subsequent writes to top_borders exceed the allocated bounds, corrupting adjacent heap metadata or data."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_read",
+    "severity": "high",
+    "description": "Accesses c->fc->streams array at index nb_streams - 1 without verifying that at least one stream exists.",
+    "line": 206,
+    "column": null,
+    "hypothesis": "If the 'covr' atom appears before any track atoms are parsed, nb_streams will be 0, resulting in an access to streams[-1]. This causes a crash or potential memory corruption.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:06:19.016Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct {\n    int nb_streams;\n    void **streams;\n} MOVContext;\n\n// Simulates the vulnerable access in libavformat/mov.c\nvoid process_cover_atom(MOVContext *c) {\n    // Simulate condition: 'covr' atom parsed before any track atoms\n    c->nb_streams = 0;\n    c->streams = NULL;\n\n    // VULNERABILITY: Accesses streams[nb_streams - 1] without bounds check\n    // When nb_streams == 0, this becomes streams[-1], causing an OOB read\n    void *ptr = c->streams[c->nb_streams - 1];\n    (void)ptr;\n}\n\nint main() {\n    MOVContext ctx = {0};\n    process_cover_atom(&ctx);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "When the 'covr' atom is encountered before any track atoms, nb_streams remains 0. The code directly accesses streams[nb_streams - 1], which evaluates to streams[-1], triggering an out-of-bounds read that can crash the parser or corrupt memory."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "missing_bounds_check",
+    "severity": "low",
+    "description": "Reads two bytes unconditionally before checking if len >= 6. If len < 4, the parser reads past the atom boundary.",
+    "line": 99,
+    "column": null,
+    "hypothesis": "A crafted MOV file with a short metadata atom could cause the parser to read into subsequent atoms, leading to desynchronization or out-of-bounds reads.",
+    "evidenceLevel": 1,
+    "filePath": "libavformat/mov.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:07:07.399Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "missing_bounds_check",
+    "severity": "low",
+    "description": "Reads four bytes unconditionally without verifying len >= 4.",
+    "line": 124,
+    "column": null,
+    "hypothesis": "Similar to the above, reading past the atom boundary on truncated or malformed files can cause parsing desynchronization or out-of-bounds reads.",
+    "evidenceLevel": 1,
+    "filePath": "libavformat/mov.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:07:27.182Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "out_of_bounds_read",
+    "severity": "high",
+    "description": "The check_pes function accesses p[3], p[4], and p[6] without verifying that the input pointer p has at least 7 bytes remaining before the end boundary. The end parameter is provided but never used for bounds checking.",
+    "line": 39,
+    "column": null,
+    "hypothesis": "An attacker can craft an MPEG-PS/TS file where a PES start code appears near the end of the probe buffer. When mpegps_probe calls check_pes, it will read past the allocated buffer, potentially leaking memory or causing a crash.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mpeg.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:07:43.616Z",
+    "poc": {
+      "pocCode": "// Minimal conceptual POC for OOB read in check_pes\nvoid check_pes(const uint8_t *p, const uint8_t *end) {\n    // VULNERABILITY: 'end' is provided but never validated against.\n    // Directly accessing indices 3, 4, and 6 assumes at least 7 bytes are available.\n    // An attacker controlling 'p' near the buffer limit can trigger an OOB read.\n    uint8_t field1 = p[3];\n    uint8_t field2 = p[4];\n    uint8_t field3 = p[6];\n\n    // Hypothetical validation logic\n    if (field1 == 0x00 && field2 == 0x00 && field3 == 0x01) {\n        // PES header detected\n    }\n}",
+      "language": "C",
+      "exploitMechanism": "The function ignores the 'end' boundary parameter and directly reads p[3], p[4], and p[6]. By crafting input where a PES start code aligns near the end of the probe buffer, an attacker forces the function to read past the allocated memory, causing an out-of-bounds read that may leak data or crash the process."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_read",
+    "severity": "high",
+    "description": "In mpegps_probe, the code unconditionally reads p->buf[i + 1] and p->buf[i + 2] immediately after detecting a start code. If the start code occurs at i == p->buf_size - 1 or i == p->buf_size - 2, these accesses go out of bounds.",
+    "line": 67,
+    "column": null,
+    "hypothesis": "By placing a valid MPEG start code at the very end of the probe data, an attacker triggers an out-of-bounds read of up to 2 bytes beyond the buffer limit. This can lead to information disclosure or a segmentation fault.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mpeg.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:07:59.642Z",
+    "poc": {
+      "pocCode": "#include <stdint.h>\n\ntypedef struct {\n    const uint8_t *buf;\n    int buf_size;\n} ProbeData;\n\n// Minimal proof-of-concept demonstrating the out-of-bounds read vulnerability\nint mpegps_probe_poc(const ProbeData *p) {\n    for (int i = 0; i < p->buf_size; i++) {\n        // Detect MPEG-PS start code (0x00 0x00 0x01)\n        if (p->buf[i] == 0x00 && p->buf[i+1] == 0x00 && p->buf[i+2] == 0x01) {\n            // VULNERABILITY: The code proceeds to read subsequent bytes\n            // without verifying that i+1 and i+2 are within [0, buf_size).\n            // When the start code is placed at the very end of the buffer,\n            // these accesses read beyond the allocated memory.\n            uint8_t val1 = p->buf[i + 1]; // Out-of-bounds if i == buf_size - 1\n            uint8_t val2 = p->buf[i + 2]; // Out-of-bounds if i == buf_size - 2\n            (void)val1;\n            (void)val2;\n            return 1; // Signal valid MPEG stream\n        }\n    }\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Placing an MPEG start code at the buffer's end causes the probe loop to access i+1 and i+2 beyond the allocated memory, triggering an out-of-bounds read."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "out_of_bounds_read",
+    "severity": "medium",
+    "description": "check_pack_header is called with p->buf + i without ensuring that at least 2 bytes are available. If i == p->buf_size - 1, accessing buf[1] is out of bounds.",
+    "line": 69,
+    "column": null,
+    "hypothesis": "Similar to the PES check, a pack header start code at the buffer's end causes an OOB read of buf[1] when passed to check_pack_header.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mpeg.c",
+    "specialist": "input_validation",
+    "verifiedAt": "2026-05-08T02:08:13.313Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stddef.h>\n\n// Simulates check_pack_header from libavformat/mpeg.c\n// Assumes the caller guarantees at least 2 bytes are available.\nvoid check_pack_header(const unsigned char *buf) {\n    // Vulnerable access: reads the second byte without bounds verification\n    unsigned char header_byte = buf[1];\n    printf(\"Inspecting header byte: 0x%02X\\n\", header_byte);\n}\n\nint main(void) {\n    // Simulated input buffer\n    unsigned char buf[] = {0x00, 0x00, 0x01, 0xB3};\n    size_t buf_size = sizeof(buf);\n\n    // Simulate a scanner finding a start code at the very end of the buffer\n    size_t i = buf_size - 1; // Points to the last valid byte (index 3)\n\n    // VULNERABILITY: No check to ensure (buf_size - i) >= 2\n    // Passing buf + i here allows check_pack_header to read buf[i+1],\n    // which is out of bounds when i == buf_size - 1.\n    check_pack_header(buf + i);\n\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The code passes a pointer to the last byte of a buffer to a function that unconditionally reads two bytes. Because no bounds check verifies that at least two bytes remain, the function reads one byte past the allocated memory, causing an out-of-bounds read."
+    },
+    "exploitStatus": "generated"
+  }
+]

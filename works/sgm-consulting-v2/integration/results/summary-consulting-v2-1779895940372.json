@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779895940372",
+  "threadId": "test-close-debug",
+  "initialQuestion": [
+    "SceneGraphManagerとは何ですか？\\n続きを表示\\napiKeyの設定方法を教えてください"
+  ],
+  "durationMs": 32724,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "### SceneGraphManagerとは\nSceneGraphManagerは、LangGraphとLangChainを基盤としたTypeScript製のAIワークフロー管理SDKです。複雑なエージェントワークフローをJSON形式で宣言的に定義し、コードの変更なしにデスクトップ、組み込みシステム、IoTデバイスなど、様々な環境で実行できるように設計されています。\n\n主な特徴として、以下のような機能を提供しています。\n- **JSONファースト設計**: ワークフロー全体をポータブルなJSONで定義・管理\n- **マルチモデル対応**: Anthropic、OpenAI、Azure OpenAI、Ollama、llama.cpp (GGUF) などのLLMをファクトリーパターンで統一管理\n- **エージェント連携**: A2Aプロトコルによる外部エージェント通信、MCPツール統合、Swarms Fan-out/Fan-inワークフロー\n- **セキュリティ・最適化**: PIIフィルタリング、コンテキスト圧縮、シークレット管理、フックイベントシステム\n- **自律改善・リモート実行**: SKILL.mdベースのスキル管理、Memento-Skillsパターン、AutoResearchによる自律的スキル改善、DispatchによるHTTP/Slack/Telegramからのリモートタスク投入\n\n---\n\n### apiKeyの設定方法\napiKeyの設定は、ワークフロー定義JSON内の `models` 配列で行います。各モデル定義の `config` オブジェクトに `apiKey` を直接指定するか、環境変数経由で参照します。\n\n設定例（JSON）:\n```json\n{\n  \"models\": [\n    {\n      \"id\": \"claude\",\n      \"type\": \"anthropic\",\n      \"config\": {\n        \"model\": \"claude-3-5-sonnet-20241022\",\n        \"apiKey\": \"sk-ant-...\"\n      }\n    }\n  ]\n}\n```\n\n**推奨される設定パターン**\n1. **環境変数経由**: 直接値をハードコードする代わりに、`process.env.ANTHROPIC_API_KEY` などの環境変数で参照し、実行環境ごとに値を切り替える\n2. **シークレットストア連携**: OSネイティブのシークレット管理機能（`SecretsProvider`）経由でAPIキーを取得し、ワークフロー起動時に注入する\n\n設定後は `WorkflowEngine` にワークフロー設定を渡して構築・実行する際に、自動的にモデルファクトリーにバインドされます。\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst engine = new WorkflowEngine(workflowConfig);\nawait engine.build();\n```\n\n公開ドキュメントに記載のない詳細な認証フローや内部バインディングロジックについては記載がありませんが、上記のJSON構造に従って `models` 配列に `config.apiKey` を追加するだけで、対応するLLMプロバイダーの認証が有効化されます。"
+  ],
+  "timestamp": "2026-05-27T15:32:53.114Z"
+}

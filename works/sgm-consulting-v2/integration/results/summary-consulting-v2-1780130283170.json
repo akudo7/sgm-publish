@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130283170",
+  "threadId": "slack-test-1780130283170",
+  "initialQuestion": [
+    "PII Filterの設定方法を教えてください"
+  ],
+  "durationMs": 110494,
+  "turnCount": 1,
+  "rewriteCount": 1,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "公開ドキュメント（`docs/FEATURES.md`）に基づき、PII Filterの設定方法についてご説明します。\n\n## PII Filter の概要\n\nPII Filter は、`invoke()` の入力データが AI モデルに渡される前に適用される、設定可能な個人識別情報（PII）フィルタリング機能です。\n\n## 対応パターン\n\n以下の PII パターンに対応しています：\n\n- `email`\n- `ip`\n- `credit_card`\n- `phone_number`\n- `address`\n- `full_name`\n- カスタム正規表現パターン\n\n## 適用戦略\n\n各ルールに対して、以下の4つの戦略から選択できます：\n\n| 戦略 | 動作 |\n|---|---|\n| `redact` | 該当箇所を置換 |\n| `mask` | 部分的に非表示 |\n| `hash` | 擬似匿名化 |\n| `block` | `PiiBlockedError` をスローしてブロック |\n\n## 設定方法\n\nPII Filter の設定は、**ワークフロー JSON 内のモデル定義内**に記述します。\n\n具体的な設定例は公式ドキュメントでは `json/pii.json` として提供されていますが、詳細な JSON 構造については公開ドキュメントに記載がありません。\n\n設定は `invoke()` の入力に対して適用されるため、ワークフロー全体で統一された PII 保護ルールをモデルレベルで定義する形になります。"
+  ],
+  "timestamp": "2026-05-30T08:39:53.683Z"
+}

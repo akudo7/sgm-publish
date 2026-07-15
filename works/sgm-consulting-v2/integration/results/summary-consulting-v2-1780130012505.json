@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130012505",
+  "threadId": "slack-test-1780130012505",
+  "initialQuestion": [
+    "bash_commandでRTKが使われる仕組みを教えてください"
+  ],
+  "durationMs": 55907,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`bash_command` における RTK（Rust Token Killer）の活用は、コマンド実行結果のトークン消費を大幅に削減するための最適化機能です。\n\n### RTK の仕組み\n\n`bash_command` は、コマンド実行時の出力結果をそのまま LLM に返すのではなく、RTK がインストールされている環境では自動的に RTK を経由して処理を行います。\n\n1.  **自動検出**: システムの `PATH` 内に `rtk` バイナリが存在するかを確認します。存在する場合、自動的に RTK 経由の実行パスが選択されます。\n2.  **透過的なルーティング**: `bash_command` の呼び出しは内部で RTK プロキシに渡され、冗長な出力（`git log` や `ls` などの一覧表示）が圧縮・整形された後、結果が返されます。これにより、トークン消費を **60〜90%** 削減することが可能です。\n\n### 設定方法\n\nRTK の使用は `SkillsConfig` の `backend` オプションで制御できます。\n\n-   **デフォルト動作**: `useRtk` を指定しない場合、`rtk` がインストールされていれば自動的に有効になります。\n-   **無効化**: 明示的に `useRtk: false` を設定すると、RTK がインストールされていても bypass（素通し）され、通常のコマンド実行が行われます。\n\n設定例は以下の通りです。\n\n```json\n{\n  \"config\": {\n    \"skills\": {\n      \"enabled\": true,\n      \"skillsPath\": \"skills/my-skill\",\n      \"backend\": { \"virtualMode\": true, \"rootDir\": \".\", \"useRtk\": false }\n    }\n  }\n}\n```\n\nこの設定により、`bash_command` の実行結果が RTK 経由ではなく直接取得されるようになります。"
+  ],
+  "timestamp": "2026-05-30T08:34:28.430Z"
+}

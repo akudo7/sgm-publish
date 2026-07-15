@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779902173386",
+  "threadId": "slack-test-1779902173386",
+  "initialQuestion": [
+    "AWS Bedrockの使い方を教えてください"
+  ],
+  "durationMs": 81496,
+  "turnCount": 1,
+  "rewriteCount": 1,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "公開ドキュメントおよびソースコードの確認結果、および外部ドキュメントの調査に基づき回答します。\n\n### SceneGraphManagerにおけるAWS Bedrockのサポート状況\n\nSceneGraphManagerの公開ドキュメントおよびソースコードを確認しましたが、**AWS Bedrockは現在サポートされていないモデルプロバイダー**です。\n\nSceneGraphManagerで現在公式にサポートされているLLMモデルプロバイダーは以下の通りです：\n- Anthropic (Claude)\n- OpenAI\n- Azure OpenAI\n- Ollama\n- llama.cpp (GGUF形式)\n\n### SceneGraphManagerでのモデル設定方法\n\nSceneGraphManagerでは、ワークフロー設定JSONの`models`フィールドにプロバイダーの`type`と設定情報を定義することでモデルを切り替えることができます。\n\n例えば、OpenAIを使用する場合は以下のように設定します：\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst config = {\n  models: [{\n    id: \"gpt-model\",\n    type: \"openai\",\n    config: { model: \"gpt-4\", apiKey: \"YOUR_API_KEY\" }\n  }],\n  nodes: [{ id: \"chat\", type: \"model\", modelRef: \"gpt-model\" }],\n  // ... 他のワークフロー設定\n};\n\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\n\n### AWS Bedrockの一般的な使い方について\n\n外部ドキュメント（LangChainおよびAWS公式ドキュメント）を確認した結果、LangChainやAWS SDK経由でAWS Bedrockを使用することは可能です。しかし、SceneGraphManagerの`ModelFactoryManager`にはBedrock用のファクトリーが実装されておらず、SceneGraphManagerのワークフロー設定で直接Bedrockモデルを指定する方法は提供されていません。\n\nAWS BedrockをSceneGraphManagerのワークフローで使用する場合は、現在サポートされているプロバイダー（OpenAIやAnthropic等）への切り替え、またはカスタムモデルファクトリーの拡張が必要となります。\n\nAWS Bedrock自体の詳細な使い方やAPI仕様については、AWS公式ドキュメントやLangChainの外部ドキュメントを参照してください。"
+  ],
+  "timestamp": "2026-05-27T17:17:34.902Z"
+}

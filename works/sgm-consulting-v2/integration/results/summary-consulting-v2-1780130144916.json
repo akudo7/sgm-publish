@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130144916",
+  "threadId": "slack-test-1780130144916",
+  "initialQuestion": [
+    "Context Guardの設定方法を教えてください"
+  ],
+  "durationMs": 52707,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "公開ドキュメント（FEATURES.md）に基づき、Context Guardの設定方法をご案内します。\n\n## Context Guardとは\n\n「Context Anxiety（コンテキスト不安）」を防ぐための機能です。エージェントがコンテキストウィンドウの限界に達してタスクを放棄するのを防ぎ、推定トークン使用量が閾値を超えた場合にメッセージ履歴を要約に置き換えます。\n\n## 設定方法\n\nワークフローJSONの`config`セクションに以下を設定します。\n\n| フィールド | 型 | デフォルト | 説明 |\n|---|---|---|---|\n| `contextGuard.enabled` | `boolean` | `false` | Context Guardの有効化 |\n| `contextGuard.modelContextLimit` | `number` | `200000` | モデルのコンテキストウィンドウサイズ |\n| `contextGuard.thresholdRatio` | `number` | `0.70` | 発動比率（コンテキストウィンドウの70%） |\n\n### 設定例\n\n```json\n{\n  \"config\": {\n    \"contextGuard\": {\n      \"enabled\": true,\n      \"modelContextLimit\": 200000,\n      \"thresholdRatio\": 0.70\n    }\n  }\n}\n```\n\n## 動作の仕組み\n\n1. `context_guard_node`（functionノード）が`state.messages`から推定トークン数を算出\n2. `推定トークン数 >= モデルコンテキスト制限 × 閾値比率`の場合、リセットが発動\n3. `taskSpec`、`sprintContract`、`sprintResult`、`retryCount`などの重要状態フィールドを含む要約メッセージ（`=== Context Reset ===`）が`activeMessages`フィールドに書き込まれる\n4. `activeMessages`のreducerがリセットマーカーを検出し、メッセージ履歴を置き換える\n5. リセットされたコンテキストでワークフローが継続\n\n## `activeMessages`フィールドのreducer設計\n\nContext Guardを正しく動作させるには、`activeMessages`フィールドに以下のreducerを設定する必要があります。\n\n```json\n\"activeMessages\": {\n  \"type\": \"BaseMessage[]\",\n  \"reducer\": \"(x, y) => { const isReset = y.length === 1 && typeof y[0].content === 'string' && y[0].content.startsWith('=== Context Reset'); return isReset ? y : x.concat(y); }\",\n  \"default\": \"[]\"\n}\n```\n\nこのreducerは、リセットマーカー付きメッセージが来たら履歴を置き換え（`y`を返す）、そうでなければ通常通り結合（`x.concat(y)`）するよう設計されています。\n\n## 補足\n\n- Context GuardはSprint Contractパターンと連携して設計されており、リセット後もスプリント状態が保持されるため、ループをシームレスに継続できます\n- 詳細な統合例は`json/sprint-contract-qwen.json`を参照してください"
+  ],
+  "timestamp": "2026-05-30T08:36:37.638Z"
+}

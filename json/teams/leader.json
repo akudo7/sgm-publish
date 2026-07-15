@@ -1,0 +1,230 @@
+{
+  "config": {
+    "info": {
+      "version": "2.2.0",
+      "description": "Teams Leader - Fan-out/Fan-in parallel worker execution via LangGraph nodes",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 50,
+    "eventEmitter": {
+      "defaultMaxListeners": 20
+    },
+    "store": {
+      "type": "InMemoryStore"
+    },
+    "bashCommandAllowedCommands": [
+      "git",
+      "yarn",
+      "npm",
+      "npx",
+      "node",
+      "tsx",
+      "docker",
+      "ls",
+      "cat",
+      "echo",
+      "pwd",
+      "mkdir",
+      "rm",
+      "mv",
+      "cp",
+      "chmod",
+      "find",
+      "head",
+      "tail",
+      "wc",
+      "grep",
+      "sed",
+      "awk",
+      "sort",
+      "uniq",
+      "tee"
+    ]
+  },
+  "stateAnnotation": {
+    "name": "SwarmsState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "workerPlans": {
+      "type": "{ name: string; role: string; task: string; domain: string; relevantSkills: string }[]",
+      "reducer": "(x, y) => (y && y.length > 0 ? y : x)",
+      "default": []
+    },
+    "currentPlan": {
+      "type": "{ name: string; role: string; task: string }",
+      "reducer": "(x, y) => y || x",
+      "default": null
+    },
+    "workerResults": {
+      "type": "{ name: string; result: string }[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "finalReport": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "leader",
+      "type": "openai",
+      "config": {
+        "model": "gpt-5.2",
+        "temperature": 0.2
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "backend": {
+          "virtualMode": true,
+          "rootDir": "."
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "planner_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "leader"
+          }
+        ],
+        "function": "const lastMessage = state.messages[state.messages.length - 1];\nconst userTask = typeof lastMessage.content === 'string' ? lastMessage.content : JSON.stringify(lastMessage.content);\n\n// Step 1: Classify task into a single domain\nclassificationPrompt = `Classify the following task into exactly ONE domain from: research, coding, writing, analysis, general.\nRespond with ONLY the domain name, nothing else.\n\nTask: ${userTask}`;\n\nconst classificationResponse = await model.invoke([{ role: 'user', content: classificationPrompt }]);\nconst classificationContent = typeof classificationResponse.content === 'string' ? classificationResponse.content : JSON.stringify(classificationResponse.content);\nconst domain = classificationContent.trim().toLowerCase();\n\n// Step 2: Generate worker plans with domain context\nconst planPrompt = `You are an expert in task decomposition.\nDefine the team of specialists needed to accomplish the following task.\n\nTask: ${userTask}\nDomain: ${domain}\n\nReturn only the following JSON array (no explanation needed):\n[\n  {\"name\": \"snake_case_role_name\", \"role\": \"description of the role\", \"task\": \"specific assigned task\"},\n  ...\n]\n\nConstraints:\n- Define between 1 and 5 workers, only as many as needed for the task\n- If one person can complete the task alone, assign only one worker\n- name must be in snake_case English`;\n\nconst response = await model.invoke([{ role: 'user', content: planPrompt }]);\nconst content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\nlet workerPlans;\ntry {\n  const jsonMatch = content.match(/\\[.*\\]/s);\n  const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : [];\n  // Enrich each worker plan with domain and relevant skills\n  const domainSkillsMap = {\n    research: 'arxiv-search, langgraph-docs',\n    coding: 'langgraph-docs',\n    writing: '',\n    analysis: 'arxiv-search',\n    general: 'arxiv-search, langgraph-docs, env-bootstrap, harness-bootstrap, teams'\n  };\n  const skills = domainSkillsMap[domain] || '';\n  workerPlans = parsed.map(p => ({ ...p, domain, relevantSkills: skills }));\n} catch (e) {\n  console.error('[planner] Failed to parse worker plans:', e);\n  workerPlans = [{ name: 'general_worker', role: 'General handler', task: userTask, domain, relevantSkills: '' }];\n}\n\n// Step 3: Generate dynamic SKILL.md for each worker\nconst path = require('path');\nconst skillsDir = 'skills/dynamic';\nfor (const plan of workerPlans) {\n  const skillPath = path.join(skillsDir, plan.name);\n  const skillMd = `---\nname: ${plan.name}\ndescription: ${plan.role}\n---\n\n# ${plan.role} Skill\n\n## Assigned Task\n${plan.task}\n\n## Instructions\n1. Read this SKILL.md file to understand your assigned task\n2. Execute the task as specified\n3. Report your results clearly\n`;\n  await write_file(`${skillPath}/SKILL.md`, skillMd);\n  console.log(`[planner] Generated SKILL.md: ${skillPath}/SKILL.md`);\n\n  if (skillsManager) {\n    skillsManager.registerSkill({\n      name: plan.name,\n      description: plan.role,\n      path: `${skillPath}/SKILL.md`,\n      instructions: skillMd,\n    });\n  }\n}\n\nconsole.log(`[planner] Defined ${workerPlans.length} workers for domain: ${domain}:`, JSON.stringify(workerPlans, null, 2));\nreturn { workerPlans, messages: [response] };"
+      }
+    },
+    {
+      "id": "worker_node",
+      "useSystemSkills": true,
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "leader"
+          }
+        ],
+        "function": "const plan = state.currentPlan;\nif (!plan) {\n  console.error('[worker] No currentPlan in state');\n  return { workerResults: [{ name: 'unknown', result: 'Error: no plan assigned' }] };\n}\n\nconsole.log(`[worker:${plan.name}] Starting task: ${plan.task}`);\n\nconst cwd = '/Users/akirakudo/Desktop/MyWork/test';\nconst domainHint = plan.domain ? `\n\nTask domain: ${plan.domain}` : '';\nconst skillsHint = plan.relevantSkills ? `\nRelevant skills for this domain: ${plan.relevantSkills}` : '';\n// Read dynamic SKILL.md if available\nlet skillContext = '';\ntry {\n  const skillContent = await read_file('skills/dynamic/' + plan.name + '/SKILL.md');\n  if (skillContent && typeof skillContent === 'string' && skillContent.trim().length > 0) {\n    skillContext = '\\n\\n【Dynamic Skill Instructions】\\n' + skillContent;\n  }\n} catch (e) {\n  console.log(`[worker:${plan.name}] No dynamic SKILL.md found — using default instructions`);\n}\n\nconst workerPrompt = `You are an expert in ${plan.role}.${domainHint}${skillsHint}${skillContext}\n\nAssigned task: ${plan.task}\n\nWorking directory: ${cwd}\nAlways specify file paths as absolute paths (e.g., ${cwd}/src/formatDateJP.ts).\nIf you need to create or edit files or run commands, use the available tools (write_file, edit_file, bash_command, etc.) to actually execute them.\nWhen running commands with bash_command, first cd ${cwd}.\n\nImportant constraints:\n- Never use glob_files. File exploration is not needed.\n- Use write_file or edit_file directly on the paths specified in the task.\n- Focus only on the relevant skills listed above. Do not use unrelated skills.\n\nOnce all work is complete, report what you did in English.`;\n\nconst messages = [{ role: 'user', content: workerPrompt }];\nlet finalResult = '';\n\nfor (let i = 0; i < 10; i++) {\n  const response = await model.invoke(messages);\n  messages.push(response);\n\n  const toolCalls = response.tool_calls || [];\n  if (toolCalls.length === 0) {\n    const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n    if (content && content.trim()) {\n      finalResult = content;\n    }\n    break;\n  }\n\n  for (const toolCall of toolCalls) {\n    console.log(`[worker:${plan.name}] Calling tool: ${toolCall.name}`);\n    const tool = tools.find(t => t.name === toolCall.name);\n    if (!tool) {\n      console.error(`[worker:${plan.name}] Tool not found: ${toolCall.name}`);\n      messages.push({ role: 'tool', tool_call_id: toolCall.id, content: `Error: tool ${toolCall.name} not found` });\n      continue;\n    }\n    const toolResult = await tool.invoke(toolCall.args);\n    const toolContent = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult);\n    messages.push(new ToolMessage({ tool_call_id: toolCall.id, content: toolContent }));\n  }\n}\n\nconsole.log(`[worker:${plan.name}] Completed. Result preview: ${finalResult.slice(0, 100)}`);\nreturn { workerResults: [{ name: plan.name, result: finalResult }], messages: [messages[messages.length - 1]] };"
+      }
+    },
+    {
+      "id": "aggregator_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "leader"
+          }
+        ],
+        "function": "console.log(`[aggregator] Aggregating ${state.workerResults.length} worker results`);\n\nconst resultsSummary = state.workerResults.map(r => `## ${r.name}\\n${r.result}`).join('\\n\\n');\n\nconst aggregatePrompt = `The following are the research and work results from each specialist team.\n\n${resultsSummary}\n\nIntegrate these results to create a comprehensive final report in English.\nCombine the contributions of each team member appropriately and organize the response to address the user's original request.`;\n\nlet finalReport = '';\nfor (let attempt = 0; attempt < 3; attempt++) {\n  const response = await model.invoke([{ role: 'user', content: aggregatePrompt }]);\n  const content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n  if (content && content.trim()) {\n    finalReport = content;\n    break;\n  }\n  console.warn(`[aggregator] Empty response on attempt ${attempt + 1}, retrying...`);\n}\n\nif (!finalReport) {\n  console.warn('[aggregator] All attempts returned empty, falling back to worker results summary');\n  finalReport = state.workerResults.map(r => `## ${r.name}\\n${r.result || '(no result)'}`).join('\\n\\n');\n}\n\nconsole.log('[aggregator] Final report generated, length:', finalReport.length);\nreturn { finalReport, messages: [{ role: 'assistant', content: finalReport }] };"
+      }
+    },
+    {
+      "id": "finalize_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          }
+        ],
+        "function": "console.log('[finalize] Teams workflow complete');\nconst report = (state.finalReport && state.finalReport.trim()) ? state.finalReport : (state.messages.slice().reverse().find(m => m.role === 'assistant' && m.content && m.content.trim())?.content) || 'No report generated';\nreturn { messages: [{ role: 'assistant', content: report }] };"
+      }
+    },
+    {
+      "id": "reflect_node",
+      "useSystemSkills": true,
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SwarmsState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "leader"
+          }
+        ],
+        "function": "console.log('[reflect] Starting workflow reflection');\n\n// Quick exit: nothing to reflect on\nif (!state.workerPlans || state.workerPlans.length === 0) {\n  console.log('[reflect] No worker plans — skipping');\n  return { messages: [{ role: 'assistant', content: '' }] };\n}\n\nif (!state.workerResults || state.workerResults.length === 0) {\n  console.log('[reflect] No worker results — skipping');\n  return { messages: [{ role: 'assistant', content: '' }] };\n}\n\n// Build reflection context\nconst plansSummary = state.workerPlans.map(p => `- ${p.name} (${p.role}): ${p.task}`).join('\\n');\nconst resultsSummary = state.workerResults.map(r => `## ${r.name}\\n${r.result || '(empty)'}`).join('\\n\\n');\n\nconst reflectionPrompt = `You are a workflow reflection analyst. Your job is to learn from completed team executions to improve future SKILL.md files.\n\n【Worker Plans】\n${plansSummary}\n\n【Worker Results】\n${resultsSummary}\n\n【Analysis】\n1. Were the worker roles appropriate for the tasks?\n2. Were there any failures, retries, or suboptimal decisions?\n3. Is there a reusable pattern worth recording?\n\n【Rules】\n- Only update if you found a concrete, actionable lesson\n- Never modify existing content — append only\n- Append to the \"## Learned Patterns\" section of skills/teams/SKILL.md\n- If no actionable lesson, respond with an empty string and do NOT call any tools\n\nIf there is something to learn:\n1. First call edit_file on \"skills/teams/SKILL.md\"\n2. Append a new bullet under \"## Learned Patterns\" (create the section if it does not exist)\n3. Format: \"### <date> — <pattern name>\\n<description of what happened and what to do differently next time>\"\n4. Return the updated file content\n\nIf nothing worth learning, return an empty string with no tool calls.`;\n\nconst response = await model.invoke([{ role: 'user', content: reflectionPrompt }]);\nconst content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);\n\n// If the model returned tool calls, let them execute (edit_file)\nif (response.tool_calls && response.tool_calls.length > 0) {\n  console.log(`[reflect] Model made ${response.tool_calls.length} tool call(s)`);\n  const messages = [{ role: 'user', content: reflectionPrompt }];\n  messages.push(response);\n\n  for (let i = 0; i < 3; i++) {\n    const toolCalls = messages[messages.length - 1].tool_calls || [];\n    if (toolCalls.length === 0) break;\n\n    for (const toolCall of toolCalls) {\n      console.log(`[reflect] Executing tool: ${toolCall.name}`);\n      const tool = tools.find(t => t.name === toolCall.name);\n      if (!tool) {\n        console.error(`[reflect] Tool not found: ${toolCall.name}`);\n        messages.push({ role: 'tool', tool_call_id: toolCall.id, content: `Error: tool ${toolCall.name} not found` });\n        continue;\n      }\n      const toolResult = await tool.invoke(toolCall.args);\n      const toolContent = typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult);\n      messages.push(new ToolMessage({ tool_call_id: toolCall.id, content: toolContent }));\n    }\n\n    const nextResponse = await model.invoke(messages);\n    messages.push(nextResponse);\n  }\n\n  const lastMsg = messages[messages.length - 1];\n  const finalContent = typeof lastMsg.content === 'string' ? lastMsg.content : JSON.stringify(lastMsg.content);\n  console.log(`[reflect] Reflection complete. Output: ${String(finalContent).slice(0, 200)}`);\n  return { messages: [lastMsg] };\n}\n\nconsole.log('[reflect] No actionable patterns found — skipping update');\nreturn { messages: [{ role: 'assistant', content: '' }] };"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "planner_node"
+    },
+    {
+      "from": "planner_node",
+      "type": "conditional",
+      "condition": {
+        "name": "fanOutToWorkers",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SwarmsState.State"
+            }
+          ],
+          "function": "return state.workerPlans.map(plan => new Send('worker_node', { ...state, currentPlan: plan }));"
+        }
+      }
+    },
+    {
+      "from": "worker_node",
+      "to": "aggregator_node"
+    },
+    {
+      "from": "aggregator_node",
+      "to": "finalize_node"
+    },
+    {
+      "from": "finalize_node",
+      "to": "reflect_node"
+    },
+    {
+      "from": "reflect_node",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "SwarmsState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

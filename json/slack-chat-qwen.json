@@ -1,0 +1,71 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Simple chat workflow with Qwen via LlamaCpp - for Slack Dispatch",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 25
+  },
+  "stateAnnotation": {
+    "name": "ChatState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    }
+  },
+  "models": [
+    {
+      "id": "qwen",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.7,
+        "serverUrl": "http://localhost:8001"
+      },
+      "systemPrompt": "あなたは親切なアシスタントです。ユーザーの質問に日本語で答えてください。"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "chat_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof ChatState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "qwen"
+          }
+        ],
+        "functionFile": "json/chat_node.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "chat_node"
+    },
+    {
+      "from": "chat_node",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "ChatState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

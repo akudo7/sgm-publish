@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780128456621",
+  "threadId": "slack-test-1780128456621",
+  "initialQuestion": [
+    "SceneGraphManagerのインスタンス作成方法を教えて下さい"
+  ],
+  "durationMs": 87742,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerのワークフロー実行は、`WorkflowEngine` クラスをインスタンス化することで開始します。\n\n### 1. インポート\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n```\n\n### 2. 設定オブジェクトの準備\n`WorkflowEngine` のコンストラクタには、ワークフローの構造やモデル設定などを定義した `WorkflowConfig` 型のオブジェクトを渡します。主な必須フィールドは以下の通りです：\n- `config`: ワークフローのメタ情報（名前、説明、再帰制限など）\n- `stateAnnotation`: 状態アノテーションの定義\n- `annotation`: 状態フィールドの詳細定義（メッセージの型やリデューサー関数など）\n- `models`: 使用するLLMモデルの設定配列\n- `nodes`: ワークフローを構成するノードの定義\n- `edges`: ノード間の接続関係の定義\n- `stateGraph`: グラフのメタデータ\n\n### 3. インスタンス生成と構築\nインスタンスを生成した後、実際に実行可能な状態にするには `build()` メソッドを呼び出す必要があります。\n\n```typescript\nconst engine = new WorkflowEngine(config);\nawait engine.build(); // グラフの構築とモデル初期化\n```\n\n### 4. 実行\n構築が完了した後は、`invoke()` で同期的に実行するか、`stream()` でストリーミング実行を行うことができます。\n\n```typescript\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\n```\n\nこれで基本的なインスタンス作成と初期化の流れは完了です。特定のノード設定やモデル連携に関する具体的な構成例が必要な場合は、お気軽にお知らせください。"
+  ],
+  "timestamp": "2026-05-30T08:09:04.381Z"
+}

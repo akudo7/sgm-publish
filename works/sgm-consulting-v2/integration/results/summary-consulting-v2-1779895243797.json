@@ -1,0 +1,23 @@
+{
+  "sessionId": "consulting-v2-1779895243797",
+  "threadId": "slack-test-1779895243797",
+  "initialQuestion": [
+    "SceneGraphMangerのインスタンスの作成方法を教えて下さい",
+    "回答の続きを表示して下さい"
+  ],
+  "durationMs": 73366,
+  "turnCount": 2,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManager SDKにおいて、ワークフローの生成・実行は `WorkflowEngine` クラスを介して行われます。SDK全体は `SceneGraphManager` というパッケージ名で公開されていますが、実際のインスタンス化とワークフロー制御は `WorkflowEngine` が担当します。\n\n### 作成手順\n1. **インポート**: SDKから `WorkflowEngine` を読み込みます。\n2. **設定の準備**: ワークフローの動作を定義する設定オブジェクト（またはJSONファイル）を準備します。\n3. **インスタンス化**: `new WorkflowEngine(config)` でインスタンスを生成します。\n4. **構築**: 生成したインスタンスに対して `await engine.build()` を呼び出し、内部グラフ構造を構築します。\n\n### 簡易サンプル\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst config = { /* ワークフロー設定 */ };\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\n\n### 設定オブジェクトの構成概要\n`config` には以下の要素が含まれます。\n- **メタ情報**: ワークフローの名前、バージョン、説明文\n- **状態定義**: ワークフロー内で共有されるデータ構造のアノテーション\n- **モデル設定**: 使用するAIモデルの種類、ID、APIキーなどの接続情報\n- **ノード定義**: LLM呼び出し、ツール実行、分岐ロジック、カスタム関数などの処理単位\n- **エッジ定義**: ノード間の実行順序と接続関係\n- **オプション設定**: コンテキスト圧縮、セキュリティフィルタリング、スキル連携、フックイベントなどの動作制御\n\n設定はJavaScriptオブジェクトとして直接渡すほか、外部のJSONファイルとして読み込んで渡すことも可能です。\n\n### 実行前の注意点\n- `build()` はワークフローを内部グラフに変換する必須ステップです。この完了前に `invoke()` や `stream()` を呼び出すとエラーになります。\n- 構築後、`invoke(input)` で同期的に実行するか、`stream(input)` でストリーミング実行を行うことができます。\n- 設定ファイルの構造やノードタイプ（model, tool, conditional, custom など）の詳細は、公式のAPIリファレンスやワークフロー設計ガイドをご参照ください。\n\n公開ドキュメントに記載の範囲内での回答です。特定のノード設定やモデル連携に関する具体的な構成例が必要な場合は、お気軽にお知らせください。",
+    "SceneGraphManager SDKにおけるワークフロー設定の詳細、ノードタイプ、および高度な機能について解説します。\n\n### ワークフロー設定の構造\nワークフローはJSON形式で定義され、以下の主要セクションで構成されます。\n\n*   **`config`**: ワークフローの名前、バージョン、再帰制限（`recursionLimit`）などのメタ情報。\n*   **`stateAnnotation`**: ワークフロー内で共有される状態（State）の型定義。\n*   **`models`**: 使用するAIモデル（Anthropic, OpenAI, Ollama, llama.cpp等）の接続情報と設定。\n*   **`nodes`**: 処理の単位となるノードの配列。\n*   **`edges`**: ノード間の接続関係と実行順序を定義する配列。\n*   **`annotation`** (オプション): 状態フィールドのデフォルト値や、複数の値が入力された際の結合ルール（リデューサー）を指定します。\n\n### ノードタイプ（Node Types）\nワークフローを構成するノードには、主に以下の4つのタイプがあります。\n\n1.  **`model` ノード**:\n    LLM（大規模言語モデル）を呼び出し、テキスト生成や対話を行います。`modelRef` フィールドで使用するモデルを指定します。\n2.  **`tool` ノード**:\n    MCP（Model Context Protocol）やA2A（Agent-to-Agent）などの外部ツールを実行します。\n3.  **`conditional` ノード**:\n    条件分岐ロジックを定義します。現在の状態に基づいて、どのノードへ遷移するかをルーティングします。\n4.  **`custom` ノード**:\n    任意のJavaScript関数を実行します。`state`（現在の状態）や `model` などを引数として受け取り、状態を更新したオブジェクトを返すことでワークフローを進めます。\n\n### スキルシステム（Skills System）\n外部の `SKILL.md` ファイルを読み込み、ワークフローに動的に注入する機能です。\n\n*   **スキル注入**: 特定のノード設定により、関連する `SKILL.md` の内容がシステムプロンプトに追加されます。これにより、エージェントの振る舞いや制約を柔軟に変更できます。\n*   **Memento-Skills**: ワークフローが自己改善するパターンです。タスク実行後、その結果を分析して `SKILL.md` に教訓（Learned Patterns）を書き戻すことで、次回以降の実行精度を向上させます。\n\n### 高度な機能\n\n*   **コンテキスト圧縮**:\n    対話の長期化によるメモリ消費を抑制します。\n    *   **Threshold Mode**: 指定されたメッセージ数やトークン数に達した際に、古いメッセージを要約・削除します。\n    *   **Autonomous Mode**: モデル自身に「いつ要約すべきか」を判断させ、ツールとして呼び出します。\n\n*   **セキュリティ（PII Filter）**:\n    入力データに含まれる個人識別情報（PII）を自動的に検出します。\n    *   **Redact**: 情報を置換。\n    *   **Mask**: 一部を伏字化。\n    *   **Hash**: 擬似匿名化。\n    *   **Block**: 検出時に実行をブロック。\n\n*   **フックイベント（Hooks）**:\n    ワークフローの特定のタイミングで処理を挿入できます。\n    *   `preToolUse`: ツール実行前（実行のブロックや引数変更が可能）。\n    *   `postToolUse`: ツール実行後（結果の取得など）。\n    *   `sessionStart`: セッション開始時。\n\n### 実行とストリーミング\n構築が完了したエンジンに対して、以下のいずれかのメソッドで実行します。\n\n*   **`invoke(input)`**: ワークフローを同期的に実行し、最終結果を返します。\n*   **`stream(input)`**: ワークフローをストリーミング実行し、進行中のチャンクを逐次受け取ります。\n\n```typescript\n// 実行例\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\n```\n\nこれにより、JSON設定のみで複雑なAIワークフローを構築・実行・管理することが可能になります。"
+  ],
+  "timestamp": "2026-05-27T15:21:57.182Z"
+}

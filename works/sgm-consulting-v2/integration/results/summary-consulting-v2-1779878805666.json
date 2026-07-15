@@ -1,0 +1,17 @@
+{
+  "sessionId": "consulting-v2-1779878805666",
+  "threadId": "slack-test-1779878805666",
+  "initialQuestion": "SceneGraphManagerのインスタンスの作成方法を教えて下さい",
+  "durationMs": 32205,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answer": "SceneGraphManagerのインスタンスは、`WorkflowEngine`クラスをインスタンス化することで作成します。\n\n## 基本的な作成手順\n\n1. `WorkflowEngine`をインポート\n2. ワークフロー設定オブジェクトを準備\n3. `new WorkflowEngine(config)` でインスタンス化\n4. `await engine.build()` でワークフローを構築\n\n## 設定オブジェクトの構成\n\nワークフロー設定には以下の要素を含めます：\n\n- **config**: ワークフローの名前や説明文などのメタ情報\n- **stateAnnotation**: 状態の名称とタイプを定義\n- **annotation**: 状態フィールドの詳細（メッセージの型、リデューサー、デフォルト値など）\n- **models**: 使用するAIモデルの設定（モデルID、タイプ、構成情報）\n- **nodes**: ワークフローを構成するノードの定義\n- **edges**: ノード間の接続関係の定義\n- **stateGraph**: 状態グラフの設定\n\n## 使用例\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst config = {\n  config: { name: \"Chat Workflow\", description: \"A basic chat workflow\" },\n  stateAnnotation: { name: \"WorkflowState\", type: \"Annotation.Root\" },\n  annotation: {\n    messages: { type: \"BaseMessage[]\", reducer: \"(x, y) => x.concat(y)\", default: \"[]\" }\n  },\n  models: [{ id: \"claude\", type: \"anthropic\", config: { model: \"claude-3-5-sonnet-20241022\", apiKey: process.env.ANTHROPIC_API_KEY } }],\n  nodes: [{ id: \"chat\", type: \"model\", modelRef: \"claude\" }],\n  edges: [{ from: \"__start__\", to: \"chat\" }, { from: \"chat\", to: \"__end__\" }],\n  stateGraph: { annotationRef: \"WorkflowState\" }\n};\n\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\n\n## 実行\n\nインスタンス化後、`build()` メソッドを呼び出してワークフローを構築します。その後、`invoke()` メソッドでワークフローを実行できます。\n\n```typescript\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\n```\n\n## ワークフロー定義\n\nワークフローはJSON形式で定義され、ノードとエッジで構成されたダイアグラムとして表現されます。ノードにはモデル呼び出し、ツール実行、条件分岐、カスタム処理などのタイプがあります。",
+  "timestamp": "2026-05-27T10:47:17.889Z"
+}

@@ -1,0 +1,86 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Context compression — autonomous mode"
+    },
+    "recursionLimit": 50,
+    "contextCompression": {
+      "enabled": true,
+      "mode": "threshold",
+      "trigger": {
+        "messages": 8,
+        "tokens": 32768
+      },
+      "keep": {
+        "messages": 4
+      }
+    }
+  },
+  "stateAnnotation": {
+    "name": "AutonomousState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "string[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "summary": {
+      "type": "string",
+      "reducer": "(_, y) => y",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "agent",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "agent",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AutonomousState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "agent"
+          }
+        ],
+        "output": {},
+        "functionFile": "json/functions/agent.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "AutonomousState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

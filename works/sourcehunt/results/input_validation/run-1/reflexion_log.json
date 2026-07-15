@@ -1,0 +1,72 @@
+[
+  {
+    "target": "libavformat/mov.c",
+    "attempt": 1,
+    "failureReason": "The function reads from an AVIOContext stream, which safely handles bounds/EOF without causing out-of-bounds memory reads or crashes. Reading past the atom boundary merely consumes subsequent file data, constituting a logic bug rather than a security vulnerability. The hypothesis also incorrectly cites avio_r8 while the code uses avio_rb16.",
+    "verbalGradient": "The hypothesis failed because it incorrectly assumed `AVIOContext` operations could trigger out-of-bounds memory reads, when they safely abstract stream boundaries and merely shift the parse cursor, making the issue a logic/state corruption bug rather than a memory safety violation. Instead, investigate how a `len < 4` atom corrupts the parser’s state machine by producing negative or misaligned `avio_skip` offsets that trigger infinite loops, assertion failures, or denial-of-service via CPU exhaustion. Focus on the exact validation and skip logic where the atom length is consumed, particularly recursive parsing calls or loop bounds that depend on this value to identify exploitable state corruption paths.",
+    "timestamp": "2026-05-08T01:06:08.519Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "The provided code context does not contain the claimed allocation logic or SPS dimension usage. Line 168 merely parses and clips a weight table parameter, making the finding a false positive or incorrectly mapped to unrelated code.",
+    "verbalGradient": "Shift analysis from the weight table clipping at line 168 to the SPS parsing routines, such as `hevc_decode_sequence_parameter_set`, where `pic_width_in_luma_samples` and `pic_height_in_luma_samples` are decoded. Investigate whether these dimensions are rigorously validated against maximum HEVC constraints before being multiplied by block sizes or log2 factors to compute allocation sizes, as missing checks here can cause integer overflows that result in undersized heap buffers during frame initialization.",
+    "timestamp": "2026-05-08T01:06:17.350Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 1,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine context index calculations and bitstream pointer arithmetic, particularly where dynamic offsets derived from macroblock types, slice headers, or reference picture lists bypass explicit bounds validation. Focus corner-case testing on truncated bitstreams, rapid context resynchronization, and extreme slice configurations that can trigger off-by-one reads, probability state corruption, or integer overflows during CABAC state transitions. Prioritize manual tracing of error recovery paths and `get_bits()` wrapper logic to uncover state-machine flaws and memory access violations that evade automated signature matching.",
+    "timestamp": "2026-05-08T01:06:27.268Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 2,
+    "failureReason": "The code at the claimed line 168 performs a value clipping operation within the pred_weight_table function, not an allocation based on SPS dimensions. The vulnerability description and line number are mismatched with the provided code context.",
+    "verbalGradient": "Shift focus from `pred_weight_table` to the SPS parsing and validation logic where width and height are extracted, specifically targeting integer overflow in expressions that compute buffer allocation sizes (e.g., `width * height * stride`). Investigate whether the code performs sufficient bounds checking against maximum HEVC constraints or `INT_MAX` before invoking memory allocation functions like `av_malloc`, as missing validation on these dimensions can lead to undersized allocations and subsequent heap overflows during frame decoding.",
+    "timestamp": "2026-05-08T01:10:29.595Z"
+  },
+  {
+    "target": "libavformat/mov.c",
+    "attempt": 2,
+    "failureReason": "False positive: The referenced function name and line number do not match the provided code context. Line 158 is a data array initialization, not executable code. Additionally, the claim that avio_r8() reads 4 bytes is technically incorrect (it reads 1 byte). The exploit hypothesis is unsupported by the visible code.",
+    "verbalGradient": "Pivot to analyzing `mov_read_default` and `mov_read_atom` for integer overflows in atom size calculations or missing validation of `len` against the remaining buffer, which could enable crafted atoms to cause out-of-bounds reads or infinite traversal loops. Specifically, verify how the parser handles 64-bit atom sizes and whether it enforces strict bounds checks before advancing the I/O context to prevent state desynchronization.",
+    "timestamp": "2026-05-08T01:10:40.736Z"
+  },
+  {
+    "target": "libavformat/mov.c",
+    "attempt": 2,
+    "failureReason": "The provided code context (mov_read_mac_string) does not match the described vulnerability (mov_metadata_gnre). The code iterates len times to read bytes, directly contradicting the claim of unconditionally reading 2 bytes regardless of len. The finding is a false positive due to mismatched function names and incorrect code analysis.",
+    "verbalGradient": "Shift analysis to `mov_metadata_gnre` to verify if it validates the `len` parameter against the atom size before invoking `mov_read_mac_string`, specifically investigating integer truncation or sign-extension vulnerabilities where a malformed length could be misinterpreted as a large unsigned value, causing out-of-bounds reads or excessive iteration. Additionally, examine whether `mov_metadata_gnre` enforces minimum size constraints (e.g., `len >= 2`) for the genre ID structure, as the rejection implies the function may safely handle short lengths, and look for downstream effects where a valid but unexpected length could corrupt parser state or trigger assertion failures in dependent logic.",
+    "timestamp": "2026-05-08T01:10:53.693Z"
+  },
+  {
+    "target": "libavformat/mov.c",
+    "attempt": 2,
+    "failureReason": "The claimed function mov_metadata_track_or_disc_number is not present in the provided code context, and line 144 is empty. The vulnerability claim cannot be verified based on the visible code.",
+    "verbalGradient": "The rejection indicates the hypothesis relied on hallucinated identifiers or outdated code references; shift focus from the specific function name to the active metadata parsing logic within `mov_read_default` or registered atom handlers. Investigate the validation sequence for atom lengths, specifically checking if 4-byte reads (e.g., via `avio_rb32`) occur before sufficient length checks or if `len` is used to compute offsets without verifying `len` covers the required payload. Examine how the parser state machine handles truncated or malformed metadata atoms to determine if misalignment can bypass safety checks and corrupt subsequent parsing.",
+    "timestamp": "2026-05-08T01:11:03.988Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 2,
+    "failureReason": "av_malloc_array and av_calloc explicitly check for integer overflow and return NULL, preventing undersized allocations. Additionally, an int overflow results in a negative value, which when cast to size_t becomes a large positive number, not a small one. The claimed exploitation path for undersized heap buffers is therefore impossible.",
+    "verbalGradient": "Since the allocator safely rejects overflow-induced sizes, pivot the investigation to how the overflowed `pic_size_in_ctb` value is consumed in subsequent logic; specifically, check if the resulting negative or wrapped integer is used as an array index or loop bound for writes that lack independent bounds checks, potentially causing an out-of-bounds access against a correctly sized buffer. Additionally, examine whether the allocation failure (returning NULL) is properly guarded against, as a missing check could expose a null pointer dereference vulnerability.",
+    "timestamp": "2026-05-08T01:11:23.461Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine context index calculations and arithmetic decoder renormalization loops for off-by-one bounds violations and integer wraparound risks when parsing malformed or truncated bitstreams. Focus on CABAC state machine transitions where context model arrays are updated without strict validation against maximum context counts, particularly under extreme quantization or high-complexity macroblock syntax. Prioritize targeted fuzzing with deliberately misaligned NAL units and edge-case syntax elements to expose hidden out-of-bounds memory accesses or undefined state desynchronization that conventional scanners typically miss.",
+    "timestamp": "2026-05-08T01:11:33.919Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Focus re-investigation on array accesses into CABAC context tables and bitstream pointer arithmetic, specifically verifying that all context indices are strictly bounded before dereferencing and that `get_bits()` calls validate remaining stream length before advancing pointers. Pay close attention to corner cases involving truncated or maliciously crafted bitstreams where the arithmetic coder’s `range` and `val` registers could underflow, wrap, or trigger mid-stream state resets without proper clamping or error handling. Additionally, audit loop boundaries for macroblock and slice decoding to ensure off-by-one errors or integer overflows in counter variables cannot be exploited to bypass safety checks or force out-of-bounds table lookups.",
+    "timestamp": "2026-05-08T01:11:40.757Z"
+  }
+]

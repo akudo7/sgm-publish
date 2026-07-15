@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780128642006",
+  "threadId": "slack-test-1780128642006",
+  "initialQuestion": [
+    "apiKeyの設定方法を教えて下さい"
+  ],
+  "durationMs": 21110,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "apiKeyの設定方法は以下の2通りがあります。\n\n## 1. 直接設定（開発用）\n\nワークフロー設定の`models`配列に直接`apiKey`を記述します。\n\n```typescript\nconst config = {\n  models: [{\n    id: \"claude\",\n    type: \"anthropic\",\n    config: {\n      model: \"claude-3-5-sonnet-20241022\",\n      apiKey: \"sk-ant-...\"  // 直接設定\n    }\n  }]\n};\n```\n\n## 2. loadSecrets()を使用（本番推奨）\n\nOSネイティブのシークレットストア（Keychain / libsecret / Credential Manager）から環境変数を読み込み、`WorkflowEngine`に渡します。\n\n```typescript\nimport { loadSecrets } from 'scenegraphmanager';\n\n// OSのシークレットストアからprocess.envに読み込み\nloadSecrets();\n\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\n\n### 対応環境変数\n\n| 環境変数名 | プロバイダ |\n|---|---|\n| `ANTHROPIC_API_KEY` | Anthropic (Claude) |\n| `OPENAI_API_KEY` | OpenAI |\n| `AZURE_OPENAI_API_KEY` | Azure OpenAI |\n| `AZURE_OPENAI_EMBEDDINGS_API_KEY` | Azure OpenAI Embeddings |\n| `GOOGLE_API_KEY` | Google |\n\n> **注意**: `loadSecrets()`は既に`process.env`に存在するキーをスキップするため、デプロイ時に注入された値が優先されます。\n\n### OS別の登録方法\n\n**macOS (Keychain)**\n```bash\nsecurity add-generic-password -a scenegraphmanager -s ANTHROPIC_API_KEY -w \"sk-ant-...\"\n```\n\n**Linux (libsecret)**\n```bash\nsecret-tool store --label=\"SGM ANTHROPIC_API_KEY\" \\\n  service scenegraphmanager key ANTHROPIC_API_KEY\n```\n\n**Windows (Credential Manager)**\n```powershell\nNew-StoredCredential -Target \"scenegraphmanager/ANTHROPIC_API_KEY\" `\n  -UserName \"scenegraphmanager\" -Password \"sk-ant-...\" -Persist LocalMachine\n```\n\n## 重要な注意点\n\n- SceneGraphManagerは`.env`ファイルや`dotenv`を**自動読み込みしません**\n- 本番環境では`loadSecrets()`によるOSネイティブシークレットストアの使用を推奨します\n- APIキーはログ出力時に自動的にマスクされます"
+  ],
+  "timestamp": "2026-05-30T08:11:03.135Z"
+}

@@ -1,0 +1,315 @@
+{
+  "config": {
+    "info": {
+      "version": "0.4.0",
+      "description": "SourceHunt - Vulnerability scanning workflow with Reflexion loop",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 50,
+    "eventEmitter": {
+      "defaultMaxListeners": 20
+    },
+    "store": {
+      "type": "InMemoryStore"
+    }
+  },
+  "stateAnnotation": {
+    "name": "SourceHuntState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "repoPath": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    },
+    "huntTargets": {
+      "type": "{ filePath: string; score: number; reason: string }[]",
+      "reducer": "(x, y) => (y && y.length > 0 ? y : x)",
+      "default": []
+    },
+    "currentTarget": {
+      "type": "{ filePath: string; score: number; reason: string } | null",
+      "reducer": "(x, y) => y ?? x",
+      "default": null
+    },
+    "huntResults": {
+      "type": "{ filePath: string; specialist: string; confidence: number; findings: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number }[] }[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "verifiedFindings": {
+      "type": "{ type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string; verifiedAt: string }[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "_failedFindings": {
+      "type": "{ finding: { type: string; severity: string; description: string; line: number; column?: number; hypothesis: string; evidenceLevel: number; filePath: string; specialist: string }; reason: string }[]",
+      "reducer": "(x, y) => y !== undefined ? y : x",
+      "default": []
+    },
+    "reflexionHistory": {
+      "type": "{ target: string; attempt: number; failureReason: string; verbalGradient: string; timestamp: string }[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "_exploitedFindings": {
+      "type": "{ findingId: string; targetFile: string; evidenceLevel: number; poc: { pocCode: string; language: string; exploitMechanism: string } | null; attackVector?: string; severity: string; exploitStatus: string }[]",
+      "reducer": "(x, y) => y !== undefined ? y : x",
+      "default": []
+    },
+    "finalReport": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  },
+  "models": [
+    {
+      "id": "ranker",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "hunter",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "verifier",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "analyst",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.5,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "exploiter",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    },
+    {
+      "id": "reporter",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.2,
+        "serverUrl": "http://localhost:8001"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ranker_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "ranker"
+          }
+        ],
+        "functionFile": "functions/ranker_node.js"
+      }
+    },
+    {
+      "id": "hunter_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "hunter"
+          }
+        ],
+        "functionFile": "functions/hunter_node.js"
+      }
+    },
+    {
+      "id": "verifier_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "verifier"
+          }
+        ],
+        "functionFile": "functions/verifier_node.js"
+      }
+    },
+    {
+      "id": "failure_analyst_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "analyst"
+          }
+        ],
+        "functionFile": "functions/failure_analyst_node.js"
+      }
+    },
+    {
+      "id": "exploiter_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "exploiter"
+          }
+        ],
+        "functionFile": "functions/exploiter_node.js"
+      }
+    },
+    {
+      "id": "reporter_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SourceHuntState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "reporter"
+          }
+        ],
+        "functionFile": "functions/reporter_node.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "ranker_node"
+    },
+    {
+      "from": "ranker_node",
+      "type": "conditional",
+      "condition": {
+        "name": "fanOutToHunters",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SourceHuntState.State"
+            }
+          ],
+          "functionFile": "functions/node_50.js"
+        }
+      }
+    },
+    {
+      "from": "hunter_node",
+      "to": "verifier_node"
+    },
+    {
+      "from": "verifier_node",
+      "type": "conditional",
+      "condition": {
+        "name": "reflexionOrProceed",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SourceHuntState.State"
+            }
+          ],
+          "functionFile": "functions/node_51.js"
+        }
+      }
+    },
+    {
+      "from": "failure_analyst_node",
+      "type": "conditional",
+      "condition": {
+        "name": "retryHunters",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SourceHuntState.State"
+            }
+          ],
+          "functionFile": "functions/node_52.js"
+        }
+      }
+    },
+    {
+      "from": "exploiter_node",
+      "to": "reporter_node"
+    },
+    {
+      "from": "reporter_node",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "SourceHuntState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130512056",
+  "threadId": "slack-test-1780130512056",
+  "initialQuestion": [
+    "getUsageStatsの使い方を教えてください"
+  ],
+  "durationMs": 47406,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`getUsageStats()` は、`WorkflowEngine` の実行セッション中に消費されたトークン数と推定コストを集計して返す公開メソッドです。\n\n### 基本的な使い方\nワークフローの実行（`invoke` または `stream`）の完了後、または任意のタイミングで呼び出します。\n\n```typescript\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n\nconst result = await engine.invoke(input);\nconst stats = engine.getUsageStats();\n```\n\n### 返却値の構造 (`WorkflowUsageStats`)\n呼び出すと、以下のフィールドを持つオブジェクトが返されます。\n\n| フィールド | 型 | 説明 |\n|---|---|---|\n| `totalInputTokens` | `number` | セッション全体での入力トークン合計 |\n| `totalOutputTokens` | `number` | セッション全体での出力トークン合計 |\n| `totalTokens` | `number` | 合計トークン数 |\n| `totalEstimatedCostUsd` | `number \\| undefined` | 推定コスト（USD）。対応モデル以外の場合は `undefined` |\n| `byNode` | `Record<string, NodeUsageSummary>` | ノードごとの使用状況（呼び出し回数、入力/出力トークン数） |\n| `byModel` | `Record<string, ModelUsageSummary>` | モデルごとの使用状況（呼び出し回数、合計トークン数） |\n\n### コスト計算について\n組み込みの価格テーブルに基づき、以下のモデルで `totalEstimatedCostUsd` が自動計算されます。\n- `claude-opus-4-6`\n- `claude-sonnet-4-6`\n- `claude-haiku-4-5`\n- `gpt-4o`\n\n価格データが登録されていないモデルを使用している場合、このフィールドは `undefined` になります。\n\n### 関連メソッドと設定\n- **`resetUsage()`**：集計データを初期化します。ループ処理などでセッションを区切って使用する場合や、テスト実行前に状態をリセットする際に利用します。\n  ```typescript\n  engine.resetUsage();\n  ```\n- **設定方法**：ワークフローJSONの `config.config.tokenCounting` で集計の有効化・無効化や、カスタム価格表の指定が可能です。デフォルトは有効です。\n\n### 使用タイミングの推奨\n- 単発実行の場合：`invoke()` の直後に呼び出す\n- ストリーミング実行の場合：`stream()` のイテレーション完了後、または `await` 後に呼び出す\n- 長時間稼働・ループ処理の場合：必要に応じて `resetUsage()` で区切り、`getUsageStats()` でバッチごとのコストを把握する\n\n内部的にはノード実行時の `usage_metadata` が自動でトラッキングされるため、特別な設定なしでトークン消費の可視化やコスト管理に活用できます。"
+  ],
+  "timestamp": "2026-05-30T08:42:39.479Z"
+}

@@ -1,0 +1,264 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Multiplication `16 * 6 * alloc_size` is evaluated as a 32-bit signed integer. If `alloc_size` exceeds ~21 million, the result wraps around, causing an undersized allocation passed to `av_fast_malloc`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 136
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Multiplication `alloc_size * 2 * 21` is evaluated as a 32-bit signed integer. Similar overflow risk if `alloc_size` is large, resulting in an undersized allocation for `edge_emu_buffer`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 139
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Expression `h->mb_width * 16 * 3 * sizeof(uint8_t) * 2` is computed as a 32-bit signed integer. If `mb_width` exceeds ~21 million, the allocation size calculation overflows and wraps to a small value."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 142
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Expression `h->mb_stride * (h->mb_height + 1) + 1` is computed as a 32-bit signed integer. Overflow occurs if macroblock dimensions are large, corrupting `big_mb_num`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 165
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Expression `b4_stride * h->mb_height * 4` is computed as a 32-bit signed integer. Overflow results in a drastically reduced allocation size for motion value pools."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 168
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Expression `2 * (b4_array_size + 4) * sizeof(int16_t)` is computed as a 32-bit signed integer. Overflow leads to undersized motion value pool allocation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 174
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Expression `4 * mb_array_size` is computed as a 32-bit signed integer. Overflow causes undersized allocation for the reference index pool."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 176
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Expression `h->mb_stride * h->mb_height` is computed as a 32-bit signed integer. Overflow leads to incorrect `mb_array_size` calculation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 166
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Expression `h->mb_width * 4 + 1` is computed as a 32-bit signed integer. Overflow occurs if `mb_width` > 536,870,911."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 167
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Expression `(big_mb_num + h->mb_stride) * sizeof(uint32_t)` is computed as a 32-bit signed integer. Overflow causes undersized allocation for the MB type pool."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 172
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "32-bit signed integer overflow in motion vector table pool allocation size calculation due to unchecked multiplication of macroblock dimensions and block factors."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 146
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Unchecked multiplication of frame superblock dimensions causes 32-bit integer overflow, leading to undersized heap allocation and subsequent out-of-bounds memory access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 116
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "signed_integer_overflow",
+          "level": "note",
+          "message": {
+            "text": "The calculation of pic_size_in_ctb uses signed 32-bit integers for width, height, and log2_min_cb_size. If log2_min_cb_size is malformed (e.g., 0 or 1) or dimensions are unclamped, the multiplication can overflow INT_MAX, triggering undefined behavior before av_malloc_array validation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 65
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

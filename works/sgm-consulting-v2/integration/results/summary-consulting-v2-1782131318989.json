@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1782131318989",
+  "threadId": "slack-test-1782131318989",
+  "initialQuestion": [
+    "SceneGraphManagerとは何ですか？"
+  ],
+  "durationMs": 19472,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManager（SGM）は、**JSON形式でAIエージェントのワークフローを定義・実行できるTypeScript SDK**です。LangGraphとLangChain Coreを基盤としており、複雑なマルチエージェントシステムや自律型パイプラインを宣言的な設定ファイルで構築することを目的としています。\n\n主な特徴と機能は以下の通りです。\n\n### 1. JSON駆動ワークフロー\nワークフロー全体（ノード、エッジ、状態定義、モデル設定）をJSONファイルで記述します。\n*   **宣言的定義**: `WorkflowEngine` に設定を渡すだけで、グラフの構築と依存解決が自動で行われます。\n*   **多様なノード型**: `model`（LLM呼び出し）、`tool`（MCP/A2Aツール実行）、`custom`（JavaScript関数）などを組み合わせてパイプラインを設計できます。\n\n### 2. マルチモデル対応\n単一のワークフロー内で複数のAIプロバイダーを混在させることができます。\n*   **対応プロバイダー**: Anthropic (Claude), OpenAI (GPT), Azure OpenAI, Ollama, llama.cpp (GGUF) など。\n*   各ノードやモデルごとに温度設定やトークン制限を個別に制御可能です。\n\n### 3. 高度なツール統合\n*   **MCP (Model Context Protocol)**: 外部MCPサーバーからツールを自動的にバインド。\n*   **A2A (Agent-to-Agent Protocol)**: 複数のエージェント間で通信・タスク委任を行うためのプロトコル。動的なエージェントカード発見（`useDiscoveredAgents`）やランタイムでのエージェント登録（`__registerA2AAgent`）に対応。\n*   **Skills System**: `SKILL.md` ファイルベースで外部スキルを動的に読み込み、Claude Code風のツール（`read_file`, `grep_search`, `bash_command` 等）をエージェントに付与できます。\n\n### 4. 状態管理とコンテキスト制御\n*   **LangGraph Annotation**: 型安全な状態定義とカスタムリデューサーによる状態更新。\n*   **MemorySaver**: `thread_id` を使用した会話履歴の永続化とチェックポイント機能。\n*   **コンテキスト圧縮**: 長期会話におけるトークン消費を抑えるため、閾値モードまたは自律モードで古いメッセージを要約・圧縮します。\n*   **Context Guard**: コンテキストウィンドウの上限接近時に強制的に状態をリセットし、エージェントの処理中断（Context Anxiety）を防ぎます。\n\n### 5. セキュリティとプライバシー\n*   **PIIフィルタリング**: 入力データから個人情報（メール、IP、クレジットカード等）を自動検出し、`redact`（置換）、`mask`（伏字）、`hash`（ハッシュ化）、`block`（拒否）などの戦略で処理します。\n*   **サンドボックス**: ファイルパスのトラバーサル攻撃、SSRF、シェルインジェクションなどを防ぎます。\n*   **シークレット管理**: `.env` ファイルの代わりに、OSネイティブのキーチェーン（macOS Keychain, Linux libsecret, Windows Credential Manager）にAPIキーを保存・読み込みます。\n\n### 6. 開発者体験\n*   **フック＆イベント**: ワークフローのライフサイクル（`sessionStart`, `nodeStart`, `preToolUse` 等）にフックし、ツール呼び出しの制御やログ取得が可能です。\n*   **可視化**: 構築したグラフをMermaid形式のPNG画像としてエクスポートできます。\n\n### 基本的な使用例\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\n// 設定オブジェクトの定義\nconst config = { /* ... JSON設定 ... */ };\n\n// エンジンの構築と実行\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\nconsole.log(result.messages);\n```\n\n詳細な設定方法や機能リファレンスについては、公式ドキュメントの `docs/QUICK-START.md` や `docs/FEATURES.md` を参照してください。"
+  ],
+  "timestamp": "2026-06-22T12:28:58.475Z"
+}

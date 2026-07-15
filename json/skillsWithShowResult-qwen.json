@@ -1,0 +1,154 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "LangGraph workflow with Claude Code-style tools and FilesystemBackend skills integration (Qwen/LlamaCpp)",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 25,
+    "eventEmitter": {
+      "defaultMaxListeners": 10
+    },
+    "store": {
+      "type": "InMemoryStore"
+    },
+    "bashCommandAllowedCommands": [
+      "git",
+      "yarn",
+      "npm",
+      "npx",
+      "node",
+      "tsx",
+      "docker",
+      "ls",
+      "cat",
+      "echo",
+      "pwd",
+      "mkdir",
+      "rm",
+      "mv",
+      "cp",
+      "chmod",
+      "find",
+      "head",
+      "tail",
+      "wc",
+      "grep",
+      "sed",
+      "awk",
+      "sort",
+      "uniq",
+      "tee"
+    ]
+  },
+  "stateAnnotation": {
+    "name": "StateAnnotation",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    }
+  },
+  "models": [
+    {
+      "id": "qwen",
+      "type": "llamacpp",
+      "config": {
+        "serverUrl": "http://localhost:8001",
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "maxTokens": 512
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "backend": {
+          "virtualMode": true,
+          "rootDir": "."
+        }
+      },
+      "systemPrompt": "You are a helpful AI assistant with access to various tools and skills. When asked to perform a task, you MUST use the available tools to complete it. ALWAYS read and report the actual results returned by tools. DO NOT just describe how to use tools - actually invoke them and return real results. When tools return data, you MUST include that data in your response to the user."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "agent",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof StateAnnotation.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "qwen"
+          }
+        ],
+        "functionFile": "json/functions/agent_5.js"
+      }
+    },
+    {
+      "id": "tools",
+      "type": "ToolNode",
+      "useSystemSkills": true
+    },
+    {
+      "id": "showResult",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof StateAnnotation.State"
+          }
+        ],
+        "functionFile": "json/functions/showResult_3.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "type": "conditional",
+      "condition": {
+        "name": "shouldContinue",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof StateAnnotation.State"
+            }
+          ],
+          "functionFile": "json/functions/node_42.js"
+        }
+      }
+    },
+    {
+      "from": "tools",
+      "to": "agent"
+    },
+    {
+      "from": "showResult",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "StateAnnotation",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

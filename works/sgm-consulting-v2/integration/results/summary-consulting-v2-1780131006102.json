@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780131006102",
+  "threadId": "slack-test-1780131006102",
+  "initialQuestion": [
+    "複数モデルをfunctionノードで使う方法を教えてください"
+  ],
+  "durationMs": 21872,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "公開ドキュメント（WORKFLOW.md）に基づき、functionノードで複数モデルを使用する方法を解説します。\n\n## 複数モデルの使い方\n\nfunctionノードの `parameters` で複数の `parameterType: \"model\"` を指定し、それぞれ異なる `modelRef` を割り当てることで、複数のモデルを注入できます。\n\n### 基本パターン\n\n```jsonc\n{\n  \"id\": \"multi_model_node\",\n  \"handler\": {\n    \"parameters\": [\n      { \"name\": \"state\", \"parameterType\": \"state\", \"stateType\": \"typeof State.State\" },\n      { \"name\": \"modelA\", \"parameterType\": \"model\", \"modelRef\": \"claude\" },\n      { \"name\": \"modelB\", \"parameterType\": \"model\", \"modelRef\": \"qwen\" }\n    ],\n    \"function\": \"const r1 = await modelA.invoke(msgs);\\nconst r2 = await modelB.invoke(msgs);\\nreturn { result: r1 };\"\n  }\n}\n```\n\n### 2つのアクセス方法\n\n1. **個別変数としてアクセス**\n   - `parameters` で指定した名前（`modelA`, `modelB` など）で直接呼び出し可能\n   - 上記の例のように `await modelA.invoke(...)` と記述\n\n2. **`models` オブジェクトでまとめてアクセス**\n   - 複数の `model` パラメータを指定すると、自動的に `models` 辞書がスコープに注入される\n   - `models[\"claude\"]` のようにキーでアクセス可能\n\n### 使用上の注意点\n\n- `models` 辞書は、`parameters` で指定されたすべての `modelRef` が自動的に登録されます\n- 単一のモデルのみを指定する場合は、`model` という名前の単一変数として注入されます（後方互換性のため）\n- 各モデルは事前に `models` 配列で定義済みである必要があります\n\n```jsonc\n{\n  \"models\": [\n    { \"id\": \"claude\", \"type\": \"anthropic\", \"config\": { \"model\": \"claude-3-5-sonnet-20241022\", \"apiKey\": \"...\" } },\n    { \"id\": \"qwen\", \"type\": \"openai\", \"config\": { \"model\": \"qwen-max\", \"apiKey\": \"...\" } }\n  ]\n}\n```"
+  ],
+  "timestamp": "2026-05-30T08:50:27.992Z"
+}

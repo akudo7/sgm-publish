@@ -1,0 +1,10 @@
+{
+  "chunkSize": 50,
+  "topN": 5,
+  "subsystems": [
+    { "dir": "libavcodec",  "quota": 82 },
+    { "dir": "libavformat", "quota": 40 },
+    { "dir": "libavfilter", "quota": 20 },
+    { "dir": "*",           "quota": 8  }
+  ]
+}

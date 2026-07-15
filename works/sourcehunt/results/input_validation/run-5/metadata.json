@@ -1,0 +1,26 @@
+{
+  "runId": 5,
+  "startTime": "2026-05-08T02:42:03.955Z",
+  "durationMs": 1116414,
+  "detected": true,
+  "targetFile": "libavformat/mov.c",
+  "targetRank": 1,
+  "targetScore": 0.91,
+  "maxEvidenceLevel": 2,
+  "reflexionCount": 5,
+  "stats": {
+    "totalFindings": 7,
+    "byEvidenceLevel": {
+      "1": 1,
+      "2": 6
+    },
+    "bySeverity": {
+      "critical": 2,
+      "medium": 2,
+      "high": 3
+    },
+    "pocGenerated": 6,
+    "reflexionIterations": 5,
+    "repoPath": "/home/akudo/Desktop/Work/ffmpeg-vuln"
+  }
+}

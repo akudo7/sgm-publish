@@ -1,0 +1,134 @@
+[
+  {
+    "type": "Buffer Overflow",
+    "severity": "high",
+    "description": "Missing bounds check on `s->sh.nb_refs[L0]` before array access in `pred_weight_table`.",
+    "line": 148,
+    "column": null,
+    "hypothesis": "The number of references is parsed directly from the bitstream without clamping to the maximum supported value (16). If a malicious bitstream sets `nb_refs` to 17 or higher, the loop `for (i = 0; i < s->sh.nb_refs[L0]; i++) {` will iterate beyond the allocated size of the local arrays `luma_weight_l0_flag[16]` and `chroma_weight_l0_flag[16]`, as well as the context arrays `s->sh.luma_weight_l0[i]` and `s->sh.luma_offset_l0[i]`, causing a stack/heap buffer overflow.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/hevcdec.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:16:39.163Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n\ntypedef struct {\n    int nb_refs[2];\n    int luma_weight_l0[16];\n    int luma_offset_l0[16];\n} SliceHeader;\n\nvoid pred_weight_table(SliceHeader *sh, int list) {\n    int luma_weight_l0_flag[16];\n    int chroma_weight_l0_flag[16];\n\n    // VULNERABILITY: No bounds check on nb_refs before loop\n    // If nb_refs > 16, array access exceeds allocated size\n    for (int i = 0; i < sh->nb_refs[list]; i++) {\n        luma_weight_l0_flag[i] = 1;\n        chroma_weight_l0_flag[i] = 1;\n        sh->luma_weight_l0[i] = 128;\n        sh->luma_offset_l0[i] = 0;\n    }\n}\n\nint main() {\n    SliceHeader sh = {0};\n    // Simulate malicious bitstream setting nb_refs to 18 (> 16)\n    sh.nb_refs[0] = 18;\n    printf(\"Exploit triggered with nb_refs = %d\\n\", sh.nb_refs[0]);\n    pred_weight_table(&sh, 0);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The function uses an attacker-controlled nb_refs value directly as a loop bound without clamping it to the maximum array size (16). When nb_refs exceeds 16, the loop writes past the end of the fixed-size local and context arrays, causing a stack/heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "null_pointer_dereference",
+    "severity": "medium",
+    "description": "Unchecked pointer dereference of h->DPB[i].f in release_unused_pictures",
+    "line": 105,
+    "column": null,
+    "hypothesis": "The condition 'if (h->DPB[i].f->buf[0] && !h->DPB[i].reference &&' on line 105 accesses h->DPB[i].f->buf[0] without verifying that h->DPB[i].f is non-NULL. If the Decoding Picture Buffer (DPB) contains uninitialized entries or entries where the AVFrame pointer has been freed but not cleared, accessing ->buf[0] will cause a segmentation fault. This provides a reliable denial-of-service vector against the decoder.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:17:46.210Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "medium",
+    "description": "The size calculation for the extradata pool in vp9_frame_alloc uses signed 32-bit integer arithmetic (sz = 64 * s->sb_cols * s->sb_rows). For sufficiently large frame dimensions, this multiplication can overflow, resulting in a negative or wrapped size passed to av_buffer_pool_init.",
+    "line": 118,
+    "column": null,
+    "hypothesis": "An attacker controlling video dimensions (if not strictly capped by the caller) could trigger an integer overflow in the pool size calculation. This would cause av_buffer_pool_init to request an incorrect amount of memory (either excessively large causing OOM, or wrapped to a small value causing undersized allocation). Subsequent reads/writes to the pool would exceed the allocated buffer, leading to heap corruption or out-of-bounds access.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/vp9.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:18:04.125Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "use_after_free",
+    "severity": "medium",
+    "description": "In vp9_frame_ref, if av_buffer_ref fails and execution jumps to the fail label, dst->segmentation_map and dst->mv are not cleared. These pointers retain references to src's buffers, which may be freed or modified independently.",
+    "line": 138,
+    "column": null,
+    "hypothesis": "Under memory pressure or specific error conditions, av_buffer_ref may fail. The error path calls vp9_frame_unref, which clears dst->extradata but leaves dst->segmentation_map and dst->mv pointing to src's memory. If src is subsequently freed or reused, accessing these dangling pointers in dst results in a use-after-free vulnerability.",
+    "evidenceLevel": 1,
+    "filePath": "libavcodec/vp9.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:18:22.494Z",
+    "poc": null,
+    "exploitStatus": "insufficient_evidence"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "critical",
+    "description": "Signed integer overflow in allocation size calculations for buffer pools in init_table_pools",
+    "line": 145,
+    "column": null,
+    "hypothesis": "Variables h->mb_stride, h->mb_height, and h->mb_width are derived from video dimensions. Multiplications such as 'h->mb_stride * (h->mb_height + 1)' on line 145, 'h->mb_stride * h->mb_height' on line 146, and 'b4_stride * h->mb_height * 4' on line 148 are performed using 32-bit signed integers. If a crafted H.264 stream specifies dimensions near INT_MAX/height, these calculations overflow, yielding negative or truncated values. These values are implicitly cast to size_t when passed to av_buffer_pool_init(), resulting in drastically undersized buffer pools. Subsequent decoding operations writing macroblock types, motion vectors, or reference indices to these pools will trigger heap buffer overflows, potentially leading to arbitrary code execution.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:22:36.206Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <limits.h>\n\ntypedef struct {\n    int mb_stride;\n    int mb_height;\n} H264Context;\n\nvoid* av_buffer_pool_init(size_t size) {\n    printf(\"[ALLOC] Requested: %zu bytes\\n\", size);\n    return malloc(size);\n}\n\nvoid vulnerable_pool_init(H264Context* h) {\n    // Crafted dimensions from a malicious H.264 stream\n    h->mb_stride = 50000;\n    h->mb_height = 50000;\n\n    // Line 145: h->mb_stride * (h->mb_height + 1)\n    // Operands are 32-bit signed int. Multiplication exceeds INT_MAX.\n    // Signed overflow wraps to a negative value.\n    int raw_size = h->mb_stride * (h->mb_height + 1);\n\n    // Implicit cast to size_t when passed to allocation function.\n    // In practice, truncation to 32-bit unsigned before promotion can wrap\n    // the negative overflow to a small positive number, causing undersized allocation.\n    void* pool = av_buffer_pool_init(raw_size);\n\n    printf(\"[OVERFLOW] Signed result: %d\\n\", raw_size);\n    printf(\"[CAST] size_t result: %zu\\n\", (size_t)raw_size);\n\n    if (pool) free(pool);\n}\n\nint main() {\n    H264Context ctx;\n    vulnerable_pool_init(&ctx);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "Crafted H.264 dimensions cause 32-bit signed integer overflow during buffer size calculation. The negative overflow result is implicitly cast to an unsigned size_t, wrapping to a drastically undersized allocation size. Subsequent writes to the undersized pool trigger a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow",
+    "severity": "critical",
+    "description": "Signed integer overflow in allocation size calculation for top_borders in alloc_scratch_buffers",
+    "line": 126,
+    "column": null,
+    "hypothesis": "The expression 'h->mb_width * 16 * 3 * sizeof(uint8_t) * 2' on line 126 computes the allocation size for sl->top_borders[0] and [1] using 32-bit signed integer arithmetic. If h->mb_width exceeds 21,474,836, the multiplication overflows. The resulting negative or small value is cast to size_t and passed to av_fast_mallocz(), allocating a severely undersized buffer. Writes to these borders during H.264 edge emulation or inter-prediction will cause heap buffer overflows, enabling memory corruption.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:23:18.277Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\n// Minimal PoC demonstrating signed integer overflow in allocation size calculation\nvoid alloc_scratch_buffers(int mb_width) {\n    // Vulnerable line: uses 32-bit signed integer arithmetic for multiplication\n    // Multiplier constant: 16 * 3 * sizeof(uint8_t) * 2 = 96\n    // When mb_width > ~22,369,621, the product exceeds INT32_MAX and wraps around\n    int raw_calc = mb_width * 16 * 3 * sizeof(uint8_t) * 2;\n\n    // The overflowed signed value is cast to size_t (unsigned 64-bit on modern systems)\n    // This preserves the small/negative wrapped value instead of detecting the overflow\n    size_t alloc_size = (size_t)raw_calc;\n\n    printf(\"[INFO] mb_width: %d\\n\", mb_width);\n    printf(\"[INFO] Raw signed calculation: %d\\n\", raw_calc);\n    printf(\"[INFO] Cast to size_t: %zu\\n\", alloc_size);\n\n    // Allocate based on the undersized size (simulates av_fast_mallocz)\n    uint8_t *top_borders[2];\n    for (int i = 0; i < 2; i++) {\n        top_borders[i] = malloc(alloc_size);\n        if (!top_borders[i]) {\n            fprintf(stderr, \"[ERROR] Allocation failed\\n\");\n            return;\n        }\n    }\n\n    // Educational note: In the real H.264 decoder, subsequent edge emulation\n    // or inter-prediction writes would exceed alloc_size, causing a heap buffer overflow.\n    // Actual out-of-bounds write omitted to prevent memory corruption in this PoC.\n    printf(\"[INFO] Allocated %zu bytes per border. Safe for demonstration.\\n\", alloc_size);\n\n    // Cleanup\n    for (int i = 0; i < 2; i++) free(top_borders[i]);\n}\n\nint main(void) {\n    // Value chosen to trigger the 32-bit signed integer overflow\n    // 25,000,000 * 96 = 2,400,000,000 > INT32_MAX (2,147,483,647)\n    int trigger_mb_width = 25000000;\n    printf(\"=== Integer Overflow Allocation PoC ===\\n\");\n    alloc_scratch_buffers(trigger_mb_width);\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "A 32-bit signed integer multiplication overflows when mb_width exceeds ~22.3M, wrapping to a small or negative value. Casting this overflowed value to size_t yields an undersized allocation. Subsequent writes to the border arrays during H.264 decoding exceed the allocated buffer, triggering a heap buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "buffer_overflow",
+    "severity": "high",
+    "description": "The function computes a bounds pointer `end` using the caller-supplied `dstlen` without verifying it against the actual allocated size of `dst`. In the MOV demuxer, `dstlen` is typically passed as the untrusted atom length. If an attacker crafts a file with a large atom length, `dstlen` becomes excessively large, causing `end` to point far beyond the actual buffer. The subsequent loop writes to `dst` via `*p++` and `PUT_UTF8` until `p` reaches `end`, overflowing the buffer. The `PUT_UTF8` macro's internal checks rely on the already-miscalculated `end`.",
+    "line": 192,
+    "column": null,
+    "hypothesis": "An attacker crafts a malicious MP4/MOV file with an atom (e.g., 'name' or 'cprt') containing an artificially large length field. This length is passed as `dstlen` to `mov_read_mac_string`. The calculation `char *end = dst+dstlen-1;` produces a pointer far beyond the stack/heap buffer `dst`. The loop iterates `len` times, and since `p < end` remains true for a large range, both the ASCII branch `*p++ = c;` and the `PUT_UTF8` branch write bytes past the end of `dst`, causing a heap/stack buffer overflow. The macro's per-byte checks are ineffective because they validate against the poisoned `end` pointer.",
+    "evidenceLevel": 2,
+    "filePath": "libavformat/mov.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:23:36.903Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <string.h>\n\n/* Simulates the vulnerable MOV demuxer string parsing function */\nvoid mov_read_mac_string_vulnerable(char *dst, size_t dstlen, const char *src, size_t src_len) {\n    char *p = dst;\n    /* VULNERABILITY: dstlen is derived from untrusted external input (e.g., atom length)\n       without verifying it against the actual allocated size of dst. */\n    char *end = dst + dstlen - 1;\n\n    printf(\"[DEBUG] dst buffer size: %zu\\n\", dstlen);\n    printf(\"[DEBUG] Computed 'end' pointer offset: %ld\\n\", (long)(end - dst));\n\n    /* Loop processes source bytes. The condition 'p < end' relies on the poisoned 'end'. */\n    for (size_t i = 0; i < src_len && p < end; i++) {\n        unsigned char c = src[i];\n        /* Conceptual PUT_UTF8 macro behavior: writes byte to buffer.\n           In the real code, PUT_UTF8 performs per-byte bounds checks against 'end',\n           but since 'end' is already miscalculated, these checks are ineffective. */\n        *p++ = c;\n        printf(\"[DEBUG] Wrote byte 0x%02X at offset %ld (p < end: %s)\\n\", c, (long)(p - dst - 1), p < end ? \"true\" : \"false\");\n    }\n\n    printf(\"[OVERFLOW DEMO] Intended buffer size was %zu, but loop condition allowed writes up to offset %ld.\\n\", dstlen, (long)(p - dst));\n}\n\nint main() {\n    /* Allocate a small, fixed-size buffer (simulating stack/heap allocation) */\n    char dst[16];\n    memset(dst, 0, sizeof(dst));\n\n    /* Simulate untrusted input: attacker-controlled atom length from a crafted MOV file */\n    size_t untrusted_dstlen = 1024; // Much larger than actual buffer size\n    const char *src = \"Hello, malicious MOV atom!\";\n    size_t src_len = strlen(src);\n\n    printf(\"=== Vulnerable MOV String Parser PoC ===\\n\");\n    printf(\"Actual buffer size: %zu\\n\", sizeof(dst));\n    printf(\"Untrusted length (from file): %zu\\n\\n\", untrusted_dstlen);\n\n    /* Execute vulnerable function */\n    mov_read_mac_string_vulnerable(dst, untrusted_dstlen, src, src_len);\n\n    return 0;\n}",
+      "language": "C",
+      "exploitMechanism": "The function calculates a bounds pointer 'end' using an attacker-controlled 'dstlen' (derived from a file's atom length) without validating it against the actual allocated buffer size. This causes 'end' to point far beyond the buffer. The subsequent loop uses 'p < end' as its termination condition, allowing writes past the buffer boundary. Internal macro checks (like PUT_UTF8) validate against the already-poisoned 'end' pointer, rendering them ineffective and resulting in a heap/stack buffer overflow."
+    },
+    "exploitStatus": "generated"
+  },
+  {
+    "type": "integer_overflow_heap_buffer_overflow",
+    "severity": "high",
+    "description": "Size calculations for buffer pools in init_table_pools use 32-bit signed int arithmetic on macroblock dimensions (h->mb_width, h->mb_height, h->mb_stride). Malformed streams or dynamic resolution changes can trigger signed integer overflow. The overflowed int is implicitly cast to size_t for av_buffer_pool_init. If the overflow wraps to a small positive value, an undersized pool is allocated. Subsequent motion vector and reference index writes during slice decoding overflow the heap.",
+    "line": 143,
+    "column": null,
+    "hypothesis": "An attacker crafts an H.264 stream with malicious SPS/PPS or triggers a dynamic resolution switch that sets h->mb_width and h->mb_height to values causing b4_stride * h->mb_height * 4 to overflow a 32-bit signed int into a small positive integer. This value is passed to av_buffer_pool_init, allocating a small motion_val_pool. During decoding, the slice parser writes motion vectors using indices derived from the true (large) macroblock coordinates, overflowing the undersized pool and overwriting adjacent heap metadata or code.",
+    "evidenceLevel": 2,
+    "filePath": "libavcodec/h264_slice.c",
+    "specialist": "memory_safety",
+    "verifiedAt": "2026-05-07T23:29:04.487Z",
+    "poc": {
+      "pocCode": "#include <stdio.h>\n#include <stdint.h>\n\n/*\n * Conceptual PoC demonstrating the integer overflow -> heap buffer overflow\n * vulnerability in H.264 macroblock dimension calculations.\n */\nvoid demonstrate_vulnerability() {\n    // Malicious macroblock dimensions crafted to trigger 32-bit signed overflow\n    int32_t mb_width = 100000;\n    int32_t mb_height = 100000;\n    int32_t b4_stride = 4;\n\n    // EXPECTED: 100000 * 100000 * 4 = 40,000,000,000 bytes (~38 GB)\n    // VULNERABLE: Calculation uses 32-bit signed int arithmetic\n    // The product exceeds INT_MAX (2,147,483,647) and wraps around\n    int32_t overflowed_size = mb_width * mb_height * b4_stride;\n\n    printf(\"[+] Expected allocation size: %lld bytes\\n\", (long long)mb_width * mb_height * b4_stride);\n    printf(\"[+] Actual 32-bit calculation: %d bytes\\n\", overflowed_size);\n\n    // EXPLOIT MECHANISM:\n    // 1. The 32-bit signed multiplication overflows, wrapping to a small positive value\n    //    (or negative, depending on exact inputs).\n    // 2. This value is implicitly cast to size_t (unsigned 64-bit) for av_buffer_pool_init.\n    // 3. If the wrapped value is small, av_buffer_pool_init allocates a severely undersized heap buffer.\n    // 4. During slice decoding, motion vector writes use the true (large) macroblock coordinates,\n    //    causing writes far beyond the allocated buffer bounds -> heap buffer overflow.\n    size_t alloc_size = (size_t)overflowed_size;\n\n    printf(\"[+] Cast to size_t for allocation: %zu bytes\\n\", alloc_size);\n    printf(\"[!] VULNERABILITY: Undersized pool allocated due to 32-bit signed overflow.\\n\");\n    printf(\"[!] Subsequent motion vector writes will overflow heap memory.\\n\");\n}\n\nint main() {\n    demonstrate_vulnerability();\n    return 0;\n}\n",
+      "language": "C",
+      "exploitMechanism": "The vulnerability occurs when 32-bit signed integer multiplication (mb_width * mb_height * b4_stride) exceeds INT_MAX, causing arithmetic overflow. The overflowed value wraps to a small positive integer, which is then implicitly cast to size_t for buffer allocation. This results in a severely undersized heap pool. Subsequent slice decoding writes motion vectors using the true macroblock coordinates, overflowing the undersized buffer and corrupting adjacent heap memory."
+    },
+    "exploitStatus": "generated"
+  }
+]

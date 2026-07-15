@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780129583246",
+  "threadId": "slack-test-1780129583246",
+  "initialQuestion": [
+    "ワークフローJSONの基本構造を教えてください"
+  ],
+  "durationMs": 34464,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "ワークフローJSONは、ノードとエッジで構成されるDAG（有向非循環グラフ）を定義する形式です。基本構造は以下の通りです。\n\n### 1. 主要なトップレベルフィールド\n\nワークフローJSONのルートには、以下のフィールドが配置されます。\n\n*   **`config`**: ワークフローのメタデータ（名前、説明文など）を定義します。\n*   **`stateAnnotation`**: 状態（State）の定義を行います（名前、型など）。\n*   **`annotation`**: 状態の具体的なフィールド定義を行います（例：メッセージの型、リデューサー、デフォルト値）。\n*   **`models`**: 使用するLLMモデルの設定リストです。\n*   **`nodes`**: ワークフローを構成するノードの定義リストです。\n*   **`edges`**: ノード間の接続（エッジ）定義リストです。\n\n### 2. ノードの種類 (Node Types)\n\n`nodes` 配列内で定義されるノードには、主に以下の4つの型があります。\n\n*   **`model`**: LLMの呼び出しを行うノードです。\n*   **`tool`**: MCPやA2Aなどのツール実行を行うノードです。\n*   **`conditional`**: ルーティングロジック（分岐）を行うノードです。\n*   **`custom`**: 任意のJavaScript関数を実行するノードです。\n\n### 3. カスタムノード (Custom Nodes)\n\n`custom` 型のノードは、`handler.function` にJavaScriptのコード文字列を記述します。\n実行時には、以下の要素が自動的にスコープに注入されます。\n\n*   **`state`**: 現在のワークフロー状態。\n*   **`model` / `models`**: 指定されたモデルインスタンス。\n*   **`tools`**: 束縛されたツールの配列。\n*   **`__registerA2AAgent`**: 実行時にA2Aエージェントを動的に登録するための関数。\n\n### 4. 並列実行 (Fan-out)\n\nカスタムノードの戻り値で `Send` オブジェクトを使用することで、複数のノードへの並列実行（ファンアウト）をトリガーできます。\nこの場合、エッジの宛先として `__send__` を指定する必要があります。"
+  ],
+  "timestamp": "2026-05-30T08:26:57.725Z"
+}

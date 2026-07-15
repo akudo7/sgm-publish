@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780129928685",
+  "threadId": "slack-test-1780129928685",
+  "initialQuestion": [
+    "Skills機能の使い方を教えてください"
+  ],
+  "durationMs": 34216,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerの**Skills機能**は、AIエージェントにファイル操作やコマンド実行などの「ツール」を提供し、自律的なタスク実行を可能にするシステムです。\n\n以下に、設定方法、ノードでの使用方法、利用可能なツール、カスタムスキルの作成方法を解説します。\n\n---\n\n### 1. 概要\nSkills機能には2つの側面があります。\n1.  **System Skills（組み込みツール）**: `read_file`、`bash_command` などのファイル・システム操作ツール。\n2.  **Custom Skills（外部スキル）**: `SKILL.md` ファイルで定義された、ドメイン固有の指示や手順。\n\n### 2. 設定方法 (JSON)\nワークフローJSONの `config` セクションでSkillsを有効化します。\n\n```json\n{\n  \"config\": {\n    \"skills\": {\n      \"enabled\": true,\n      \"skillsPath\": \"skills/my-skill\",\n      \"backend\": {\n        \"virtualMode\": true,\n        \"rootDir\": \".\",\n        \"protectedPaths\": [\"src/\", \".env\"]\n      }\n    }\n  }\n}\n```\n\n*   **enabled**: `true` に設定して機能を有効化します。\n*   **skillsPath**: カスタムスキル（SKILL.md）を検索するディレクトリパス。\n*   **backend**:\n    *   `rootDir`: ファイルパスの基準ディレクトリ。\n    *   `protectedPaths`: 書き込みを禁止するファイル・ディレクトリ（セキュリティ）。\n\n### 3. ノードでの使用方法\n`model` タイプのノードで、以下のフィールドを使用してSkillsを制御します。\n\n*   **`useSystemSkills: true`**\n    *   そのノードで組み込みツール（`read_file` 等）を使用可能にします。\n*   **`injectSkillsPrompt`**\n    *   デフォルトは `true`。`false` に設定すると、そのノードのみシステムプロンプトへのスキル注入をスキップします（トークン節約用）。\n*   **`excludeTools`**\n    *   特定のノードでのみ使用を禁止したいツールを指定します。\n    *   例: `[\"bash_command\", \"write_file\"]`\n\n### 4. 利用可能なツール (System Skills)\n`useSystemSkills: true` を設定すると、以下のツールがエージェントに提供されます。\n\n| ツール名 | 用途 | 注意点 |\n| :--- | :--- | :--- |\n| **read_file** | テキスト、画像、PDF、Jupyter Notebookの読み込み | `offset` と `limit` で範囲指定可能 |\n| **write_file** | ファイルの作成または上書き | 既存ファイルの編集には `edit_file` を推奨 |\n| **edit_file** | ファイル内の文字列を正確に置換 | `old_string` はファイル内容と完全に一致する必要がある |\n| **glob_files** | パターンに一致するファイルを検索 | 最大200件まで |\n| **grep_search** | ファイル内容の正規表現検索 | シェルインジェクション対策済み |\n| **bash_command** | システムコマンドの実行 | `rtk` がインストールされている場合、トークン削減のために自動ルーティングされる |\n| **web_fetch** | URLからのコンテンツ取得 | HTTPSのみ対応。ローカルIPやプライベートIPはブロックされる |\n| **write_todos** | TODOリストの保存 | 永続的なTODO管理 |\n| **read_todos** | TODOリストの取得 | 状態や優先度でフィルタリング可能 |\n\n### 5. カスタムスキルの作成 (SKILL.md)\n独自の手順や制約を定義するには、ワークフローJSONと同じディレクトリ、または指定した `skillsPath` 内に `SKILL.md` を配置します。\n\n**ファイル構造の例:**\n\n```markdown\n---\nname: my-custom-skill\ndescription: このスキルは特定のタスクを実行します\n---\n\n# スキルの名前\n\n## Purpose\nこのスキルが達成すること。\n\n## Constraints\nエージェントが従うべきルール。\n\n## Steps\n実行の手順。\n```\n\n配置すると、WorkflowEngineが自動的にこれを発見し、システムプロンプトに注入します。\n\n### 6. セキュリティ機能\nSkills機能には以下のセキュリティ保護が組み込まれています。\n\n*   **パスの検証**: `../` によるディレクトリトラバーサルはブロックされます。\n*   **保護パス (`protectedPaths`)**: 設定されたファイル（例: `.env`）への書き込み・編集は拒否されます。\n*   **SSRF防止**: `web_fetch` はローカルIPやプライベートIPへのアクセスをブロックします。\n*   **シェルインジェクション防止**: `bash_command` はシェル展開を行わない安全な実行方式を使用します。"
+  ],
+  "timestamp": "2026-05-30T08:32:42.921Z"
+}

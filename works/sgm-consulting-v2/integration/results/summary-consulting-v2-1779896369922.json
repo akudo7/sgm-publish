@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779896369922",
+  "threadId": "test-fallback-fix",
+  "initialQuestion": [
+    "WorkflowEngineの引数と戻り値を教えて"
+  ],
+  "durationMs": 45885,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManager SDKについてご質問ありがとうございます。WorkflowEngineの引数と戻り値を教えてについてお答えします。"
+  ],
+  "timestamp": "2026-05-27T15:40:15.825Z"
+}

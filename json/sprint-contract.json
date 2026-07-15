@@ -1,0 +1,265 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Sprint Contract pattern - Generator-Evaluator loop with negotiate_node",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 50,
+    "eventEmitter": {
+      "defaultMaxListeners": 10
+    },
+    "contextGuard": {
+      "enabled": true,
+      "modelContextLimit": 200000,
+      "thresholdRatio": 0.70
+    }
+  },
+  "stateAnnotation": {
+    "name": "SprintContractState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "taskSpec": {
+      "type": "string",
+      "reducer": "(x, y) => y",
+      "default": "\"\""
+    },
+    "sprintContract": {
+      "type": "{ goals: string[]; successCriteria: string[]; sprintNumber: number } | null",
+      "reducer": "(x, y) => y",
+      "default": "null"
+    },
+    "sprintResult": {
+      "type": "{ passed: boolean; feedback: string; score: number } | null",
+      "reducer": "(x, y) => y",
+      "default": "null"
+    },
+    "retryCount": {
+      "type": "number",
+      "reducer": "(x, y) => x + y",
+      "default": "0"
+    },
+    "activeMessages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => { const isBootstrap = y.length === 1 && typeof y[0].content === 'string' && (/^=== (Context Reset|Generator Bootstrap|Evaluator Bootstrap|Feedback Bootstrap)/).test(y[0].content); return isBootstrap ? y : x.concat(y); }",
+      "default": "[]"
+    },
+    "estimatedContextTokens": {
+      "type": "number",
+      "reducer": "(x, y) => y",
+      "default": "0"
+    },
+    "contextResetCount": {
+      "type": "number",
+      "reducer": "(x, y) => x + y",
+      "default": "0"
+    },
+    "lastContextResetAt": {
+      "type": "string | null",
+      "reducer": "(x, y) => y",
+      "default": "null"
+    }
+  },
+  "models": [
+    {
+      "id": "planner_model",
+      "type": "anthropic",
+      "config": {
+        "model": "claude-sonnet-4-6",
+        "maxTokens": 1024
+      },
+      "systemPrompt": "あなたはプロジェクトプランナーです。ユーザーの指示を詳細な実装仕様(taskSpec)に変換してください。"
+    },
+    {
+      "id": "negotiator_model",
+      "type": "anthropic",
+      "config": {
+        "model": "claude-sonnet-4-6",
+        "maxTokens": 1024
+      },
+      "systemPrompt": "あなたはSprintネゴシエーターです。taskSpecとfeedbackを参考に、次スプリントのgoalsとsuccessCriteriaをsprintContractとして返してください。必ず以下のJSON形式で出力してください: {\"sprintContract\": {\"goals\": [\"...\"], \"successCriteria\": [\"...\"], \"sprintNumber\": 1}}"
+    },
+    {
+      "id": "generator_model",
+      "type": "anthropic",
+      "config": {
+        "model": "claude-sonnet-4-6",
+        "maxTokens": 4096
+      },
+      "systemPrompt": "あなたは実装エンジニアです。sprintContract.goalsに記載されたゴールを実装してください。実装後、そのサマリーと自己評価をmessagesに追加してください。"
+    },
+    {
+      "id": "evaluator_model",
+      "type": "anthropic",
+      "config": {
+        "model": "claude-sonnet-4-6",
+        "maxTokens": 1024
+      },
+      "systemPrompt": "あなたは品質評価エージェントです。sprintContract.successCriteriaに基づき実装を評価してください。必ず以下のJSON形式で出力してください: {\"sprintResult\": {\"passed\": true/false, \"feedback\": \"...\", \"score\": 0-100}} scoreが80以上の場合のみpassedをtrueにしてください。"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "planner_node",
+      "type": "model",
+      "modelRef": "planner_model"
+    },
+    {
+      "id": "bootstrap_generator_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SprintContractState.State"
+          }
+        ],
+        "output": {},
+        "function": "async (state) => {\n  const fs = require('fs');\n  const lines = [];\n  if (state.sprintContract) {\n    lines.push('=== 実装対象のContext ===');\n    lines.push('Goals: ' + state.sprintContract.goals.join(', '));\n    lines.push('Sprint: ' + state.sprintContract.sprintNumber);\n  }\n  lines.push('\\n=== 既存テストファイル ===');\n  try {\n    const { execSync } = require('child_process');\n    const patterns = ['*.test.*', '*_test.*', '*_spec.*', '*.spec.*', '*Test.*', '*.test.go', '*.test.py', '*.test.ts', '*.test.js'];\n    const foundTests = [];\n    for (const p of patterns) {\n      try {\n        const tests = execSync('find . -name \"' + p + '\" -not -path \"*/node_modules/*\" -not -path \"*/vendor/*\" | head -10', { encoding: 'utf8' });\n        const found = tests.trim();\n        if (found) {\n          const files = found.split('\\n').slice(0, 5).join(', ');\n          foundTests.push('[' + p + '] ' + files);\n        }\n      } catch (e) {}\n    }\n    lines.push(foundTests.length > 0 ? foundTests.join('\\n') : 'なし');\n  } catch (e) {\n    lines.push('（取得失敗）');\n  }\n  if (state.sprintResult && !state.sprintResult.passed) {\n    lines.push('\\n=== 前回フィードバック ===');\n    lines.push(state.sprintResult.feedback);\n  }\n  const { HumanMessage } = require('@langchain/core/messages');\n  return { activeMessages: [new HumanMessage('=== Generator Bootstrap ===\\n' + lines.join('\\n'))] };\n}"
+      }
+    },
+    {
+      "id": "context_guard_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SprintContractState.State"
+          }
+        ],
+        "output": {},
+        "function": "async (state) => {\n  const LIMIT = 200000;\n  const THRESHOLD = LIMIT * 0.70;\n  const tokens = ((state.messages || []).concat(state.activeMessages || [])).reduce((sum, msg) => {\n    const c = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);\n    return sum + Math.ceil(c.length / 4);\n  }, 0);\n  if (tokens < THRESHOLD) {\n    return { estimatedContextTokens: tokens };\n  }\n  console.warn(\n    '[ContextGuard] Estimated tokens: ' + tokens + ' exceeds threshold: ' + THRESHOLD +\n    '. Performing context reset. (Reset count: ' + ((state.contextResetCount ?? 0) + 1) + ')'\n  );\n  const parts = [\n    '=== Context Reset: 重要な状態の引き継ぎ ===',\n    state.taskSpec ? 'タスク仕様: ' + state.taskSpec : null,\n    state.sprintContract ? '現在のSprintContract: ' + JSON.stringify(state.sprintContract, null, 2) : null,\n    state.sprintResult ? '前回の評価結果: ' + JSON.stringify(state.sprintResult, null, 2) : null,\n    'リトライ回数: ' + (state.retryCount ?? 0),\n    '=== 以上を引き継いで作業を継続してください ==='\n  ].filter(Boolean).join('\\n');\n  return {\n    activeMessages: [new HumanMessage(parts)],\n    messages: [],\n    estimatedContextTokens: Math.ceil(parts.length / 4),\n    contextResetCount: (state.contextResetCount ?? 0) + 1,\n    lastContextResetAt: new Date().toISOString()\n  };\n}"
+      }
+    },
+    {
+      "id": "negotiate_node",
+      "type": "model",
+      "modelRef": "negotiator_model"
+    },
+    {
+      "id": "generator_node",
+      "type": "model",
+      "modelRef": "generator_model"
+    },
+    {
+      "id": "bootstrap_evaluator_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SprintContractState.State"
+          }
+        ],
+        "output": {},
+        "function": "async (state) => {\n  const fs = require('fs');\n  const lines = [];\n  lines.push('=== 起動・テストコマンド ===');\n  const configFiles = [\n    { name: 'package.json', patterns: ['start', 'dev', 'serve', 'build', 'test'] },\n    { name: 'Makefile', patterns: ['all', 'build', 'test', 'run', 'start', 'dev'] },\n    { name: 'Rakefile', patterns: ['build', 'test', 'run'] },\n    { name: 'Cargo.toml', patterns: ['build', 'test', 'run'] },\n  ];\n  const foundScripts = [];\n  for (const cfg of configFiles) {\n    try {\n      const content = fs.readFileSync(cfg.name, 'utf8');\n      if (cfg.name === 'package.json') {\n        const pkg = JSON.parse(content);\n        const scripts = pkg.scripts || {};\n        const found = cfg.patterns.filter(p => scripts[p]).map(p => p + ': ' + scripts[p]);\n        if (found.length > 0) foundScripts.push('--- ' + cfg.name + ' ---\\n' + found.join('\\n'));\n      } else if (cfg.name === 'Makefile') {\n        const targets = cfg.patterns.filter(p => content.includes(p + ':'));\n        if (targets.length > 0) foundScripts.push('--- ' + cfg.name + ' ---\\n' + targets.join(', ') + ' ターゲットあり');\n      } else {\n        const targets = cfg.patterns.filter(p => content.includes(p));\n        if (targets.length > 0) foundScripts.push('--- ' + cfg.name + ' ---\\n' + targets.join(', ') + ' あり');\n      }\n    } catch (e) {}\n  }\n  if (foundScripts.length > 0) {\n    lines.push(foundScripts.join('\\n'));\n  } else {\n    lines.push('設定ファイルなし');\n  }\n  lines.push('\\n=== APIエンドポイント ===');\n  try {\n    const { execSync } = require('child_process');\n    const p = 'grep -rn \"\\\\.\\\\(get\\\\|post\\\\|put\\\\|delete\\\\|patch\\\\)\" --include=\"*.ts\" --include=\"*.js\" --include=\"*.py\" --include=\"*.go\" --include=\"*.rb\" --include=\"*.java\" | grep -E \"(app|router|@|route|Handle|Controller)\" | head -30';\n    const ep = execSync(p, { encoding: 'utf8' });\n    lines.push(ep.trim() || 'なし');\n  } catch (e) {\n    lines.push('（取得失敗）');\n  }\n  if (state.sprintContract) {\n    lines.push('\\n=== 評価基準 ===');\n    state.sprintContract.successCriteria.forEach((c, i) => lines.push((i + 1) + '. ' + c));\n  }\n  const { HumanMessage } = require('@langchain/core/messages');\n  return { activeMessages: [new HumanMessage('=== Evaluator Bootstrap ===\\n' + lines.join('\\n'))] };\n}"
+      }
+    },
+    {
+      "id": "evaluator_node",
+      "type": "model",
+      "modelRef": "evaluator_model"
+    },
+    {
+      "id": "router_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SprintContractState.State"
+          }
+        ],
+        "output": {},
+        "function": "async (state) => {\n  return { retryCount: 1 };\n}"
+      }
+    },
+    {
+      "id": "bootstrap_feedback_node",
+      "type": "function",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof SprintContractState.State"
+          }
+        ],
+        "output": {},
+        "function": "async (state) => {\n  const { execSync } = require('child_process');\n  const lines = [];\n  if (state.sprintResult) {\n    lines.push('=== 評価フィードバック ===');\n    lines.push('スコア: ' + state.sprintResult.score);\n    lines.push('フィードバック: ' + state.sprintResult.feedback);\n  }\n  lines.push('\\n=== 直近の変更ファイル ===');\n  try {\n    const diff = execSync('git diff --stat HEAD 2>/dev/null | head -20', { encoding: 'utf8' });\n    lines.push(diff.trim() || '変更なし');\n  } catch (e) {\n    lines.push('（取得失敗）');\n  }\n  lines.push('\\n=== ビルドエラー（直近） ===');\n  const buildCommands = [\n    'yarn build 2>&1 | tail -20',\n    'npm run build 2>&1 | tail -20',\n    'make build 2>&1 | tail -20',\n    'cargo build 2>&1 | tail -20',\n    'go build ./... 2>&1 | tail -20',\n    'python -m py_compile setup.py 2>&1 | tail -20',\n    'bundle exec rake build 2>&1 | tail -20',\n  ];\n  let buildOutput = '（ビルドコマンドなし）';\n  for (const cmd of buildCommands) {\n    try {\n      buildOutput = execSync(cmd, { encoding: 'utf8' });\n      if (buildOutput.trim()) break;\n    } catch (e) {}\n  }\n  lines.push(buildOutput.trim() || '（取得失敗）');\n  const { HumanMessage } = require('@langchain/core/messages');\n  const num = state.sprintContract ? state.sprintContract.sprintNumber : '?';\n  return { activeMessages: [new HumanMessage('=== Feedback Bootstrap（スプリント' + num + '） ===\\n' + lines.join('\\n'))] };\n}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "planner_node"
+    },
+    {
+      "from": "planner_node",
+      "to": "bootstrap_generator_node"
+    },
+    {
+      "from": "bootstrap_generator_node",
+      "to": "context_guard_node"
+    },
+    {
+      "from": "context_guard_node",
+      "to": "negotiate_node"
+    },
+    {
+      "from": "negotiate_node",
+      "to": "generator_node"
+    },
+    {
+      "from": "generator_node",
+      "to": "bootstrap_evaluator_node"
+    },
+    {
+      "from": "bootstrap_evaluator_node",
+      "to": "evaluator_node"
+    },
+    {
+      "from": "evaluator_node",
+      "to": "router_node"
+    },
+    {
+      "from": "bootstrap_feedback_node",
+      "to": "context_guard_node"
+    },
+    {
+      "from": "router_node",
+      "type": "conditional",
+      "condition": {
+        "name": "routeSprint",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof SprintContractState.State"
+            }
+          ],
+          "output": "",
+          "function": "async (state) => {\n  const MAX_RETRIES = 3;\n  if (!state.sprintResult) {\n    return 'generator_node';\n  }\n  if (state.sprintResult.passed) {\n    return '__end__';\n  }\n  if (state.retryCount >= MAX_RETRIES) {\n    console.warn(`Sprint Contract: MAX_RETRIES(${MAX_RETRIES})に到達。強制終了します。`);\n    return '__end__';\n  }\n  return 'bootstrap_feedback_node';\n}"
+        },
+        "possibleTargets": ["generator_node", "bootstrap_feedback_node", "__end__"]
+      }
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "SprintContractState"
+  }
+}

@@ -1,0 +1,378 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "denial_of_service",
+          "level": "warning",
+          "message": {
+            "text": "Negative maxread causes infinite loop in decode_str"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 199
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Unvalidated h->mb_width and h->mb_height are used to compute b4_array_size and subsequently passed to av_buffer_pool_init. The multiplications are performed in signed 32-bit arithmetic, risking integer overflow before conversion to size_t."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 209
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Unchecked integer overflow in size calculation leads to out-of-bounds pointer arithmetic and heap corruption."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/vp9.c"
+                },
+                "region": {
+                  "startLine": 107
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check before reading from AVIOContext. The function unconditionally reads 4 bytes (two 16-bit values) without verifying that the atom length 'len' is at least 4."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 87
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check before reading from AVIOContext. The function unconditionally reads 4 bytes without verifying that the atom length 'len' is at least 4."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 100
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check before reading from AVIOContext. The function unconditionally reads 1 byte without verifying that the atom length 'len' is at least 1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 114
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_write",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check on s->sh.nb_refs[L0] before array access"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 136
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check before array access in ff_id3v2_match"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 144
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check before array access in ff_id3v2_tag_len"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 157
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "null_pointer_dereference",
+          "level": "note",
+          "message": {
+            "text": "Missing NULL check before pointer dereference in free_geobtag"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 223
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer overflow leading to undersized allocation",
+          "level": "warning",
+          "message": {
+            "text": "Unchecked 32-bit integer arithmetic in `init_table_pools` computes allocation sizes for macroblock and motion vector pools using `h->mb_width`, `h->mb_height`, and `h->mb_stride`. If these values are large, multiplications such as `h->mb_stride * h->mb_height` or `b4_stride * h->mb_height * 4` overflow, wrapping to a small positive integer. The resulting undersized value is passed to `av_buffer_pool_init`, allocating a heap buffer smaller than required. Subsequent slice decoding writes to these pools using indices based on the true dimensions, causing a heap buffer overflow."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 150
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing_bounds_check",
+          "level": "warning",
+          "message": {
+            "text": "Unconditional reads ignoring declared atom size parameter"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 122
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "warning",
+          "message": {
+            "text": "Missing bounds check before reading from AVIOContext. The function unconditionally reads 2 bytes without verifying that the atom length 'len' is at least 2."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 125
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "infinite_loop",
+          "level": "note",
+          "message": {
+            "text": "Unchecked negative index/loop counter in get_size"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 170
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds read",
+          "level": "warning",
+          "message": {
+            "text": "ff_id3v2_match accesses buf[0] through buf[9] without verifying the length of the buf pointer. If the caller passes a buffer smaller than 10 bytes, this results in an out-of-bounds read."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 115
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out-of-bounds read",
+          "level": "warning",
+          "message": {
+            "text": "ff_id3v2_tag_len accesses buf[5] through buf[9] without prior length validation. Similar to ff_id3v2_match, this can read past the allocated buffer if buf is too short."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 128
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "uninitialized memory read",
+          "level": "note",
+          "message": {
+            "text": "In check_tag, AV_RB32(tag) is called on line 172 to read 4 bytes from tag, but tag is only populated with len bytes via avio_read on line 170. When len is less than 4, the remaining bytes in tag are uninitialized stack memory."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/id3v2.c"
+                },
+                "region": {
+                  "startLine": 172
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "error",
+          "message": {
+            "text": "In init_table_pools, size parameters for av_buffer_pool_init are computed using 32-bit signed integer arithmetic. Multiplications involving h->mb_width and h->mb_height (e.g., b4_stride * h->mb_height * 4) overflow when processing high-resolution or crafted streams. The overflowed small values are passed to av_buffer_pool_init, allocating undersized memory pools. Subsequent slice decoding accesses these pools using indices derived from the actual macroblock dimensions, causing out-of-bounds heap writes."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 214
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "out_of_bounds_read",
+          "level": "note",
+          "message": {
+            "text": "Missing bounds check on atom payload size (`len`) before reading data. The function unconditionally calls `avio_r8(pb)` without verifying that `len` is greater than zero. If a crafted MOV file contains a metadata atom with a declared size of 0, the read operation will step past the atom's payload boundary, resulting in an out-of-bounds read."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 101
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

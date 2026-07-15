@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779896493071",
+  "threadId": "test-tool-loop",
+  "initialQuestion": [
+    "WorkflowEngineの引数を教えて"
+  ],
+  "durationMs": 23867,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "公開ドキュメント（README.md、SKILL.md）に記載されている情報に基づき、`WorkflowEngine`のコンストラクタ引数についてご説明します。\n\n## WorkflowEngineの引数\n\n`WorkflowEngine`のコンストラクタには、**ワークフロー設定オブジェクト**を渡します。このオブジェクトはJSON形式で定義され、以下の主要フィールドで構成されます。\n\n### 主要フィールド\n\n| フィールド | 説明 |\n|-----------|------|\n| `config` | ワークフローのメタ情報（名前、説明、再帰制限など） |\n| `stateAnnotation` | 状態アノテーションの定義 |\n| `annotation` | 状態フィールドの定義（メッセージ配列の型、リデューサー、デフォルト値など） |\n| `models` | 使用するAIモデルの定義配列 |\n| `nodes` | ワークフローノードの定義配列 |\n| `edges` | ノード間の接続を定義する配列 |\n| `stateGraph` | グラフの状態設定 |\n\n### 使用例（抽象化）\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\nconst config = {\n  config: { name: \"Chat Workflow\", description: \"...\" },\n  stateAnnotation: { name: \"WorkflowState\", type: \"Annotation.Root\" },\n  annotation: {\n    messages: { type: \"BaseMessage[]\", reducer: \"(x, y) => x.concat(y)\", default: \"[]\" }\n  },\n  models: [{ id: \"claude\", type: \"anthropic\", config: { model: \"...\", apiKey: \"...\" } }],\n  nodes: [{ id: \"chat\", type: \"model\", modelRef: \"claude\" }],\n  edges: [{ from: \"__start__\", to: \"chat\" }, { from: \"chat\", to: \"__end__\" }],\n  stateGraph: { annotationRef: \"WorkflowState\" }\n};\n\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n```\n\n### 補足\n\n- ワークフロー設定はJSONファイルとして外部定義することも可能です\n- `WorkflowEngine`インスタンス生成後、`build()`メソッドでワークフローを構築し、`invoke()`または`stream()`で実行します\n- モデル設定にはAnthropic、OpenAI、Azure OpenAI、Ollama、llama.cpp（GGUF）などが対応しています\n\n公開ドキュメントに記載の詳細なAPI仕様については、`docs/API.md`を参照してください。"
+  ],
+  "timestamp": "2026-05-27T15:41:56.956Z"
+}

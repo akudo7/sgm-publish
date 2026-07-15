@@ -1,0 +1,17 @@
+{
+  "sessionId": "consulting-v2-1779894466019",
+  "threadId": "slack-test-1779894466019",
+  "initialQuestion": "SceneGraphMangerのインスタンスの作成方法を教えて下さい",
+  "durationMs": 42722,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answer": "SceneGraphManagerでは、`WorkflowEngine` クラスをインスタンス化することでワークフローエンジンを作成します。\n\n## 基本的な作成方法\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\n\n// 設定オブジェクトを定義\nconst config = { /* ... */ };\n\n// インスタンス生成\nconst engine = new WorkflowEngine(config);\n\n// グラフ構築\nawait engine.build();\n```\n\n## 設定オブジェクトの構成\n\n設定はJSON形式で定義します。主なフィールドは以下の通りです：\n\n- `config` — ワークフローのメタ情報（名前、説明、再帰制限など）\n- `stateAnnotation` — 状態アノテーションの定義\n- `annotation` — 状態フィールドの定義（メッセージの型、リデューサー、デフォルト値）\n- `models` — 使用するAIモデルのリスト（ID、タイプ、設定）\n- `nodes` — ワークフローノードの定義\n- `edges` — ノード間の接続定義\n- `stateGraph` — 状態グラフの設定\n\n## ワークフローファイルから読み込む場合\n\n外部のJSONファイルからワークフロー設定を読み込む場合は以下の通りです：\n\n```typescript\nimport { WorkflowEngine } from 'scenegraphmanager';\nimport workflowConfig from './my-workflow.json';\n\nconst engine = new WorkflowEngine(workflowConfig);\nawait engine.build();\n```\n\n## 実行\n\n構築後、`invoke()` または `stream()` メソッドでワークフローを実行できます：\n\n```typescript\nconst result = await engine.invoke({ messages: [{ role: \"user\", content: \"Hello!\" }] });\n```\n\n詳細な設定例やノードタイプについては、README.mdの「Architecture」セクションや関連ドキュメントを参照してください。",
+  "timestamp": "2026-05-27T15:08:28.758Z"
+}

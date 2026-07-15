@@ -1,0 +1,19 @@
+{
+  "sessionId": "consulting-v2-1780129756926",
+  "threadId": "slack-test-1780129756926",
+  "initialQuestion": [
+    "MemorySaverでチェックポイントを使う方法を教えてください"
+  ],
+  "durationMs": 11046,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": false,
+  "escalated": false,
+  "answers": [],
+  "timestamp": "2026-05-30T08:29:27.990Z"
+}

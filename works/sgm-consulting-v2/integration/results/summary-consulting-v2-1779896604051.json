@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1779896604051",
+  "threadId": "test-apikey",
+  "initialQuestion": [
+    ".envを使わずにapiKeyを設定する方法を教えてください"
+  ],
+  "durationMs": 26913,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "公開ドキュメントによると、APIキーはワークフロー設定（JSONまたはTypeScript設定オブジェクト）の`models`配列内で直接指定することができます。`.env`ファイルや環境変数を経由せず、設定値として直接文字列として渡す方法です。\n\n設定例（Anthropicモデルの場合）：\n```json\n{\n  \"models\": [\n    {\n      \"id\": \"claude\",\n      \"type\": \"anthropic\",\n      \"config\": {\n        \"model\": \"claude-3-5-sonnet-20241022\",\n        \"apiKey\": \"sk-ant-xxxxxxxxxxxx\"\n      }\n    }\n  ]\n}\n```\n\nOpenAI、Azure OpenAI、Ollamaなどの他のモデルタイプでも同様に、`models`配列内の各モデル定義に`apiKey`フィールド（または対応する認証情報フィールド）を直接記述することで設定可能です。\n\nこの設定オブジェクトを`WorkflowEngine`のコンストラクタに渡すことで、ワークフロー実行時に直接認証情報が適用されます。\n\n※セキュリティ運用を強化したい場合は、OSネイティブのシークレットストアから認証情報を取得する`SecretsProvider`機能も用意されていますが、単純に`.env`を使わずに直接設定したい場合は、上記のようにワークフロー設定内に直接キー値を記載するのが標準的な方法です。"
+  ],
+  "timestamp": "2026-05-27T15:43:50.985Z"
+}

@@ -1,0 +1,153 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "Research execution agent with MCP integration (Qwen)",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 100,
+    "eventEmitter": {
+      "defaultMaxListeners": 20
+    },
+    "mcpServers": {
+      "config": {
+        "throwOnLoadError": false,
+        "prefixToolNameWithServerName": true,
+        "additionalToolNamePrefix": "mcp"
+      }
+    },
+    "a2aEndpoint": {
+      "port": 3002,
+      "agentCard": {
+        "name": "ResearchExecutionAgent",
+        "description": "Research Execution Agent - Executes web searches based on task list and collects research results",
+        "supportedMessageFormats": [
+          "text/plain",
+          "application/json"
+        ],
+        "acceptedInputs": [
+          {
+            "name": "task_description",
+            "description": "Description of individual task to execute (includes objective and success_criteria)"
+          }
+        ],
+        "producedOutputs": [
+          {
+            "name": "research_results",
+            "description": "Task research results and source information"
+          }
+        ]
+      }
+    }
+  },
+  "mcpServers": {
+    "tavily-mcp": {
+      "command": "npx",
+      "args": ["-y", "tavily-mcp@0.1.4"]
+    }
+  },
+  "models": [
+    {
+      "id": "researchModel",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindMcpServers": true,
+      "systemPrompt": "You are a research agent specializing in market research.\n\n【Important Constraints】\n- Use company names and organization names from the task description **exactly as provided**\n- Do not guess or modify company names or organization names\n- Include the specified target names accurately in search queries\n\n【Responsibilities】\n1. Execute comprehensive research based on task descriptions\n2. Collect relevant information using the web search tool (mcp__tavily-mcp__tavily-search)\n3. Structure and organize collected information\n4. Identify and cite reliable sources\n5. Summarize research results in detail\n\n【★Important: Tool Usage Rules】\n- The web search tool (mcp__tavily-mcp__tavily-search) can be used **only once**\n- If multiple searches are needed, execute a comprehensive query in a single call\n- After receiving tool execution results, **you must** use them to create a final research report\n- Re-calling the tool after execution is **prohibited**\n- After receiving tool results, analyze and integrate the information to generate a detailed response\n\n【Error Handling - Important】\nProcedure when tool execution encounters an error:\n\n1. Check error messages\n   - If JSON format contains \"error: true\", it's a tool error\n   - Check the errorCount field for the current attempt count\n\n2. Response based on error count\n   - 1st time (errorCount: 1): Retry with a different search query\n   - 2nd time (errorCount: 2): Retry with a more concise and general query\n   - 3rd time or more (errorCount: 3+): Stop using the tool and respond with your knowledge base\n\n3. Prohibited actions\n   - Do not repeat the same search query more than 3 times\n   - If errors continue, do not continue tool calls\n   - Do not ignore errors and try other tools\n\n4. Alternative approaches\n   - If tools are unavailable, respond based on your training data\n   - If information is insufficient, explicitly state \"Unable to retrieve information\"\n   - If responding with guesses, clearly indicate \"This is a guess\"\n\n【Research Guidelines】\n- Understand the task's objectives and success criteria\n- Optimize search queries to get highly relevant results (get maximum information in one search)\n- Distinguish facts from opinions\n- Evaluate information freshness and reliability\n- Prioritize official sites, industry reports, and news articles\n\n【Web Search Tool】\n- Tool name: mcp__tavily-mcp__tavily-search\n- Function: Keyword search using Tavily Search API\n- Parameters:\n  - query: Search query (supports both Japanese and English)\n  - search_depth: \"basic\" or \"advanced\" (optional)\n  - max_results: Maximum number of results (default: 5)\n- Return value: Search result URLs and content\n\n【Output Format】\n- Support research requests in Japanese\n- Return detailed research results of 300 characters or more\n- Always include source URLs (when available)\n- Evaluate information reliability"
+    }
+  ],
+  "stateAnnotation": {
+    "name": "AgentState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    }
+  },
+  "nodes": [
+    {
+      "id": "research_executor",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "researchModel"
+          }
+        ],
+        "function": "console.log('\\n' + '='.repeat(80));\nconsole.log('🔍 [ResearchExecution] Research execution server started');\nconsole.log('='.repeat(80));\n\nconst messages = state.messages || [];\nconst lastMessage = messages[messages.length - 1];\n\nconst hasToolResult = messages.some(msg => {\n  return (\n    msg.role === 'tool' ||\n    msg.constructor?.name === 'ToolMessage' ||\n    msg.type === 'tool' ||\n    (msg.lc_namespace && Array.isArray(msg.lc_namespace) && msg.lc_namespace.includes('tool'))\n  );\n});\n\nconsole.log('\\n📊 State check:');\nconsole.log('  Total messages:', messages.length);\nconsole.log('  Has tool result:', hasToolResult);\n\nlet userContent = '';\n\nfor (const msg of messages) {\n  if (msg.role === 'user' && msg.content) {\n    userContent = msg.content;\n    break;\n  }\n}\n\nconsole.log('  Original task length:', userContent.length, 'chars');\n\nif (!userContent || userContent.length === 0) {\n  console.error('❌ Task description is empty');\n  return {\n    messages: [\n      {\n        role: 'assistant',\n        content: JSON.stringify({\n          result: {\n            researchResults: [],\n            summary: 'Error: Task description not found'\n          }\n        })\n      }\n    ]\n  };\n}\n\ntry {\n  let response;\n  \n  if (!hasToolResult) {\n    console.log('\\n🔎 [First] Requesting web search');\n    \n    const researchPrompt = `Please conduct detailed research on the following task using the web search tool (mcp__tavily-mcp__tavily-search):\n\n${userContent}\n\nInstructions:\n1. Prioritize searches in Japanese\n2. Execute search only once\n3. Record URLs from search results\n\nBe sure to use the mcp__tavily-mcp__tavily tool only once to retrieve information.`;\n    \n    response = await model.invoke([\n      { role: 'user', content: researchPrompt }\n    ]);\n  } else {\n    console.log('\\n📝 [Second] Analyzing tool results to generate final answer');\n    response = await model.invoke(messages);\n  }\n\n  console.log('\\n🤖 LLM response received');\n  console.log('  Response type:', typeof response);\n  console.log('  Has tool_calls:', !!response.tool_calls);\n  if (response.tool_calls && response.tool_calls.length > 0) {\n    console.log('  Tool calls count:', response.tool_calls.length);\n    response.tool_calls.forEach((tc, idx) => {\n      console.log(`  [${idx + 1}] ${tc.name}`);\n    });\n  } else if (response.content) {\n    console.log('  Content length:', response.content.length, 'chars');\n  }\n\n  return {\n    messages: [response]\n  };\n} catch (error) {\n  console.error('❌ Research execution error:', error.message);\n  console.error('  Stack:', error.stack);\n  return {\n    messages: [\n      {\n        role: 'assistant',\n        content: `An error occurred during research: ${error.message}`\n      }\n    ]\n  };\n}"
+      }
+    },
+    {
+      "id": "tools",
+      "type": "ToolNode",
+      "useMcpServers": true
+    },
+    {
+      "id": "result_formatter",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof AgentState.State"
+          }
+        ],
+        "function": "console.log('\\n📋 [result_formatter] Starting research result formatting');\n\nconst messages = state.messages || [];\nlet toolResults = [];\nlet llmResponse = '';\n\nconsole.log('  Total messages:', messages.length);\nif (messages.length > 0) {\n  console.log('  Last 3 messages:');\n  for (let i = Math.max(0, messages.length - 3); i < messages.length; i++) {\n    const msg = messages[i];\n    console.log(`    [${i}] type=${msg.constructor?.name || typeof msg}, role=${msg.role}, hasContent=${!!msg.content}`);\n  }\n}\n\nfor (let i = messages.length - 1; i >= 0; i--) {\n  const msg = messages[i];\n\n  const isToolMessage = (\n    msg.role === 'tool' ||\n    msg.constructor?.name === 'ToolMessage' ||\n    msg.type === 'tool' ||\n    (msg.lc_namespace && msg.lc_namespace.includes('tool'))\n  );\n\n  if (isToolMessage) {\n    console.log(`  ✓ Found tool message at index ${i}`);\n    toolResults.unshift(msg.content);\n  } else if (msg.constructor?.name === 'AIMessage') {\n    if (msg.content && typeof msg.content === 'string' && msg.content.length > 0) {\n      console.log(`  ✓ Found AI response at index ${i}, length:`, msg.content.length);\n      llmResponse = msg.content;\n      break;\n    }\n  } else if (msg.role === 'assistant' && msg.content && typeof msg.content === 'string') {\n    console.log(`  ✓ Found assistant response at index ${i}`);\n    llmResponse = msg.content;\n    break;\n  }\n}\n\nconsole.log('  Tool results count:', toolResults.length);\nconsole.log('  LLM response length:', llmResponse.length, 'chars');\n\nlet userContent = '';\nfor (const msg of messages) {\n  if (msg.role === 'user' && msg.content) {\n    userContent = msg.content;\n    break;\n  }\n}\n\nlet findings = '';\nconst sources = [];\n\nfor (const result of toolResults) {\n  try {\n    const parsed = typeof result === 'string' ? JSON.parse(result) : result;\n    if (parsed.results && Array.isArray(parsed.results)) {\n      parsed.results.forEach(r => {\n        if (r.url) sources.push(r.url);\n      });\n    }\n  } catch (e) {\n    // Ignore JSON parse failures\n  }\n}\n\nif (toolResults.length === 0 && llmResponse) {\n  findings = llmResponse;\n  console.log('  ✓ Using LLM direct response');\n} else if (toolResults.length > 0) {\n  if (!llmResponse || llmResponse.length === 0) {\n    findings = `Research conducted from the following sources:\\n\\n${toolResults.slice(0, 3).map((r, i) => `${i+1}. ${typeof r === 'string' ? r.substring(0, 200) : JSON.stringify(r).substring(0, 200)}...`).join('\\n\\n')}`;\n    console.log('  ⚠️ No LLM response, using tool results directly');\n  } else {\n    findings = llmResponse;\n    console.log('  ✓ Using LLM final response');\n  }\n} else {\n  findings = 'No research results';\n  console.log('  ⚠️ No tool results or LLM responses');\n}\n\nconst researchResult = {\n  taskId: 1,\n  objective: userContent.substring(0, 100) + (userContent.length > 100 ? '...' : ''),\n  findings: findings || 'No research results',\n  sources: sources.slice(0, 10),\n  completionStatus: findings ? 'completed' : 'error'\n};\n\nconst result = {\n  result: {\n    researchResults: [researchResult],\n    summary: researchResult.completionStatus === 'completed' ? 'Research completed' : 'An error occurred during research'\n  }\n};\n\nconsole.log('\\n📊 Research completed');\nconsole.log('  Status:', researchResult.completionStatus);\nconsole.log('  Findings length:', researchResult.findings.length, 'chars');\nconsole.log('  Sources count:', researchResult.sources.length);\nconsole.log('='.repeat(80) + '\\n');\n\nreturn {\n  messages: [\n    {\n      role: 'assistant',\n      content: JSON.stringify(result, null, 2)\n    }\n  ]\n};"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "research_executor"
+    },
+    {
+      "type": "conditional",
+      "from": "research_executor",
+      "condition": {
+        "name": "needsTools",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof AgentState.State"
+            }
+          ],
+          "output": "string",
+          "function": "try {\n  const lastMessage = state.messages[state.messages.length - 1];\n  \n  console.log('\\n🔀 [needsTools] Condition evaluation');\n  console.log('  Total messages:', state.messages.length);\n  \n  const toolResultCount = state.messages.filter(msg => {\n    return (\n      msg.role === 'tool' ||\n      msg.constructor?.name === 'ToolMessage' ||\n      msg.type === 'tool' ||\n      (msg.lc_namespace && Array.isArray(msg.lc_namespace) && msg.lc_namespace.includes('tool'))\n    );\n  }).length;\n  \n  console.log('  Tool result count:', toolResultCount);\n  \n  if (toolResultCount >= 1) {\n    console.log('  ✓ Tool execution result exists (', toolResultCount, 'items), to result_formatter');\n    return 'result_formatter';\n  }\n  \n  if (\n    lastMessage &&\n    typeof lastMessage === 'object' &&\n    lastMessage.tool_calls &&\n    Array.isArray(lastMessage.tool_calls) &&\n    lastMessage.tool_calls.length > 0\n  ) {\n    console.log('  ✓ Tool call detected (first time), to tools node');\n    return 'tools';\n  }\n  \n  console.log('  ✓ No tool needed, to result_formatter');\n  return 'result_formatter';\n} catch (error) {\n  console.error('🔀 [needsTools] Error:', error);\n  return 'result_formatter';\n}",
+          "possibleTargets": ["tools", "result_formatter"]
+        }
+      }
+    },
+    {
+      "from": "tools",
+      "to": "research_executor"
+    },
+    {
+      "from": "result_formatter",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "AgentState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

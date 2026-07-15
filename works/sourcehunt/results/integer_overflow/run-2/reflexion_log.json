@@ -1,0 +1,114 @@
+[
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "Signed overflow cast to size_t yields a large value, causing av_mallocz to fail safely. Additionally, HEVC spec limits min_pu_width/height to <=64, making overflow impossible.",
+    "verbalGradient": "The hypothesis failed because it incorrectly assumed signed overflow would wrap to a small value and ignored that spec-constrained inputs (≤64) cannot overflow, while overlooking FFmpeg’s safe allocation-failure handling. Instead, investigate how `min_pu_width` and `min_pu_height` are validated, derived, or repurposed as array indices, loop bounds, or shift amounts in the PU parsing and context initialization routines. Focus on the exact allocation-to-access path for `tab_ipm`, `is_pcm`, and `tab_mvf_pool` to identify type-mismatches, unchecked bounds, or off-by-one errors that occur when these fields are combined with other variables or applied to fixed-size structures.",
+    "timestamp": "2026-05-08T03:40:02.980Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "The expression min_pu_size * sizeof(MvField) is evaluated in size_t arithmetic due to C's usual arithmetic conversions (sizeof returns size_t). The int operand is promoted to size_t before multiplication, so no 32-bit signed truncation occurs prior to the function call. The claim incorrectly assumes the multiplication happens in signed int arithmetic.",
+    "verbalGradient": "The hypothesis failed by misapplying C's usual arithmetic conversions, which promote the `int` operand to `size_t` before evaluation, thereby eliminating the claimed 32-bit signed truncation risk. Instead, trace the upstream derivation of `min_pu_size` to identify missing bounds checks or prior arithmetic that could inject an excessively large or negative value into this expression. Focus on downstream allocations and stride calculations where this `size_t` value is combined with other multipliers or used in signed contexts, as these pathways are far more likely to trigger heap corruption or size-wrap vulnerabilities in the buffer pool initialization.",
+    "timestamp": "2026-05-08T03:40:19.473Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 1,
+    "failureReason": "The multiplication ctb_count * sizeof(RefPicListTab) involves an int and a size_t, which promotes to size_t (unsigned) arithmetic per C standard rules, not 32-bit signed arithmetic. Additionally, ctb_count for valid HEVC dimensions fits comfortably within a 32-bit signed integer, making overflow impossible.",
+    "verbalGradient": "The hypothesis incorrectly assumed 32-bit signed promotion and static bounds, overlooking that `ctb_count` is parsed from the bitstream and may lack validation against spec limits in malformed inputs. Shift focus to the SPS/PPS parsing path to verify whether `ctb_count` is clamped or validated before allocation, and trace how it propagates to array indexing or loop bounds during reference picture list construction. Investigate whether an unchecked stream value causes an undersized pool or out-of-bounds access during tab population, rather than the multiplication itself.",
+    "timestamp": "2026-05-08T03:40:33.856Z"
+  },
+  {
+    "target": "libavcodec/h264_slice.c",
+    "attempt": 1,
+    "failureReason": "False positive. Triggering a 32-bit signed integer overflow requires alloc_size > ~51 million, which corresponds to a line size far exceeding the maximum resolution supported by the H.264 specification. The overflow condition is unreachable given inherent codec bounds.",
+    "verbalGradient": "The hypothesis incorrectly assumed that raw dimension multiplication could exceed 32-bit limits within valid H.264 constraints, ignoring FFmpeg's strict slice-header validation and macroblock clamping. Instead, investigate whether intermediate arithmetic involving padding, alignment, or context-dependent multipliers (e.g., `mb_stride`, `linesize`, or `mb_y`/`mb_x` loop counters) can underflow or wrap when combined with malformed but spec-compliant slice parameters. Examine the exact calculation path feeding `av_fast_malloc` for sign-extension bugs, 16-to-32-bit truncation, or bypassed reallocation threshold guards that could cause insufficient allocation under edge-case but valid decode sequences.",
+    "timestamp": "2026-05-08T03:40:42.822Z"
+  },
+  {
+    "target": "libavcodec/h264_slice.c",
+    "attempt": 1,
+    "failureReason": "H.264 macroblock dimensions are bounded by the codec specification to values that cannot cause 32-bit integer overflow. The maximum possible product (~131,072) is orders of magnitude below INT_MAX (~2.1 billion), making the claimed arithmetic overflow impossible.",
+    "verbalGradient": "The hypothesis incorrectly assumed raw macroblock dimensions could bypass H.264 spec limits and that their product alone would overflow 32-bit integers; instead, investigate how `mb_array_size` and `b4_array_size` are multiplied by element sizes (e.g., `sizeof(int)` or 16-byte 4×4 block strides) or combined in slice-threading allocations where intermediate `int` arithmetic may wrap before casting to `size_t`. Trace the exact `av_malloc` call sites in `h264_slice.c` to identify missing bounds checks, off-by-one adjustments, or secondary multiplications that could cause undersized allocations despite bounded macroblock counts. Focus on validation gaps where libav accepts high-profile or non-conformant SPS/PPS values that remain within spec bounds individually but exceed expected memory footprints when scaled by per-macroblock overhead or partitioning logic.",
+    "timestamp": "2026-05-08T03:41:02.226Z"
+  },
+  {
+    "target": "libavformat/mov.c",
+    "attempt": 1,
+    "failureReason": "`dstlen` is a signed `int`, so `dstlen - 1` evaluates to -1 rather than an unsigned underflow. The computed `end` pointer (`dst - 1`) is correctly handled by the `p >= end` check, which skips the loop. The subsequent `*p = 0` writes a null terminator to `dst`, which is standard string termination and does not constitute a buffer overflow since `dst` points to valid caller-allocated memory. The `dstlen == 0` case is unreachable in practice.",
+    "verbalGradient": "The hypothesis incorrectly assumed that `dstlen == 0` triggers a meaningful overflow, overlooking that the verifier confirmed this path is unreachable and that the null write is standard string termination. Instead, investigate how `dstlen` is derived from untrusted MOV atom sizes or string lengths and whether signed/unsigned conversion or arithmetic overflow in `dst + dstlen` bypasses the `p < end` bounds check. Examine the caller's buffer allocation constraints and trace the preceding parsing loop to determine if malformed or negative `dstlen` values allow `p` to advance beyond the allocated region before the null-termination write.",
+    "timestamp": "2026-05-08T03:41:20.729Z"
+  },
+  {
+    "target": "libavformat/riff.c",
+    "attempt": 1,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine all integer arithmetic involving parsed chunk sizes and byte offsets, particularly around AVI index (`idx1`) and `movi` chunk parsing, to detect potential wraparounds or off-by-one miscalculations that could silently bypass bounds checks. Focus on allocation routines that derive buffer sizes directly from unvalidated header fields, verifying that explicit saturation or overflow guards are applied before `av_malloc` or `av_realloc` calls. Pay close attention to corner cases involving zero-length chunks, truncated files, and deeply nested or overlapping RIFF structures, as these frequently expose unhandled edge cases in seek validation, stream index reconstruction, and recursive chunk traversal.",
+    "timestamp": "2026-05-08T03:41:32.541Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 1,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine context index derivations, arithmetic decoder state updates, and CABAC probability model transitions for off-by-one errors, integer wraparounds, and unvalidated slice/CTB coordinate calculations that could bypass array bounds. Focus on corner cases involving truncated or misaligned bitstreams, rapid picture-type switches, and extreme macroblock/CTB boundaries where stale decoder state or desynchronized syntax parsing may silently corrupt internal buffers. Prioritize targeted fuzzing with malformed CABAC streams that force edge-case syntax evaluation, and manually trace pointer arithmetic against dynamically computed slice limits to catch logic-driven overflows or use-after-free conditions.",
+    "timestamp": "2026-05-08T03:41:40.141Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 4,
+    "failureReason": "min_pu_size is bounded by the HEVC specification to a maximum of 1024 (derived from log2_min_pu_size, which is a 3-bit field limited to 0-5). The product cannot exceed ~16KB, making 32-bit integer overflow impossible. Additionally, C's usual arithmetic conversions promote the int operand to size_t before multiplication, eliminating signed overflow risks.",
+    "verbalGradient": "The hypothesis failed by isolating `min_pu_size` as the sole overflow source and misapplying C promotion rules, ignoring that the actual allocation size depends on the product of picture dimensions and PU count, which can wrap around `SIZE_MAX` when crafted bitstreams exploit unchecked width/height fields. Instead, investigate the complete allocation expression passed to `av_buffer_pool_init` (typically `num_pu * sizeof(MvField)` or `pic_width * pic_height * sizeof(MvField)`) for `size_t` overflow, focusing on code paths where `log2_min_pu_size` validation is bypassed or where intermediate `int` arithmetic precedes conversion to `size_t`. Prioritize tracing how `num_pu` is derived from `pic_width`, `pic_height`, and `min_pu_size` to identify multiplication/division sequences that produce undersized buffer pool allocations despite the bounded `min_pu_size` range.",
+    "timestamp": "2026-05-08T03:57:32.259Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 4,
+    "failureReason": "ctb_count is derived from SPS dimensions strictly bounded by the HEVC specification (max ~66,049 for 4096x4096 frames). The multiplication is performed in size_t arithmetic, yielding a maximum size of ~2 MB, which fits comfortably within 32-bit and 64-bit ranges. Overflow is impossible, and FFmpeg validates SPS parameters early in the decoding pipeline. The claim of 32-bit truncation is incorrect due to standard C type promotion rules and strict parameter bounds.",
+    "verbalGradient": "The hypothesis failed by incorrectly assuming 32-bit truncation during a `size_t`-promoted multiplication and overlooking FFmpeg’s early SPS validation, which mathematically guarantees the allocation size is safe. Instead, investigate whether derived reference counts (e.g., `num_ref_idx_l0/l1_active_minus1`) are properly clamped against actual list capacities before being used as array indices. Focus on bounds-checking gaps in `hevc_refs.c` or the slice decoding path in `hevcdec.c` where unsigned/signed mismatches or missing validation could permit out-of-bounds access to the `RefPicListTab` pool during reference picture list construction or motion compensation.",
+    "timestamp": "2026-05-08T03:57:41.911Z"
+  },
+  {
+    "target": "libavformat/mov.c",
+    "attempt": 2,
+    "failureReason": "The vulnerability relies on dstlen being 0, which is impossible in practice as the function is always called with sizeof(buffer) (typically 4). The pointer arithmetic underflow is theoretical and does not lead to an underflow write, as *p = 0 writes to dst, not dst-1.",
+    "verbalGradient": "The hypothesis failed because `dstlen` is constant and non-zero (typically 4 bytes), making the zero-length underflow impossible; instead, focus on whether the function processes untrusted length values derived from the stream (such as atom sizes) that exceed this fixed 4-byte buffer capacity. Investigate if the code performs copy operations or reads based on these untrusted lengths without verifying they fit within `dstlen`, or if `dstlen` is updated dynamically by untrusted input elsewhere in the function, effectively expanding the writable region beyond the allocated buffer. Additionally, check for integer overflows in length calculations that could wrap the effective length to a value allowing writes past `dst + dstlen`, or examine if `dst` itself is misaligned relative to the buffer start due to pointer arithmetic errors.",
+    "timestamp": "2026-05-08T03:58:02.072Z"
+  },
+  {
+    "target": "libavcodec/hevcdec.c",
+    "attempt": 4,
+    "failureReason": "Negative int promoted to size_t yields a huge value, not small, on 64-bit systems. av_buffer_pool_init will fail or allocate huge memory, triggering the NULL check. The wrap-around to small size described is mathematically incorrect for standard 64-bit architectures.",
+    "verbalGradient": "The hypothesis incorrectly assumes that sign-extension to `size_t` produces a small value, whereas C standard unsigned promotion of a negative `int` yields a large address that triggers allocation failure or OOM rather than a small heap overflow. Instead, investigate whether explicit casts to `uint32_t` or `int` truncate the product before multiplication by `sizeof(MvField)`, or if `min_pu_size` is combined with other runtime dimensions (e.g., `frame_width`, `cpu_count`, or `stride`) in a way that genuinely wraps to a small allocation size. Focus on the exact arithmetic expression passed to `av_buffer_pool_init` and verify whether FFmpeg's `av_malloc_array` or custom pool setup bypasses its built-in overflow checks, redirecting the search toward truncation-induced under-allocation rather than sign-extension artifacts.",
+    "timestamp": "2026-05-08T03:58:13.842Z"
+  },
+  {
+    "target": "libavformat/riff.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Prioritize re-examination of integer arithmetic around chunk size accumulation and offset calculations, specifically checking for wrap-around vulnerabilities when summing nested container lengths or computing memory allocation bounds, as RIFF parsers often mishandle large or maliciously crafted size fields. Investigate the recursive traversal logic for nested `LIST` and `RIFF` structures to ensure inner chunk sizes are validated strictly against their parent container's declared limits rather than the global file size, preventing out-of-bounds access via crafted nesting depths. Finally, stress-test edge cases involving zero-byte chunks, truncated headers, and oversized payloads that could bypass initial checks to trigger infinite loops or buffer overruns during parsing state machine transitions.",
+    "timestamp": "2026-05-08T03:58:25.451Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Prioritize re-examination of the CABAC context indexing and bitstream parsing routines, specifically verifying that all context IDs are strictly bounded against the probability tables and that integer arithmetic in offset calculations cannot overflow under malformed input. Focus on corner cases where truncated NAL units or invalid syntax elements force premature state machine exits, particularly during decoder resets or error recovery paths where context variables may remain uninitialized or desynchronized. Stress-test these code paths with fuzzed H.264 streams containing corrupted CABAC headers and boundary-range values to expose off-by-one accesses or silent state corruption that automated scanners typically overlook.",
+    "timestamp": "2026-05-08T03:58:39.020Z"
+  },
+  {
+    "target": "libavformat/riff.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Re-examine all chunk size parsing and validation routines, specifically tracking how `get_be32`/`get_le32` outputs are combined with offsets, padding, or loop counters to detect integer overflows and unbounded allocation requests. Prioritize corner cases involving truncated inputs, zero or negative chunk sizes, and nested/chained RIFF structures where malformed fourcc codes or mismatched header/data lengths could silently bypass bounds checks. Verify that every dynamic buffer allocation and read operation is strictly gated by validated, non-wrapping size constraints and explicit EOF checks before delegating to format-specific parsers.",
+    "timestamp": "2026-05-08T03:58:46.735Z"
+  },
+  {
+    "target": "libavcodec/h264_cabac.c",
+    "attempt": 2,
+    "failureReason": "no_findings",
+    "verbalGradient": "Focus re-investigation on dynamic context-index calculations and arithmetic decoder state transitions, specifically tracing how decoded syntax elements directly index probability tables and update internal buffers. Prioritize malformed or truncated bitstreams that could trigger out-of-bounds array accesses, integer overflows in bit-position tracking, or stale cross-frame context states that bypass static bounds checks. Targeted fuzzing of extreme Golomb-coded values and renormalization edge cases will likely expose hidden heap corruption or invalid state machine transitions that conventional scanners typically miss.",
+    "timestamp": "2026-05-08T03:58:55.907Z"
+  }
+]

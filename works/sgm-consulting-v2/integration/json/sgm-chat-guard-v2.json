@@ -1,0 +1,285 @@
+{
+  "config": {
+    "info": {
+      "version": "4.0.0",
+      "description": "SceneGraphManager Consulting Bot v2 — Guard + Rewrite + 6-turn + Escalation + Thread State (Production)",
+      "author": "Akira Kudo"
+    },
+    "recursionLimit": 100,
+    "prompts": {
+      "consult": "works/sgm-consulting-v2/integration/prompts/consult_prompt.txt",
+      "guard": "works/sgm-consulting-v2/training/prompts/guard_prompt.txt",
+      "rewrite": "works/sgm-consulting-v2/training/prompts/rewrite_prompt.txt"
+    },
+    "skills": {
+      "enabled": true,
+      "skillsPath": "skills/sgm-docs",
+      "backend": {
+        "virtualMode": true,
+        "rootDir": "."
+      },
+      "excludeDirs": [
+        "data"
+      ]
+    },
+    "store": {
+      "type": "InMemoryStore"
+    },
+    "contextCompression": {
+      "enabled": true,
+      "mode": "threshold",
+      "trigger": {
+        "tokens": 102400
+      },
+      "modelRef": "qwen"
+    }
+  },
+  "stateAnnotation": {
+    "name": "ConsultingState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "answer": {
+      "type": "string",
+      "reducer": "(_, y) => y",
+      "default": ""
+    },
+    "guard_result": {
+      "type": "object",
+      "reducer": "(_, y) => y",
+      "default": {}
+    },
+    "turn_count": {
+      "type": "number",
+      "reducer": "(_, y) => y",
+      "default": 0
+    },
+    "rewrite_count": {
+      "type": "number",
+      "reducer": "(_, y) => y",
+      "default": 0
+    },
+    "conversation": {
+      "type": "object[]",
+      "reducer": "arrayConcatOrResetReducer",
+      "default": []
+    },
+    "close": {
+      "type": "boolean",
+      "reducer": "(_, y) => y",
+      "default": false
+    },
+    "escalated": {
+      "type": "boolean",
+      "reducer": "(_, y) => y",
+      "default": false
+    },
+    "doc_context": {
+      "type": "string",
+      "reducer": "(_, y) => y",
+      "default": ""
+    },
+    "referenced_files": {
+      "type": "string[]",
+      "reducer": "(_, y) => y",
+      "default": []
+    }
+  },
+  "models": [
+    {
+      "id": "qwen",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.3,
+        "serverUrl": "http://localhost:8001",
+        "maxTokens": 4096
+      },
+      "systemPrompt": "SceneGraphManager SDKコンサルティングエージェント"
+    },
+    {
+      "id": "rewrite",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001",
+        "maxTokens": 4096
+      },
+      "systemPrompt": "回答書き換えエージェント"
+    },
+    {
+      "id": "evaluator",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.1,
+        "serverUrl": "http://localhost:8001",
+        "maxTokens": 1024
+      },
+      "systemPrompt": "回答品質評価エージェント"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "respond_node",
+      "useSystemSkills": true,
+      "injectSkillsPrompt": false,
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof ConsultingState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "qwen"
+          }
+        ],
+        "functionFile": "works/sgm-consulting-v2/integration/handlers/respond.js"
+      }
+    },
+    {
+      "id": "guard_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof ConsultingState.State"
+          }
+        ],
+        "functionFile": "works/sgm-consulting-v2/integration/handlers/guard.js"
+      }
+    },
+    {
+      "id": "rewrite_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof ConsultingState.State"
+          },
+          {
+            "name": "model",
+            "parameterType": "model",
+            "modelRef": "rewrite"
+          }
+        ],
+        "functionFile": "works/sgm-consulting-v2/integration/handlers/rewrite.js"
+      }
+    },
+    {
+      "id": "evaluate_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof ConsultingState.State"
+          },
+          {
+            "name": "evaluator",
+            "parameterType": "model",
+            "modelRef": "evaluator"
+          }
+        ],
+        "functionFile": "works/sgm-consulting-v2/integration/handlers/evaluate.js"
+      }
+    },
+    {
+      "id": "escalate_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof ConsultingState.State"
+          }
+        ],
+        "functionFile": "works/sgm-consulting-v2/integration/handlers/escalate.js"
+      }
+    },
+    {
+      "id": "decide_node",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof ConsultingState.State"
+          }
+        ],
+        "functionFile": "works/sgm-consulting-v2/integration/handlers/decide.js"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "respond_node"
+    },
+    {
+      "from": "respond_node",
+      "to": "guard_node"
+    },
+    {
+      "from": "guard_node",
+      "type": "conditional",
+      "condition": {
+        "name": "routeGuard",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof ConsultingState.State"
+            }
+          ],
+          "functionFile": "works/sgm-consulting-v2/integration/handlers/routeGuard.js"
+        }
+      }
+    },
+    {
+      "from": "rewrite_node",
+      "to": "guard_node"
+    },
+    {
+      "from": "evaluate_node",
+      "to": "decide_node"
+    },
+    {
+      "from": "decide_node",
+      "type": "conditional",
+      "condition": {
+        "name": "routeDecide",
+        "handler": {
+          "parameters": [
+            {
+              "name": "state",
+              "parameterType": "state",
+              "stateType": "typeof ConsultingState.State"
+            }
+          ],
+          "functionFile": "works/sgm-consulting-v2/integration/handlers/routeDecide.js"
+        }
+      }
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "ConsultingState",
+    "config": {
+      "checkpointer": {
+        "type": "MemorySaver"
+      }
+    }
+  }
+}

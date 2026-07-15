@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780129872490",
+  "threadId": "slack-test-1780129872490",
+  "initialQuestion": [
+    "structuredOutputの設定方法を教えてください"
+  ],
+  "durationMs": 28744,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`structuredOutput` は、ノード（主に `model` ノード）の設定に追加するフィールドです。\nこれにより、LLM の出力を **JSON Schema** に基づいて強制・検証することができます。\n\n### 設定方法\n\nノードの定義内に `structuredOutput` オブジェクトを追加し、その中に `schema` プロパティとして JSON Schema を記述します。\n\n**設定例:**\n\n```json\n{\n  \"id\": \"structured_node\",\n  \"type\": \"model\",\n  \"modelRef\": \"claude\",\n  \"structuredOutput\": {\n    \"schema\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"answer\": { \"type\": \"string\" },\n        \"score\": { \"type\": \"number\" }\n      },\n      \"required\": [\"answer\", \"score\"]\n    }\n  }\n}\n```\n\n### 動作\n\n*   **JSON Schema 強制:** 指定されたスキーマに基づき、モデルからの出力が構造化されます。\n*   **検証:** LLM のレスポンスは自動的に検証され、指定された型や必須フィールドが満たされているか確認されます。\n*   **対応プロバイダ:** 対応しているすべての AI プロバイダ（Anthropic, OpenAI, Azure, Ollama 等）で動作します。"
+  ],
+  "timestamp": "2026-05-30T08:31:41.254Z"
+}

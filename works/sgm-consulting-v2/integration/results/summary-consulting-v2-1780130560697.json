@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780130560697",
+  "threadId": "slack-test-1780130560697",
+  "initialQuestion": [
+    "drawGraphでワークフローを可視化する方法を教えてください"
+  ],
+  "durationMs": 33082,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "`WorkflowEngine` クラスの `drawGraph` メソッドを使用して、ワークフローの構造を画像ファイルとしてエクスポート（可視化）できます。\n\n### 使用方法\n\n`drawGraph` メソッドは、ワークフローのグラフ構造を Mermaid ベースでレンダリングし、PNG 画像ファイルとして保存します。\n\n**重要な前提条件:**\nワークフローの構築（`build`）が完了している必要があります。\n\n### サンプルコード\n\n```typescript\nconst engine = new WorkflowEngine(config);\nawait engine.build();\n\n// 'workflow.png' という名前で画像を生成\nawait engine.drawGraph('workflow.png');\n```\n\n### 詳細\n\n*   **引数**: 出力ファイル名（文字列）。通常は `.png` 拡張子を使用します。\n*   **戻り値**: 処理が成功すると、生成されたファイルパスなどを示す文字列が返されます。\n*   **形式**: 内部のグラフ構造を Mermaid 記法でレンダリングした PNG 画像として出力されます。\n\nこれにより、ワークフローのノードやエッジの接続関係を確認するためのデバッグ用図を作成できます。"
+  ],
+  "timestamp": "2026-05-30T08:43:13.797Z"
+}

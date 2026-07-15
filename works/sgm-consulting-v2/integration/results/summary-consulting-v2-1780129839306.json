@@ -1,0 +1,21 @@
+{
+  "sessionId": "consulting-v2-1780129839306",
+  "threadId": "slack-test-1780129839306",
+  "initialQuestion": [
+    "複数モデルをfunctionノードで使う方法を教えてください"
+  ],
+  "durationMs": 31952,
+  "turnCount": 1,
+  "rewriteCount": 0,
+  "guard_result": {
+    "safe": true,
+    "issues": [],
+    "score": 1
+  },
+  "close": true,
+  "escalated": false,
+  "answers": [
+    "SceneGraphManagerにおいて、複数のモデルを扱う方法、および `custom` ノード（functionノード）との連携についてご説明します。\n\n公開ドキュメントおよびAPI仕様に基づき、以下の手順で設定します。\n\n### 1. 複数のモデルを定義する\nワークフローのJSON設定において、`models` 配列に複数のモデル設定を定義します。各モデルに一意の `id` を割り当てます。\n\n```jsonc\n{\n  \"models\": [\n    { \"id\": \"claude\", \"type\": \"anthropic\", \"config\": { \"model\": \"claude-3-sonnet-20240229\", \"apiKey\": \"...\" } },\n    { \"id\": \"gpt4\", \"type\": \"openai\", \"config\": { \"model\": \"gpt-4-turbo\", \"apiKey\": \"...\" } }\n  ],\n  // ...\n}\n```\n\n### 2. `model` ノードでモデルを指定する\n`model` タイプのノードを使用し、`modelRef` フィールドで上記で定義したモデルIDを指定します。\n\n```jsonc\n{\n  \"nodes\": [\n    {\n      \"id\": \"node_claude\",\n      \"type\": \"model\",\n      \"modelRef\": \"claude\", // ここでモデルを指定\n      // ...\n    },\n    {\n      \"id\": \"node_gpt4\",\n      \"type\": \"model\",\n      \"modelRef\": \"gpt4\", // ここで別のモデルを指定\n      // ...\n    }\n  ]\n}\n```\n\n### 3. `custom` ノード（functionノード）での使い方\n`custom` ノード（functionノード）は、主にロジックの分岐やデータ加工を担当します。複数モデルを使う場合、`custom` ノード内で直接LLMを呼び出すのではなく、**「どの `model` ノードへ遷移するか」を制御する**のが標準的なパターンです。\n\n**例：`custom` ノードで条件分岐を行い、モデルを使い分ける**\n\n1.  `custom` ノードで入力データを解析し、使用するモデルを決定する（またはフラグを立てる）。\n2.  `custom` ノードから複数の `model` ノードへ向かうエッジを定義する。\n3.  エッジの条件（`condition`）に基づき、適切な `model` ノードへ遷移させる。\n\nこれにより、`custom` ノードのロジックに応じて、異なるモデル（例: 高速なモデルで下書き、高精度なモデルで最終チェック）を連携させることができます。\n\n**補足**\nもし `custom` ノード内で直接モデルを呼び出したい場合、SceneGraphManagerの標準的なワークフロー設計（`model` ノードを使用する設計）とは異なるアプローチとなるため、公開ドキュメントには明確な記載がありません。基本的には、上記のように `model` ノードと `custom` ノードを連携させて使用することをお勧めします。"
+  ],
+  "timestamp": "2026-05-30T08:31:11.276Z"
+}

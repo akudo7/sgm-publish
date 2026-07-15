@@ -1,0 +1,283 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SGM-SourceHunt",
+          "version": "1.0.0",
+          "informationUri": "https://github.com/akudo7/SceneGraphManager"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in pic_size_in_ctb calculation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 90
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in ctb_count calculation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 92
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Allocation Size Calculation",
+          "level": "warning",
+          "message": {
+            "text": "The multiplication `16 * 6 * alloc_size` is performed using 32-bit signed integers. If `alloc_size` exceeds ~21 million, the result wraps around, yielding a small positive value that is passed to `av_fast_malloc`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 101
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Allocation Size Calculation",
+          "level": "warning",
+          "message": {
+            "text": "The calculation `h->mb_width * 16 * 3 * sizeof(uint8_t) * 2` is evaluated as a 32-bit signed integer. If `h->mb_width` exceeds ~21 million, the multiplication wraps around before being passed to `av_fast_mallocz`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 107
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Allocation Size Calculation",
+          "level": "warning",
+          "message": {
+            "text": "The allocation size for `mb_type_pool` is computed as `(big_mb_num + h->mb_stride) * sizeof(uint32_t)`. This 32-bit signed multiplication can overflow even with moderately large wrapped values, passing a small size to `av_buffer_pool_init`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 135
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Allocation Size Calculation",
+          "level": "warning",
+          "message": {
+            "text": "The allocation size for `motion_val_pool` is computed as `2 * (b4_array_size + 4) * sizeof(int16_t)`. This 32-bit signed multiplication overflows with large `b4_array_size`, resulting in an undersized buffer pool."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 137
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Allocation Size Calculation",
+          "level": "warning",
+          "message": {
+            "text": "The allocation size for `ref_index_pool` is computed as `4 * mb_array_size`. This 32-bit signed multiplication overflows with large `mb_array_size`, passing a wrapped small value to `av_buffer_pool_init`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 139
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Integer overflow in min_pu_size calculation"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 93
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Allocation Size Calculation",
+          "level": "warning",
+          "message": {
+            "text": "The expression `alloc_size * 2 * 21` uses 32-bit signed integer arithmetic. Overflow occurs if `alloc_size` > ~48 million, leading to an undersized allocation for `sl->edge_emu_buffer`."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 104
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Integer Overflow in Allocation Size Calculation",
+          "level": "warning",
+          "message": {
+            "text": "Multiple intermediate calculations in `init_table_pools` use 32-bit signed integers: `h->mb_stride * (h->mb_height + 1)`, `h->mb_stride * h->mb_height`, `h->mb_width * 4`, and `b4_stride * h->mb_height * 4`. All can wrap around with large macroblock dimensions parsed from the bitstream."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 128
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "Arithmetic overflow in allocation size calculation within init_table_pools. Intermediate variables (big_mb_num, mb_array_size, b4_array_size) are declared as int and computed via multiplication of macroblock dimensions. For large or malformed dimensions, these 32-bit signed multiplications wrap around. The wrapped values are subsequently used to calculate allocation sizes for av_buffer_pool_init, resulting in severely undersized heap allocations."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/h264_slice.c"
+                },
+                "region": {
+                  "startLine": 178
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "The `dstlen` parameter is used to compute `end = dst + dstlen - 1`, which acts as the write boundary. If `dstlen` is a large positive integer (e.g., derived from an untrusted atom size), pointer arithmetic yields a pointer `end` significantly beyond the actual `dst` buffer. The subsequent `p < end` check remains true, allowing `p` to advance and write past the allocated memory, causing a heap/stack buffer overflow."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavformat/mov.c"
+                },
+                "region": {
+                  "startLine": 192
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "In pic_arrays_init, min_pu_size is declared as int and computed from unchecked SPS fields. When passed to av_buffer_pool_init on line 143, it is multiplied by sizeof(MvField) (size_t). C's usual arithmetic conversions promote the int operand to size_t before evaluation. Malformed inputs can cause min_pu_size to be negative or excessively large, causing the product to wrap around SIZE_MAX (especially on 32-bit systems) to a small value. av_buffer_pool_init may succeed with an undersized pool, leading to heap buffer overflows during subsequent PU decoding."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 143
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "integer_overflow",
+          "level": "warning",
+          "message": {
+            "text": "The calculation of `pic_size_in_ctb` performs multiplication in 32-bit signed `int` arithmetic. If `width` and `height` are large and `log2_min_cb_size` is small, the product can exceed `INT_MAX`, causing signed integer overflow. The resulting wrapped value is passed to `av_malloc_array` as the element count, potentially leading to an undersized heap allocation and subsequent buffer overflow during CTB data population."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "libavcodec/hevcdec.c"
+                },
+                "region": {
+                  "startLine": 108
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
