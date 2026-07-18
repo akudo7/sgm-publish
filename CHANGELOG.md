@@ -5,6 +5,12 @@ All notable changes to SceneGraphManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-07-18
+
+### Added
+
+- **File edit constraint rules in SkillsManager** — New rule 6 in `getSkillsPrompt()`: prefer `edit_file` (partial replacement) over `write_file` (full rewrite), with sed/Python fallback procedures for ambiguous `old_string` matches.
+
 ## [Unreleased]
 
 ---
