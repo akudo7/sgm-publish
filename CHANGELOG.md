@@ -5,6 +5,12 @@ All notable changes to SceneGraphManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.1] - 2026-07-18
+
+### Fixed
+
+- **Token usage double-counting in `UsageTracker`** — `_captureUsageFromMessages()` was called after `compiledGraph.invoke()` in both Command and normal `invoke()` paths, causing `UsageTracker.record()` to be called twice for the same model invocations (once via proxy in function nodes, once via post-invoke scan). Removed the redundant post-invoke scan.
+
 ## [2.9.0] - 2026-07-18
 
 ### Added
