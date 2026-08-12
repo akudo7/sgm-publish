@@ -5,6 +5,19 @@ All notable changes to SceneGraphManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] - 2026-08-11
+
+### Changed
+
+- **`@a2a-js/sdk` upgraded `0.3.13` → `1.0.1`** — Migrated to the 1.0.1-native API without the `legacyCompat` layer: `A2AClient` → `ClientFactory` + `Client`, `Part` type now uses `content.$case`/`content.value` instead of `TextPart`/`FilePart`/`DataPart`, `kind` discriminator removed from `Message`/`Task`/`TaskStatusUpdateEvent`, `eventBus.publish()` now takes `AgentEvent.xxx(data)`. Added `jose` dependency (transitively required by the SDK). `AgentCard` now requires `protocolVersion: "1.0.0"` and `preferredTransport: "JSONRPC"`.
+
+### Fixed
+
+- **A2A JSON-RPC response envelope flattening in `scripts/start-a2a-server.ts` / `dispatch-server.ts` / `dispatch-server-v2.ts`** — The `/` JSON-RPC handler serialized the raw `WorkflowEngine.invoke()` result directly into the response text (`JSON.stringify(workflowResult)`), losing the `{ result: { messages: [...] } }` envelope that the client-side `approval_gate_task`/`approval_gate_research`/`report_generator` workflow nodes parse. This caused A2A tool calls to silently return an empty task/research list, sending the workflow into a retry loop that eventually hit the invoke timeout.
+- **`A2AToolGenerator.parseInput()` object coercion** — A plain object input without a `message` key was converted with `String(input)` (producing `"[object Object]"`) instead of `JSON.stringify(input)`.
+- **`docs/API.md`** — `A2AClientConfig` referenced a type name that doesn't exist in the codebase; corrected to `A2AServerConfig`.
+- **`docs/ARCHITECTURE.md`** — A2A JS SDK version reference updated from `v0.3.4+` to `v1.0.1+`.
+
 ## [2.9.1] - 2026-07-18
 
 ### Fixed

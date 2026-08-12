@@ -184,8 +184,8 @@ async function main() {
       let input = '';
       if (typeof message === 'string') input = message;
       else if (message?.parts && Array.isArray(message.parts)) {
-        const p = message.parts.find((p: any) => p.type === 'text' || p.kind === 'text' || (p.text && !p.type && !p.kind));
-        input = p?.text || '';
+        const p = message.parts.find((p: any) => p.text);
+        if (p) input = p.text;
       } else if (message?.content) input = typeof message.content === 'string' ? message.content : '';
       else if (message?.text) input = typeof message.text === 'string' ? message.text : '';
       else input = JSON.stringify(message);
@@ -227,8 +227,8 @@ async function main() {
       let input = '';
       if (typeof message === 'string') input = message;
       else if (message?.parts && Array.isArray(message.parts)) {
-        const p = message.parts.find((p: any) => p.type === 'text' || p.kind === 'text' || (p.text && !p.type && !p.kind));
-        input = p?.text || '';
+        const p = message.parts.find((p: any) => p.text);
+        if (p) input = p.text;
       } else if (message?.content) input = typeof message.content === 'string' ? message.content : '';
       else if (message?.text) input = typeof message.text === 'string' ? message.text : '';
       else input = JSON.stringify(message);
@@ -284,19 +284,22 @@ async function main() {
 
   app.get('/.well-known/agent.json', (_req: any, res: any) => {
     const configCard = workflowConfig.config?.a2aEndpoint?.agentCard;
+    const si = [{ url: `http://localhost:${port}/`, protocolBinding: 'JSONRPC', protocolVersion: '1.0', tenant: '' }];
     const agentCard = configCard
-      ? { ...configCard, url: `http://localhost:${port}/`, endpoints: { messageSend: `http://localhost:${port}/message/send` } }
-      : { name: workflowConfig.name || 'WorkflowAgent v2', description: workflowConfig.description || 'A workflow execution agent v2', protocolVersion: '0.3.0', version: '2.0.0', url: `http://localhost:${port}/`, capabilities: { streaming: false, pushNotifications: false, stateTransitionHistory: true } };
+      ? { ...configCard, protocolVersion: '1.0.0', preferredTransport: 'JSONRPC', url: `http://localhost:${port}/`, endpoints: { messageSend: `http://localhost:${port}/message/send` }, supportedInterfaces: si }
+      : { name: workflowConfig.name || 'WorkflowAgent v2', description: workflowConfig.description || 'A workflow execution agent v2', protocolVersion: '1.0.0', preferredTransport: 'JSONRPC', version: '2.0.0', url: `http://localhost:${port}/`, capabilities: { streaming: false, pushNotifications: false, stateTransitionHistory: true }, supportedInterfaces: si };
     res.json(agentCard);
   });
 
   // JSON-RPC
   app.post('/', async (req: any, res: any) => {
     const { id, method, params } = req.body;
-    if (method === 'message/send') {
+    if (method === 'SendMessage') {
       try {
-        const message = params?.message;
-        const thread_id = params?.thread_id;
+        // Native: params = { message: { messageId, role, parts }, tenant, configuration, metadata }
+        const sendReq = params?.message;
+        const message = sendReq;
+        const thread_id = sendReq?.contextId;
         const webhookUrl = params?.webhookUrl;
         if (!message) return res.json({ jsonrpc: '2.0', id, error: { code: -32602, message: 'message is required' } });
 
@@ -320,8 +323,19 @@ async function main() {
           res.json({ jsonrpc: '2.0', id, result: { taskId, thread_id: effectiveThreadId, status: 'accepted' } });
           queue.enqueue({ taskId, message, threadId: effectiveThreadId, webhookUrl });
         } else {
-          const result = await executor.execute(message, taskId, effectiveThreadId);
-          res.json({ jsonrpc: '2.0', id, result: { ...result, taskId, thread_id: effectiveThreadId } });
+          const execResult = await executor.execute(message, taskId, effectiveThreadId);
+          // Preserve the { result: { messages: [...] } } envelope shape that downstream
+          // workflow parsers (approval_gate_* nodes) expect from the tool response content.
+          const workflowResult = typeof execResult.result === 'string' ? JSON.parse(execResult.result) : execResult.result;
+          const contentText = typeof workflowResult === 'string' ? workflowResult : JSON.stringify({ result: workflowResult });
+          const sdkResponse = {
+            message: {
+              messageId: execResult.taskId || `resp-${Date.now()}`,
+              role: 'ROLE_AGENT',
+              parts: [{ text: contentText }],
+            },
+          };
+          res.json({ jsonrpc: '2.0', id, result: sdkResponse });
         }
       } catch (err: any) {
         res.json({ jsonrpc: '2.0', id, error: { code: -32603, message: err.message } });

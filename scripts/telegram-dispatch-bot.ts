@@ -64,7 +64,7 @@ async function handleUpdate(update: any): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: { parts: [{ text: msg.text }] },
+        message: { parts: [{ type: 'text', text: msg.text }] },
         thread_id: `tg-${chatId}-${messageId}`,
         webhookUrl,
       }),

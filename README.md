@@ -1,4 +1,4 @@
-# SceneGraphManager v2.9.1
+# SceneGraphManager v2.10.0
 
 <p align="center">
   <strong>JSON-Driven AI Workflow Engine for LangGraph</strong>

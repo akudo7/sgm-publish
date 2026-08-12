@@ -12,6 +12,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import crypto from 'node:crypto';
 
 // Parse CLI arguments
 function parseArgs(argv: string[]): { config: string; port: number; name?: string } {
@@ -111,8 +112,11 @@ async function main() {
       if (typeof message === 'string') {
         input = message;
       } else if (message?.parts && Array.isArray(message.parts)) {
-        const textPart = message.parts.find((p: any) => p.type === 'text' || p.kind === 'text');
-        input = textPart?.text || '';
+        // Native format: parts = [{ text: "..." }]
+        const textPart = message.parts.find((p: any) => p.text);
+        if (textPart) {
+          input = textPart.text;
+        }
       } else if (message?.content) {
         input = typeof message.content === 'string' ? message.content : '';
       } else if (message?.text) {
@@ -171,8 +175,8 @@ async function main() {
       let input = '';
       if (typeof message === 'string') input = message;
       else if (message?.parts && Array.isArray(message.parts)) {
-        const textPart = message.parts.find((p: any) => p.type === 'text' || p.kind === 'text');
-        input = textPart?.text || '';
+        const textPart = message.parts.find((p: any) => p.text);
+        if (textPart) input = textPart.text;
       } else if (message?.content) input = typeof message.content === 'string' ? message.content : '';
       else if (message?.text) input = typeof message.text === 'string' ? message.text : '';
       else input = JSON.stringify(message);
@@ -250,24 +254,35 @@ async function main() {
     if (req.method === 'OPTIONS') res.sendStatus(200); else next();
   });
 
-  // Agent card
+  // Agent card (SDK expects /agent-card.json, keep /agent.json for compat)
   app.get('/.well-known/agent.json', (_req: any, res: any) => {
     const configCard = workflowConfig.config?.a2aEndpoint?.agentCard;
     const agentCard = configCard
       ? {
           ...configCard,
+          protocolVersion: '1.0.0',
+          preferredTransport: 'JSONRPC',
           url: `http://localhost:${port}/`,
           endpoints: {
             messageSend: `http://localhost:${port}/message/send`,
             messageStream: `http://localhost:${port}/message/stream`,
             taskGet: `http://localhost:${port}/tasks/{taskId}`,
             taskCancel: `http://localhost:${port}/tasks/{taskId}/cancel`
-          }
+          },
+          supportedInterfaces: [
+            {
+              url: `http://localhost:${port}/`,
+              protocolBinding: 'JSONRPC',
+              protocolVersion: '1.0',
+              tenant: '',
+            },
+          ]
         }
       : {
           name: workflowConfig.name || 'WorkflowAgent',
           description: workflowConfig.description || 'A workflow execution agent',
-          protocolVersion: '0.3.0',
+          protocolVersion: '1.0.0',
+          preferredTransport: 'JSONRPC',
           version: '1.0.0',
           url: `http://localhost:${port}/`,
           endpoints: {
@@ -279,7 +294,58 @@ async function main() {
           defaultInputModes: ['text/plain'],
           defaultOutputModes: ['text/plain'],
           capabilities: { streaming: false, pushNotifications: false, stateTransitionHistory: true },
-          skills: workflowConfig.skills || []
+          skills: workflowConfig.skills || [],
+          supportedInterfaces: [
+            {
+              url: `http://localhost:${port}/`,
+              protocolBinding: 'JSONRPC',
+              protocolVersion: '1.0',
+              tenant: '',
+            },
+          ]
+        };
+    res.json(agentCard);
+  });
+
+  // SDK expects Agent Card at /.well-known/agent-card.json
+  app.get('/.well-known/agent-card.json', (_req: any, res: any) => {
+    const configCard = workflowConfig.config?.a2aEndpoint?.agentCard;
+    const agentCard = configCard
+      ? {
+          ...configCard,
+          protocolVersion: '1.0.0',
+          preferredTransport: 'JSONRPC',
+          url: `http://localhost:${port}/`,
+          supportedInterfaces: [
+            {
+              url: `http://localhost:${port}/`,
+              protocolBinding: 'JSONRPC',
+              protocolVersion: '1.0',
+              tenant: '',
+            },
+          ],
+        }
+      : {
+          name: workflowConfig.name || 'Unnamed Workflow',
+          description: workflowConfig.description || '',
+          url: `http://localhost:${port}/`,
+          protocolVersion: '1.0.0',
+          preferredTransport: 'JSONRPC',
+          capabilities: {
+            skills: [],
+            pushNotification: false,
+            stateTransitionHistory: false,
+            files: false,
+            artifacts: false,
+          },
+          supportedInterfaces: [
+            {
+              url: `http://localhost:${port}/`,
+              protocolBinding: 'JSONRPC',
+              protocolVersion: '1.0',
+              tenant: '',
+            },
+          ],
         };
     res.json(agentCard);
   });
@@ -287,24 +353,38 @@ async function main() {
   // JSON-RPC endpoint
   app.post('/', async (req: any, res: any) => {
     const { id, method, params } = req.body;
-    if (method === 'message/send') {
+    if (method === 'SendMessage') {
       try {
-        const message = params?.message;
-        const thread_id = params?.thread_id;
+        // Native JsonRpcTransport: params = { message: { messageId, role, parts }, tenant, configuration, metadata }
+        const sendReq = params?.message;
+        const message = sendReq;
+        const thread_id = sendReq?.contextId;
         const webhookUrl = params?.webhookUrl;
         if (!message) {
           return res.json({ jsonrpc: '2.0', id, error: { code: -32602, message: 'message is required' } });
         }
         const effectiveThreadId = thread_id || `thread-${Date.now()}`;
-        const taskId = `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        const taskId = crypto.randomUUID();
 
         if (webhookUrl) {
           // 非同期実行: 即座に taskId を返し、バックグラウンドで実行
           res.json({ jsonrpc: '2.0', id, result: { taskId, thread_id: effectiveThreadId, status: 'accepted' } });
           executor.executeAsync(message, taskId, effectiveThreadId, webhookUrl).catch(console.error);
         } else {
-          const result = await executor.execute(message, taskId, effectiveThreadId);
-          res.json({ jsonrpc: '2.0', id, result: { ...result, taskId, thread_id: effectiveThreadId } });
+          const execResult = await executor.execute(message, taskId, effectiveThreadId);
+          // Native format: { message: { messageId, role: "ROLE_AGENT", parts: [{ text: "..." }] } }
+          // Preserve the { result: { messages: [...] } } envelope shape that downstream
+          // workflow parsers (approval_gate_* nodes) expect from the tool response content.
+          const workflowResult = typeof execResult.result === 'string' ? JSON.parse(execResult.result) : execResult.result;
+          const contentText = typeof workflowResult === 'string' ? workflowResult : JSON.stringify({ result: workflowResult });
+          const sdkResponse = {
+            message: {
+              messageId: execResult.taskId || `resp-${Date.now()}`,
+              role: 'ROLE_AGENT',
+              parts: [{ text: contentText }],
+            },
+          };
+          res.json({ jsonrpc: '2.0', id, result: sdkResponse });
         }
       } catch (err: any) {
         res.json({ jsonrpc: '2.0', id, error: { code: -32603, message: err.message } });
@@ -322,18 +402,7 @@ async function main() {
       const { message, thread_id, webhookUrl } = req.body;
       if (!message) return res.status(400).json({ error: 'message is required' });
       const effectiveThreadId = thread_id || `thread-${Date.now()}`;
-      const taskId = `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      taskStore.createTask({
-        taskId,
-        threadId: effectiveThreadId,
-        status: webhookUrl ? 'pending' : 'running',
-        input: JSON.stringify(req.body),
-        result: null,
-        webhookUrl: webhookUrl || null,
-        error: null,
-        createdAt: new Date().toISOString(),
-        completedAt: null,
-      });
+      const taskId = crypto.randomUUID();
 
       if (webhookUrl) {
         // 非同期実行: 即座に taskId を返し、バックグラウンドで実行

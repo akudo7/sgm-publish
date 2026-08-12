@@ -59,7 +59,7 @@ interface WorkflowConfig {
   annotation: Record<string, AnnotationField>;
   models: ModelConfig[];
   mcpServers?: Record<string, MCPServerConfig>;
-  a2aClients?: Record<string, A2AClientConfig>;
+  a2aClients?: Record<string, A2AServerConfig>;
   nodes: NodeConfig[];
   edges: EdgeConfig[];
   stateGraph: { annotationRef: string; config?: any };
@@ -94,7 +94,7 @@ Fields specific to `type: "tool"` nodes.
 | `excludeTools` | `string[]` | Array of tool names to exclude from this node. Use when you want to bind a large toolset globally but restrict dangerous operations on specific nodes |
 | `useDiscoveredAgents` | `boolean` | When `true`, generates A2A tools at runtime from `state.availableAgents` (populated by `discovery_node`) instead of static `a2aClients` |
 
-### A2AClientConfig Fields
+### A2AServerConfig Fields
 
 Fields available on each entry in `a2aClients`.
 

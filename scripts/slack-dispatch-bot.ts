@@ -65,7 +65,7 @@ const handleBotMessage = async (msg: any, say: Function) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: { parts: [{ text }] },
+        message: { parts: [{ type: 'text', text }] },
         thread_id: `slack-${msg.channel}-${rootTs}`,
         webhookUrl,
       }),

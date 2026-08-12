@@ -112,5 +112,5 @@ SceneGraphManager/
 |---|---|---|
 | [LangGraph](https://github.com/langchain-ai/langgraph) | v1.0.1+ | Workflow orchestration |
 | [LangChain Core](https://github.com/langchain-ai/langchainjs) | v1.0.1+ | AI abstraction layer |
-| [A2A JS SDK](https://github.com/a2a-js/sdk) | v0.3.4+ | Agent-to-agent communication |
+| [A2A JS SDK](https://github.com/a2a-js/sdk) | v1.0.1+ | Agent-to-agent communication |
 | TypeScript | 5.9.2+ | Type safety |

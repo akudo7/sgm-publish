@@ -559,7 +559,19 @@
       "gaps": [],
       "durationMs": 612647,
       "error": null
+    },
+    {
+      "runId": "run-1784365766377-wzyycf",
+      "startedAt": "2026-07-18T09:09:26.377Z",
+      "completedAt": "2026-07-18T09:29:32.055Z",
+      "status": "completed",
+      "plan": {
+        "tasks": []
+      },
+      "gaps": [],
+      "durationMs": 1205679,
+      "error": null
     }
   ],
-  "latestRunIndex": 46
+  "latestRunIndex": 47
 }
