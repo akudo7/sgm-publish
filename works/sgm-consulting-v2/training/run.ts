@@ -24,7 +24,7 @@
  *   SGM_TRAINING_MAX_ROUNDS=5 tsx works/sgm-consulting-v2/training/run.ts
  */
 
-import { WorkflowEngine } from "../../../dist/index.js";
+import { WorkflowEngine } from "@kudos/scene-graph-manager";
 import {
   readFileSync, mkdirSync, writeFileSync, existsSync,
   appendFileSync, readdirSync, renameSync, unlinkSync,

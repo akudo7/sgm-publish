@@ -1,0 +1,8 @@
+{
+  "skill": "arxiv-search",
+  "input": "transformer architectureの最新論文を5件検索してください",
+  "evaluation": {
+    "type": "count",
+    "expected": 5
+  }
+}

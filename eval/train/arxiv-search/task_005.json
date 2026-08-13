@@ -1,0 +1,8 @@
+{
+  "skill": "arxiv-search",
+  "input": "federated learningの応用に関する論文を3件検索してください",
+  "evaluation": {
+    "type": "count",
+    "expected": 3
+  }
+}

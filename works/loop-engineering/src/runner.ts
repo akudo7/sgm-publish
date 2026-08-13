@@ -15,7 +15,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { WorkflowEngine } from '../../../dist/index.js';
+import { WorkflowEngine } from '@kudos/scene-graph-manager';
 
 // ESM polyfill: __filename / __dirname to be available in ALL modules
 const _moduleDirname = path.dirname(fileURLToPath(import.meta.url));

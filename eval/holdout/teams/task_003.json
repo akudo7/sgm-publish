@@ -1,0 +1,8 @@
+{
+  "skill": "teams",
+  "input": "リモートワーク導入による組織文化への影響と、対策を提案してください。",
+  "evaluation": {
+    "type": "completion",
+    "minWorkers": 1
+  }
+}

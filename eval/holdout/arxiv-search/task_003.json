@@ -1,0 +1,8 @@
+{
+  "skill": "arxiv-search",
+  "input": "自己教師あり表現学習（self-supervised learning）の最新動向を2件調査してください",
+  "evaluation": {
+    "type": "count",
+    "expected": 2
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "skill": "teams",
+  "input": "以下の3つの製品の比較分析レポートを作成してください。機能、価格、ユーザー評価の観点から比較すること。",
+  "evaluation": {
+    "type": "completion",
+    "minWorkers": 1
+  }
+}

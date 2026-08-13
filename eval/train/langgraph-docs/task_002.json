@@ -1,0 +1,8 @@
+{
+  "skill": "langgraph-docs",
+  "input": "LangGraphでメモリ機能を使う方法を教えてください。MemorySaverについて。",
+  "evaluation": {
+    "type": "keyword",
+    "keywords": ["MemorySaver", "checkpointer", "configurable"]
+  }
+}

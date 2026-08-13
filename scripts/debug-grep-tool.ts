@@ -2,7 +2,7 @@
  * Debug script to test grep_search tool directly
  */
 
-import { ClaudeCodeToolsFactory } from "../dist/lib/tools/claude-code-tools.js";
+import { ClaudeCodeToolsFactory } from "@kudos/scene-graph-manager/tools";
 
 async function testGrepTool() {
   console.log("🔍 Testing grep_search tool directly\n");

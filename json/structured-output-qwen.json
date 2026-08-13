@@ -30,7 +30,7 @@
       "config": {
         "model": "unsloth/Qwen3.6-35B-A3B",
         "temperature": 0.2,
-        "maxTokens": 1024,
+        "maxTokens": 4096,
         "serverUrl": "http://localhost:8001"
       }
     }

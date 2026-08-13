@@ -1,0 +1,8 @@
+{
+  "skill": "arxiv-search",
+  "input": "graph neural networksに関する論文を1件検索してください",
+  "evaluation": {
+    "type": "count",
+    "expected": 1
+  }
+}

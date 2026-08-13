@@ -1,0 +1,8 @@
+{
+  "skill": "langgraph-docs",
+  "input": "LangGraphでストリーミング出力を実装する方法を教えてください。",
+  "evaluation": {
+    "type": "keyword",
+    "keywords": ["stream", "streaming", "on_chat_model"]
+  }
+}

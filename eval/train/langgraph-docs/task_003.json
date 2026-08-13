@@ -1,0 +1,8 @@
+{
+  "skill": "langgraph-docs",
+  "input": "条件付きエッジ（conditional edges）の実装方法を教えてください。",
+  "evaluation": {
+    "type": "keyword",
+    "keywords": ["conditional", "edge", "Router"]
+  }
+}

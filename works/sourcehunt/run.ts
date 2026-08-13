@@ -24,7 +24,7 @@
  *   同じコマンドを再実行するだけで中断箇所から再開する。
  */
 
-import { WorkflowEngine } from "../../dist/index.js";
+import { WorkflowEngine } from "@kudos/scene-graph-manager";
 import { readFileSync, mkdirSync, writeFileSync, existsSync, unlinkSync, copyFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";

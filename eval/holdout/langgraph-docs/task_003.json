@@ -1,0 +1,8 @@
+{
+  "skill": "langgraph-docs",
+  "input": "チェックポイントの管理方法と、古い状態の巻き戻し手順を教えてください。",
+  "evaluation": {
+    "type": "keyword",
+    "keywords": ["checkpoint", "versioning", "interrupt"]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "skill": "teams",
+  "input": "テクノロジートレンド2026年の概要をまとめてください。",
+  "evaluation": {
+    "type": "completion",
+    "minWorkers": 1
+  }
+}

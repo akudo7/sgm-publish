@@ -1,0 +1,8 @@
+{
+  "skill": "arxiv-search",
+  "input": "拡散モデル（diffusion models）の応用研究を4件見つけて",
+  "evaluation": {
+    "type": "count",
+    "expected": 4
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "skill": "teams",
+  "input": "グローバルなサプライチェーンの現状と、今後の見通しについて分析してください。",
+  "evaluation": {
+    "type": "completion",
+    "minWorkers": 1
+  }
+}

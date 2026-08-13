@@ -1,0 +1,8 @@
+{
+  "skill": "teams",
+  "input": "業界の競合環境を分析し、自社のポジショニングを明確にしてください。SWOT分析も実施すること。",
+  "evaluation": {
+    "type": "completion",
+    "minWorkers": 1
+  }
+}

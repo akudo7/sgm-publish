@@ -1,0 +1,8 @@
+{
+  "skill": "teams",
+  "input": "環境問題に関するニュースを収集し、経済への影響を分析するレポートを作成してください。",
+  "evaluation": {
+    "type": "completion",
+    "minWorkers": 1
+  }
+}

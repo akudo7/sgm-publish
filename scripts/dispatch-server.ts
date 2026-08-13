@@ -66,7 +66,7 @@ async function main() {
   console.log(`  Database:  ${db}`);
   console.log(`  Concurrency: ${concurrency}\n`);
 
-  const { WorkflowEngine } = await import('../dist/index.js');
+  const { WorkflowEngine } = await import('@kudos/scene-graph-manager');
   const { DispatchTaskStore } = await import('../src/lib/dispatch/DispatchTaskStore.js');
   const { AsyncTaskQueue } = await import('../src/lib/dispatch/AsyncTaskQueue.js');
 

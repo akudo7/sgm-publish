@@ -1,0 +1,8 @@
+{
+  "skill": "langgraph-docs",
+  "input": "LangGraphでSendを使用して並列実行（fan-out）を行う方法を教えてください。",
+  "evaluation": {
+    "type": "keyword",
+    "keywords": ["Send", "fan-out", "parallel"]
+  }
+}

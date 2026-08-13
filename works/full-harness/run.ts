@@ -19,7 +19,7 @@
  *   results/ に実行メタデータとログを保存する。
  */
 
-import { WorkflowEngine } from "../../dist/index.js";
+import { WorkflowEngine } from "@kudos/scene-graph-manager";
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";

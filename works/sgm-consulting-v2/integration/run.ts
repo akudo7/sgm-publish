@@ -17,7 +17,7 @@
  *     node_modules/.bin/tsx works/sgm-consulting-v2/integration/run.ts
  */
 
-import { WorkflowEngine } from "../../../dist/index.js";
+import { WorkflowEngine } from "@kudos/scene-graph-manager";
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";

@@ -76,7 +76,7 @@ async function main() {
   console.log(`  Port:   ${port}`);
   console.log(`  Name:   ${workflowConfig.name || 'Unnamed Workflow'}\n`);
 
-  const { WorkflowEngine } = await import('../dist/index.js');
+  const { WorkflowEngine } = await import('@kudos/scene-graph-manager');
   const { WebhookNotifier } = await import('../src/lib/dispatch/WebhookNotifier.js');
   const { DispatchTaskStore } = await import('../src/lib/dispatch/DispatchTaskStore.js');
   const express = (await import('express')).default;

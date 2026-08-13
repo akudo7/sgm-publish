@@ -1,0 +1,8 @@
+{
+  "skill": "langgraph-docs",
+  "input": "LangGraphでinterrupt機能を使って対話型ワークフローを作る方法を教えてください。",
+  "evaluation": {
+    "type": "keyword",
+    "keywords": ["interrupt", "human-in-the-loop", "update_state"]
+  }
+}

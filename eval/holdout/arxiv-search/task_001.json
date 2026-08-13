@@ -1,0 +1,8 @@
+{
+  "skill": "arxiv-search",
+  "input": "graph transformer networksの最近の論文を4件探してください",
+  "evaluation": {
+    "type": "count",
+    "expected": 4
+  }
+}

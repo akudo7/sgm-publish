@@ -1,0 +1,8 @@
+{
+  "skill": "langgraph-docs",
+  "input": "LangGraphの永続化（persistence）機能を使って会話履歴を保存する方法を解説して。",
+  "evaluation": {
+    "type": "keyword",
+    "keywords": ["Saver", "persistent", "thread_id"]
+  }
+}

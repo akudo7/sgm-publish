@@ -1,0 +1,8 @@
+{
+  "skill": "teams",
+  "input": "新製品ローンチの戦略案を策定してください。ターゲット層、チャネル戦略、KPIを含めて。",
+  "evaluation": {
+    "type": "completion",
+    "minWorkers": 1
+  }
+}

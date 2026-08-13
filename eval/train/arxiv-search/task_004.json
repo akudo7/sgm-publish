@@ -1,0 +1,8 @@
+{
+  "skill": "arxiv-search",
+  "input": "reinforcement learning in roboticsの論文を5件検索してください",
+  "evaluation": {
+    "type": "count",
+    "expected": 5
+  }
+}

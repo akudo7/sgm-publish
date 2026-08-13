@@ -1,0 +1,111 @@
+{
+  "config": {
+    "info": {
+      "version": "1.0.0",
+      "description": "RTK integration workflow (Qwen/LlamaCpp): useRtk フラグの検証用",
+      "copyright": "Copyright 2026",
+      "author": "Akira Kudo"
+    },
+    "bashCommandAllowedCommands": [
+      "git",
+      "yarn",
+      "npm",
+      "npx",
+      "node",
+      "tsx",
+      "docker",
+      "ls",
+      "cat",
+      "echo",
+      "pwd",
+      "mkdir",
+      "rm",
+      "mv",
+      "cp",
+      "chmod",
+      "find",
+      "head",
+      "tail",
+      "wc",
+      "grep",
+      "sed",
+      "awk",
+      "sort",
+      "uniq",
+      "tee"
+    ]
+  },
+  "models": [
+    {
+      "id": "agent",
+      "type": "LlamaCpp",
+      "config": {
+        "model": "unsloth/Qwen3.6-35B-A3B",
+        "temperature": 0.7,
+        "serverUrl": "http://localhost:8001"
+      },
+      "bindSystemSkills": true,
+      "skills": {
+        "enabled": true,
+        "skillsPath": "skills",
+        "useRtk": false,
+        "backend": {
+          "rootDir": "."
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "agent",
+      "handler": {
+        "parameters": [
+          {
+            "name": "state",
+            "parameterType": "state",
+            "stateType": "typeof RtkJsonState.State"
+          }
+        ],
+        "functionFile": "json/functions/agent_4.js"
+      }
+    },
+    {
+      "id": "tools",
+      "type": "ToolNode",
+      "useSystemSkills": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "__start__",
+      "to": "agent"
+    },
+    {
+      "from": "agent",
+      "to": "tools"
+    },
+    {
+      "from": "tools",
+      "to": "__end__"
+    }
+  ],
+  "stateGraph": {
+    "annotationRef": "RtkJsonState"
+  },
+  "stateAnnotation": {
+    "name": "RtkJsonState",
+    "type": "Annotation.Root"
+  },
+  "annotation": {
+    "messages": {
+      "type": "BaseMessage[]",
+      "reducer": "(x, y) => x.concat(y)",
+      "default": []
+    },
+    "result": {
+      "type": "string",
+      "reducer": "(x, y) => y || x",
+      "default": ""
+    }
+  }
+}

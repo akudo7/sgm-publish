@@ -19,7 +19,7 @@
 import { readFileSync, readdirSync, writeFileSync, appendFileSync, mkdirSync } from "fs";
 import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { WorkflowEngine } from "../src/index.js";
+import { WorkflowEngine } from "@kudos/scene-graph-manager";
 import { HumanMessage } from "@langchain/core/messages";
 import { runEval, type EvalSummary } from "../eval/harness.js";
 

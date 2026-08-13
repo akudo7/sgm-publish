@@ -5,6 +5,19 @@ All notable changes to SceneGraphManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.1] - 2026-08-13
+
+### Changed
+
+- **`RULES.md` split into `.claude/skills/`** — Monolithic rules file restructured into individual skill files under `.claude/skills/` (`docs-rules`, `e2e-test`, `graphify`, `package-rules`). Improves modularity and targeted skill loading.
+- **`tsconfig.json` split for `scripts/` and `works/`** — Separated build configuration to resolve path resolution issues between `scripts/` and `works/` directories consuming `dist/` output. Bare specifiers (`@kudos/scene-graph-manager`) now used for internal imports in `scripts/` and `works/`.
+- **Bare specifier imports** — `scripts/dispatch-server.ts`, `autoresearch.ts`, and related build-consumer files migrated from relative `../src/` imports to bare specifiers (`@kudos/scene-graph-manager`) for consistency with packaged output.
+
+### Added
+
+- **Graphify integration (Phase 1-3)** — Knowledge graph tool for Claude Code. Extracts AST-based dependency graph, clusters communities, and provides cross-file relationship analysis. See `plans/graphify-integration/` for details.
+- **A2A authorization plan** — New authorization workflow for A2A protocol integration.
+
 ## [2.10.0] - 2026-08-11
 
 ### Changed

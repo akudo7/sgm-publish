@@ -1,0 +1,8 @@
+{
+  "skill": "langgraph-docs",
+  "input": "StateGraphの使い方を教えてください。構築方法とコンパイル方法も含めて。",
+  "evaluation": {
+    "type": "keyword",
+    "keywords": ["StateGraph", "addNode", "compile"]
+  }
+}
