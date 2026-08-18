@@ -39,7 +39,7 @@
       "id": "evaluationModel",
       "type": "LlamaCpp",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.2,
         "serverUrl": "http://localhost:8001"
       },

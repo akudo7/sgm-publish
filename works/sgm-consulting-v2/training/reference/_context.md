@@ -209,7 +209,7 @@ Autonomous SKILL.md improvement loop:
 - `json/context-compression-autonomous-qwen.json` — Context compression
 - `json/structured-output-qwen.json` — JSON Schema structured output
 - `json/slack-chat-qwen.json` — Slack chat workflow
-- `json/hooks.json` — Hooks example
+- `json/hooks-qwen.json` — Hooks example
 - `json/interrupt-qwen.json` — Interrupt/prompt workflow
 - `json/pii.json` — PII filtering
 - `json/sourcehunt-qwen.json` — SourceHunt pipeline

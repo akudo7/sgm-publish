@@ -42,9 +42,9 @@
       "id": "adviceModel",
       "type": "LlamaCpp",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.7,
-        "maxTokens": 256,
+        "maxTokens": 4096,
         "serverUrl": "http://localhost:8001"
       },
       "systemPrompt": "You are a career counselor. Based on the user's occupation, provide appropriate advice within 100 characters. Keep it concise and practical."

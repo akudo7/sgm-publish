@@ -26,11 +26,10 @@
   "models": [
     {
       "id": "analyzer",
-      "type": "LlamaCpp",
+      "type": "OpenAI",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
-        "temperature": 0.2,
-        "serverUrl": "http://localhost:8001"
+        "model": "gpt-5.2",
+        "temperature": 0.2
       }
     }
   ],

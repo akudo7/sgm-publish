@@ -74,7 +74,7 @@
       "id": "ranker",
       "type": "LlamaCpp",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.1,
         "serverUrl": "http://localhost:8001"
       }
@@ -83,7 +83,7 @@
       "id": "hunter",
       "type": "LlamaCpp",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.3,
         "serverUrl": "http://localhost:8001"
       }
@@ -92,7 +92,7 @@
       "id": "verifier",
       "type": "LlamaCpp",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.1,
         "serverUrl": "http://localhost:8001"
       }
@@ -101,7 +101,7 @@
       "id": "analyst",
       "type": "LlamaCpp",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.5,
         "serverUrl": "http://localhost:8001"
       }
@@ -110,7 +110,7 @@
       "id": "exploiter",
       "type": "LlamaCpp",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.2,
         "serverUrl": "http://localhost:8001"
       }
@@ -119,7 +119,7 @@
       "id": "reporter",
       "type": "LlamaCpp",
       "config": {
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.2,
         "serverUrl": "http://localhost:8001"
       }

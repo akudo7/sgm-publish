@@ -9,7 +9,7 @@
   <a href="#installation">Installation</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="#documentation">Documentation</a> ·
-  <a href="https://github.com/akudo7/kudosflow/issues">Support</a>
+  <a href="https://github.com/akudo7/SceneGraphManager/issues">Support</a>
 </p>
 
 ---
@@ -70,7 +70,7 @@ See [docs/QUICK-START.md](docs/QUICK-START.md) for full installation details and
 ## Quick Start
 
 ```typescript
-import { WorkflowEngine } from 'scenegraphmanager';
+import { WorkflowEngine } from '@kudos/scene-graph-manager';
 
 const engine = new WorkflowEngine(config);
 await engine.build();

@@ -5,6 +5,10 @@ All notable changes to SceneGraphManager will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+---
+
 ## [2.10.1] - 2026-08-13
 
 ### Changed
@@ -15,8 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Graphify integration (Phase 1-3)** — Knowledge graph tool for Claude Code. Extracts AST-based dependency graph, clusters communities, and provides cross-file relationship analysis. See `plans/graphify-integration/` for details.
+- **Graphify integration (Phase 1-3)** — Knowledge graph tool for Claude Code. Extracts AST-based dependency graph, clusters communities, and provides cross-file relationship analysis. See `plans/COMPLETED/graphify-integration/` for details.
 - **A2A authorization plan** — New authorization workflow for A2A protocol integration.
+
+---
 
 ## [2.10.0] - 2026-08-11
 
@@ -31,19 +37,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`docs/API.md`** — `A2AClientConfig` referenced a type name that doesn't exist in the codebase; corrected to `A2AServerConfig`.
 - **`docs/ARCHITECTURE.md`** — A2A JS SDK version reference updated from `v0.3.4+` to `v1.0.1+`.
 
+---
+
 ## [2.9.1] - 2026-07-18
 
 ### Fixed
 
 - **Token usage double-counting in `UsageTracker`** — `_captureUsageFromMessages()` was called after `compiledGraph.invoke()` in both Command and normal `invoke()` paths, causing `UsageTracker.record()` to be called twice for the same model invocations (once via proxy in function nodes, once via post-invoke scan). Removed the redundant post-invoke scan.
 
+---
+
 ## [2.9.0] - 2026-07-18
 
 ### Added
 
 - **File edit constraint rules in SkillsManager** — New rule 6 in `getSkillsPrompt()`: prefer `edit_file` (partial replacement) over `write_file` (full rewrite), with sed/Python fallback procedures for ambiguous `old_string` matches.
-
-## [Unreleased]
 
 ---
 
@@ -84,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Type added: `LangSmithConfig` (`src/types/index.ts`), helper method: `_buildLangSmithOptions()` (`src/lib/workflow.ts`)
   - Docs: `docs/FILE_FORMAT.md` Section 10, `docs/FEATURES.md` LangSmith Integration
   - Config example: `json/langsmith-qwen.json`
-  - Plans: [plans/langsmith-tags-config/](plans/langsmith-tags-config/)
+  - Plans: [plans/COMPLETED/langsmith-tags-config/](plans/COMPLETED/langsmith-tags-config/)
 
 ---
 
@@ -174,6 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`dispatch-server-v2` — webhook content extraction** — `/slack-webhook` handler now prefers `result.answer` over `result.messages[-1].content`, preventing truncated or garbled Slack replies.
 - **`sgm-consulting-v2` — rewrite truncation and escalation loop** — Guard issues (`PATH_LEAK`, `INTERNAL_SYMBOLS`, `INTERNAL_SYMBOL`, `IMPLEMENTATION_DETAIL`, `CODE_STRUCTURE`) are now fixed deterministically without LLM, eliminating escalations caused by the rewrite model returning empty content.
 
+---
+
 ## [2.3.0] - 2026-05-30
 
 ### Added
@@ -201,7 +211,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `worker_node` incorporates domain hints and relevantSkills into the prompt, suppressing unnecessary skill usage
   - Implemented reflect_node and domain classification logic in `json/teams/leader.json` / `json/teams/leader-qwen.json`
   - Added `## Learned Patterns` section to `skills/teams/SKILL.md` (target for reflect_node append)
-  - Plans: [plans/memento-skills/PLAN.md](plans/memento-skills/PLAN.md), [phase1-reflect-node.md](plans/memento-skills/phase1-reflect-node.md), [phase2-skill-router.md](plans/memento-skills/phase2-skill-router.md)
+  - Plans: [plans/COMPLETED/memento-skills/PLAN.md](plans/COMPLETED/memento-skills/PLAN.md), [phase1-reflect-node.md](plans/COMPLETED/memento-skills/phase1-reflect-node.md), [phase2-skill-router.md](plans/COMPLETED/memento-skills/phase2-skill-router.md)
 - **Context Compression** — Reduces token consumption via automatic long-context compression:
   - `ContextCompressionManager` — Supports threshold mode and autonomous mode
   - **Threshold mode**: When both `trigger.messages` / `trigger.tokens` conditions are met, summarizes and removes messages before node execution
@@ -230,8 +240,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `WorkflowEngine Hooks` — preToolUse block / postToolUse observation / sessionStart / userPromptSubmit all branches
   - `RTK bridge` — useRtk flag and ClaudeCodeToolsFactory bridge validation
   - Added tests for existing modules (BaseModelWrapper / ModelFactoryManager / Graph / A2AToolGenerator, etc.)
-  - `Context Guard` — threshold判定とリセットロジックのユニットテスト（404 tests）
-  - `Sprint Contract` — state field reducers / conditional routing / planner→negotiate→generate→evaluate→router loop（18 tests）
+  - `Context Guard` — Unit tests for threshold evaluation and reset logic (404 tests)
+  - `Sprint Contract` — State field reducers / conditional routing / planner→negotiate→generate→evaluate→router loop (18 tests)
 - **Added E2E test scenarios**:
   - `09-hooks-workflow` — E2E validation of Hooks events
   - `10-rtk-integration` — E2E validation of RTK integration

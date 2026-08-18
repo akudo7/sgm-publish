@@ -234,6 +234,45 @@ process.env.DEBUG = 'scenegraphmanager:*';
 Logs include: graph construction steps, node execution timing, tool binding,
 MCP/A2A communication, state transitions.
 
+### `enable_thinking: false` / `thinking: false` ignored by llama.cpp
+
+**Symptom**: Setting `enable_thinking: false` and `thinking: false` in `llamacpp` model config has no effect — Qwen3.6 models continue to output `reasoning_content` (thinking blocks).
+
+**Cause**: llama.cpp v10327 regression ([PR #26398](https://github.com/ggml-org/llama.cpp/pull/26398), [Issue #26781](https://github.com/ggml-org/llama.cpp/issues/26781)). A universal capability probe added for DeepSeek templates sets `enable_thinking = true` unconditionally, and this leaks into non-DeepSeek templates (Qwen, etc.). All API request body overrides are ignored.
+
+**Measured results** (2026-08-14):
+
+| API parameter | reasoning_content length | Effect |
+|---|---|---|
+| None (baseline) | 419 chars | — |
+| `enable_thinking: false` + `thinking: false` | 419 chars | ❌ Ignored |
+| `reasoning_budget: 0` | 419 chars | ❌ Ignored |
+| `reasoning: "off"` | 404 chars | ❌ Ignored |
+| `thinking: false` | 400 chars | ❌ Ignored |
+
+**Proposed workaround (unverified)**: The llama.cpp server supports CLI flags that may control reasoning at startup:
+
+```bash
+# End thinking immediately (unverified)
+llama-server --model ... --reasoning-budget 0
+
+# Disable thinking entirely (unverified)
+llama-server --model ... --reasoning off
+```
+
+**Limitations**:
+- Requires llama-server restart (no dynamic change via API)
+- Parallel instances on separate ports are unverifiable due to GPU memory exhaustion (2x24GB, 11GB per model instance)
+- Root fix requires a llama.cpp PR merge
+- **CLI workaround is unverified** — could not test due to GPU memory constraints
+
+**Impact**:
+- SGM's `llamacpp.ts` sends both `enable_thinking` and `thinking` via `modelKwargs` (Phase 2 result)
+- However, llama.cpp ignores these parameters, so the fix has no practical effect
+- Workflows using Qwen3.6 as a reasoning model waste `max_completion_tokens` on thinking blocks
+
+---
+
 ## Validation Errors
 
 Common validation failures:

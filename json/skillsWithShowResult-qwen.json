@@ -59,8 +59,8 @@
       "type": "llamacpp",
       "config": {
         "serverUrl": "http://localhost:8001",
-        "model": "unsloth/Qwen3.6-35B-A3B",
-        "maxTokens": 512
+        "model": "unsloth/Qwen3.8-27B",
+        "maxTokens": 4096
       },
       "bindSystemSkills": true,
       "skills": {

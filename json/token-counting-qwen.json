@@ -23,7 +23,7 @@
       "type": "LlamaCpp",
       "config": {
         "serverUrl": "http://localhost:8001",
-        "model": "unsloth/Qwen3.6-35B-A3B",
+        "model": "unsloth/Qwen3.8-27B",
         "temperature": 0.7
       }
     }
